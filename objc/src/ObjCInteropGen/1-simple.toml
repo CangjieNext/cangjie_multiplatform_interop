@@ -1,0 +1,23 @@
+[output-roots.default]
+path = "/home/nwx1160890/Work/cj-interop-mirrors"
+
+[sources.all]
+paths = ["/home/nwx1160890/Work/Cangjie-manifest/cangjie_multiplatform_interop/objc/src/ObjCInteropGen/Test.h"]
+
+[sources-mixins.default]
+sources = [".*"]
+arguments-append = [
+    "-I", "/usr/include/GNUstep",
+    "-I", "/usr/lib/gcc/x86_64-linux-gnu/13/include",
+    "-fno-objc-arc"
+]
+
+[[packages]]
+filters = { include = ["NS.+"] }
+#filters = { exclude = "M" }
+#filters = { union = [{ include = "NS.+" }, { include = "GS.+" }], filter-not = "GSIVar" }
+package-name = "objc.foundation"
+
+[[packages]]
+filters = { include = "M" }
+package-name = "samples"

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16.5)
+cmake_minimum_required(VERSION 3.16.0)
 project(ObjCInteropGen)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -6,6 +6,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
+endif()
+
+if(APPLE AND NOT Clang_DIR)
+    set(Clang_DIR /opt/homebrew/opt/llvm@15/lib/cmake/clang)
 endif()
 
 find_package(Clang REQUIRED CONFIG)

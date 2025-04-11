@@ -1,0 +1,8 @@
+out/
+build/msbuild/
+build/windows-clang-debug/
+build/windows-clang-release/
+build/windows-gcc-debug/
+build/windows-gcc-release/
+build/windows-msvc-debug/
+build/windows-msvc-release/
