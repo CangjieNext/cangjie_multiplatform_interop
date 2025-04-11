@@ -8,6 +8,10 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+if(APPLE AND NOT Clang_DIR)
+    set(Clang_DIR /opt/homebrew/opt/llvm@15/lib/cmake/clang)
+endif()
+
 find_package(Clang REQUIRED CONFIG)
 if(CLANG_INSTALL_PREFIX)
     message(STATUS "Found libclang ${LLVM_PACKAGE_VERSION} in ${CLANG_INSTALL_PREFIX}")

@@ -1,0 +1,220 @@
+﻿{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 19,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/msbuild/${presetName}"
+    },
+    {
+      "name": "windows",
+      "hidden": true,
+      "inherits": "base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "Clang_DIR": "D:\\llvm.build\\lib\\cmake\\clang"
+      }
+    },
+    {
+      "name": "linux",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": {
+          "sourceDir": "$env{HOME}/Work/cj-interop/objc/src/$ms{projectDirName}"
+        }
+      }
+    },
+    {
+      "name": "darwin",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "Clang_DIR": "/opt/homebrew/opt/llvm/lib/cmake/clang"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": {
+          "sourceDir": "$env{HOME}/cj-interop/objc/src/$ms{projectDirName}"
+        }
+      }
+    },
+    {
+      "name": "msvc",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
+      }
+    },
+    {
+      "name": "gcc",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "clang",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "clangcl",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl"
+      }
+    },
+    {
+      "name": "debug",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "windows-msvc-debug",
+      "inherits": [
+        "windows",
+        "msvc",
+        "debug"
+      ],
+      "displayName": "Windows MSVC Debug"
+    },
+    {
+      "name": "windows-msvc-release",
+      "inherits": [
+        "windows",
+        "msvc",
+        "release"
+      ],
+      "displayName": "Windows MSVC Release"
+    },
+    {
+      "name": "windows-gcc-debug",
+      "inherits": [
+        "windows",
+        "gcc",
+        "debug"
+      ],
+      "displayName": "Windows GCC Debug"
+    },
+    {
+      "name": "windows-gcc-release",
+      "inherits": [
+        "windows",
+        "gcc",
+        "release"
+      ],
+      "displayName": "Windows GCC Release"
+    },
+    {
+      "name": "windows-clang-debug",
+      "inherits": [
+        "windows",
+        "clangcl",
+        "debug"
+      ],
+      "displayName": "Windows Clang Debug"
+    },
+    {
+      "name": "windows-clang-release",
+      "inherits": [
+        "windows",
+        "clangcl",
+        "release"
+      ],
+      "displayName": "Windows Clang Release"
+    },
+    {
+      "name": "linux-gcc-debug",
+      "inherits": [
+        "linux",
+        "gcc",
+        "debug"
+      ],
+      "displayName": "Linux GCC Debug"
+    },
+    {
+      "name": "linux-gcc-release",
+      "inherits": [
+        "linux",
+        "gcc",
+        "release"
+      ],
+      "displayName": "Linux GCC Release"
+    },
+    {
+      "name": "linux-clang-debug",
+      "inherits": [
+        "linux",
+        "clang",
+        "debug"
+      ],
+      "displayName": "Linux Clang Debug"
+    },
+    {
+      "name": "linux-clang-release",
+      "inherits": [
+        "linux",
+        "clang",
+        "release"
+      ],
+      "displayName": "Linux Clang Release"
+    },
+    {
+      "name": "darwin-debug",
+      "inherits": [
+        "darwin",
+        "clang",
+        "debug"
+      ],
+      "displayName": "Darwin Debug"
+    },
+    {
+      "name": "darwin-release",
+      "inherits": [
+        "darwin",
+        "clang",
+        "release"
+      ],
+      "displayName": "Darwin Release"
+    }
+  ]
+}

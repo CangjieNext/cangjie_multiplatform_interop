@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug.Clang.Ubuntu20|x64">
+      <Configuration>Debug.Clang.Ubuntu20</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug.Clang.Ubuntu22|x64">
+      <Configuration>Debug.Clang.Ubuntu22</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug.Clang.Ubuntu24|x64">
+      <Configuration>Debug.Clang.Ubuntu24</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug.Clang.Windows|x64">
+      <Configuration>Debug.Clang.Windows</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug.GCC.Ubuntu20|x64">
+      <Configuration>Debug.GCC.Ubuntu20</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug.GCC.Ubuntu22|x64">
+      <Configuration>Debug.GCC.Ubuntu22</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug.GCC.Ubuntu24|x64">
+      <Configuration>Debug.GCC.Ubuntu24</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug.MacOS|x64">
+      <Configuration>Debug.MacOS</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug.MSVC|x64">
+      <Configuration>Debug.MSVC</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release.Clang.Ubuntu20|x64">
+      <Configuration>Release.Clang.Ubuntu20</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release.Clang.Ubuntu22|x64">
+      <Configuration>Release.Clang.Ubuntu22</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release.Clang.Ubuntu24|x64">
+      <Configuration>Release.Clang.Ubuntu24</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release.Clang.Windows|x64">
+      <Configuration>Release.Clang.Windows</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release.GCC.Ubuntu20|x64">
+      <Configuration>Release.GCC.Ubuntu20</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release.GCC.Ubuntu22|x64">
+      <Configuration>Release.GCC.Ubuntu22</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release.GCC.Ubuntu24|x64">
+      <Configuration>Release.GCC.Ubuntu24</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release.MacOS|x64">
+      <Configuration>Release.MacOS</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release.MSVC|x64">
+      <Configuration>Release.MSVC</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <BuildType Condition="'$(Configuration)'=='Debug.Clang.Ubuntu20'or'$(Configuration)'=='Debug.Clang.Ubuntu22'or'$(Configuration)'=='Debug.Clang.Ubuntu24'or'$(Configuration)'=='Debug.Clang.Windows'or'$(Configuration)'=='Debug.GCC.Ubuntu20'or'$(Configuration)'=='Debug.GCC.Ubuntu22'or'$(Configuration)'=='Debug.GCC.Ubuntu24'or'$(Configuration)'=='Debug.MacOS'or'$(Configuration)'=='Debug.MSVC'">Debug</BuildType>
+    <BuildType Condition="'$(Configuration)'=='Release.Clang.Ubuntu20'or'$(Configuration)'=='Release.Clang.Ubuntu22'or'$(Configuration)'=='Release.Clang.Ubuntu24'or'$(Configuration)'=='Release.Clang.Windows'or'$(Configuration)'=='Release.GCC.Ubuntu20'or'$(Configuration)'=='Release.GCC.Ubuntu22'or'$(Configuration)'=='Release.GCC.Ubuntu24'or'$(Configuration)'=='Release.MacOS'or'$(Configuration)'=='Release.MSVC'">Release</BuildType>
+    <Compiler Condition="'$(Configuration)'=='Debug.Clang.Ubuntu20'or'$(Configuration)'=='Debug.Clang.Ubuntu22'or'$(Configuration)'=='Debug.Clang.Ubuntu24'or'$(Configuration)'=='Debug.Clang.Windows'or'$(Configuration)'=='Debug.MacOS'or'$(Configuration)'=='Release.Clang.Ubuntu20'or'$(Configuration)'=='Release.Clang.Ubuntu22'or'$(Configuration)'=='Release.Clang.Ubuntu24'or'$(Configuration)'=='Release.Clang.Windows'or'$(Configuration)'=='Release.MacOS'">Clang</Compiler>
+    <Compiler Condition="'$(Configuration)'=='Debug.GCC.Ubuntu20'or'$(Configuration)'=='Debug.GCC.Ubuntu22'or'$(Configuration)'=='Debug.GCC.Ubuntu24'or'$(Configuration)'=='Release.GCC.Ubuntu20'or'$(Configuration)'=='Release.GCC.Ubuntu22'or'$(Configuration)'=='Release.GCC.Ubuntu24'">GCC</Compiler>
+    <Compiler Condition="'$(Configuration)'=='Debug.MSVC'or'$(Configuration)'=='Release.MSVC'">MSVC</Compiler>
+    <Machine Condition="'$(Configuration)'=='Debug.MacOS'or'$(Configuration)'=='Release.MacOS'">MacBook</Machine>
+    <Machine Condition="'$(Configuration)'=='Debug.Clang.Ubuntu20'or'$(Configuration)'=='Debug.GCC.Ubuntu20'or'$(Configuration)'=='Release.Clang.Ubuntu20'or'$(Configuration)'=='Release.GCC.Ubuntu20'">Ubuntu20</Machine>
+    <Machine Condition="'$(Configuration)'=='Debug.Clang.Ubuntu22'or'$(Configuration)'=='Debug.GCC.Ubuntu22'or'$(Configuration)'=='Release.Clang.Ubuntu22'or'$(Configuration)'=='Release.GCC.Ubuntu22'">Ubuntu22</Machine>
+    <Machine Condition="'$(Configuration)'=='Debug.Clang.Ubuntu24'or'$(Configuration)'=='Debug.GCC.Ubuntu24'or'$(Configuration)'=='Release.Clang.Ubuntu24'or'$(Configuration)'=='Release.GCC.Ubuntu24'">Ubuntu24</Machine>
+    <Machine Condition="'$(Configuration)'=='Debug.Clang.Windows'or'$(Configuration)'=='Debug.MSVC'or'$(Configuration)'=='Release.Clang.Windows'or'$(Configuration)'=='Release.MSVC'">Windows</Machine>
+    <OS Condition="'$(Machine)'=='Mac'or'$(Machine)'=='Ubuntu20'or'$(Machine)'=='Ubuntu22'or'$(Machine)'=='Ubuntu24'">Linux</OS>
+    <OS Condition="'$(Machine)'=='MacBook'">MacOS</OS>
+    <OS Condition="'$(Machine)'=='Windows'">Windows</OS>
+    <WSLMachine>false</WSLMachine>
+    <WSLMachine Condition="'$(Machine)'=='Ubuntu20'or'$(Machine)'=='Ubuntu22'">true</WSLMachine>
+  </PropertyGroup>
+  <PropertyGroup Label="Globals" Condition="'$(OS)'=='Linux'or'$(OS)'=='MacOS'">
+    <ApplicationType>Linux</ApplicationType>
+    <ApplicationTypeRevision>1.0</ApplicationTypeRevision>
+    <Keyword>Linux</Keyword>
+    <LinuxProjectType>{D51BCBC9-82E9-4017-911E-C93873C4EA2B}</LinuxProjectType>
+    <MinimumVisualStudioVersion>15.0</MinimumVisualStudioVersion>
+    <TargetLinuxPlatform>Generic</TargetLinuxPlatform>
+  </PropertyGroup>
+  <PropertyGroup Label="Globals" Condition="'$(OS)'=='Windows'">
+    <Keyword>Win32Proj</Keyword>
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{6859F972-52E6-788C-C0AE-1EED533DE589}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <PlatformToolset Condition="('$(OS)'=='MacOS'or'$(OS)'=='Linux')and'$(Compiler)'=='Clang'">Remote_Clang_1_0</PlatformToolset>
+    <PlatformToolset Condition="'$(Compiler)'=='GCC'">Remote_GCC_1_0</PlatformToolset>
+    <PlatformToolset Condition="$(WSLMachine)and'$(Compiler)'=='Clang'">WSL2_Clang_1_0</PlatformToolset>
+    <PlatformToolset Condition="$(WSLMachine)and'$(Compiler)'=='GCC'">WSL2_1_0</PlatformToolset>
+    <PlatformToolset Condition="'$(OS)'=='Windows'and'$(Compiler)'=='Clang'">ClangCL</PlatformToolset>
+    <PlatformToolset Condition="'$(Compiler)'=='MSVC'">v145</PlatformToolset>
+    <RemoteProjectRelDir>Cangjie-manifest/cangjie_multiplatform_interop/objc/src/ObjCInteropGen</RemoteProjectRelDir>
+    <RemoteRootDir Condition="'$(OS)'=='Linux'">~/Work</RemoteRootDir>
+    <RemoteRootDir Condition="'$(OS)'=='MacOS'">~</RemoteRootDir>
+    <UseDebugLibraries Condition="'$(BuildType)'=='Debug'">true</UseDebugLibraries>
+    <WholeProgramOptimization Condition="'$(BuildType)'=='Release'">true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <LLVMVersion Condition="'$(Machine)'=='Ubuntu20'">10</LLVMVersion>
+    <LLVMVersion Condition="'$(Machine)'=='Ubuntu22'">14</LLVMVersion>
+    <LLVMVersion Condition="'$(Machine)'=='Ubuntu24'">18</LLVMVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DynLibExtension Condition="'$(OS)'=='Linux'">.so</DynLibExtension>
+    <DynLibExtension Condition="'$(OS)'=='MacOS'">.dylib</DynLibExtension>
+    <IntDir>$(ProjectDir)\build\msbuild\$(Configuration)\obj\</IntDir>
+    <LLVMBuildDir Condition="'$(OS)'=='Windows'">D:\llvm.build</LLVMBuildDir>
+    <LLVMDir Condition="'$(OS)'=='Linux'">/usr/lib/llvm-$(LLVMVersion)</LLVMDir>
+    <LLVMDir Condition="'$(OS)'=='MacOS'">/opt/homebrew/opt/llvm@15</LLVMDir>
+    <LLVMLibDir Condition="'$(OS)'=='Linux'or'$(OS)'=='MacOS'">$(LLVMDir)/lib</LLVMLibDir>
+    <LLVMSourceDir Condition="'$(OS)'=='Windows'">D:\llvm-project</LLVMSourceDir>
+    <MultiProcNumber Condition="'$(OS)'=='Linux'or'$(OS)'=='MacOS'">4</MultiProcNumber>
+    <OutDir>$(ProjectDir)\build\msbuild\$(Configuration)\bin\</OutDir>
+    <RemoteIntRelDir Condition="'$(OS)'=='Linux'or'$(OS)'=='MacOS'">$(RemoteProjectRelDir)/build/msbuild/$(Configuration)/obj</RemoteIntRelDir>
+    <RemoteOutRelDir Condition="'$(OS)'=='Linux'or'$(OS)'=='MacOS'">$(RemoteProjectRelDir)/build/msbuild/$(Configuration)/bin</RemoteOutRelDir>
+    <TargetExt Condition="'$(OS)'=='MacOS'">.</TargetExt>
+    <TargetName>ObjCInteropGen</TargetName>
+    <ValidateArchitecture Condition="'$(OS)'=='MacOS'">false</ValidateArchitecture>
+    <WSLPath Condition="'$(Machine)'=='Ubuntu20'">Ubuntu-20.04</WSLPath>
+    <WSLPath Condition="'$(Machine)'=='Ubuntu22'">Ubuntu-22.04</WSLPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <CAdditionalWarning />
+    <ClCompile Condition="'$(OS)'=='Linux'or'$(OS)'=='MacOS'">
+      <AdditionalOptions>-isystem $(LLVMDir)/include %(AdditionalOptions)</AdditionalOptions>
+      <CppLanguageStandard>c++17</CppLanguageStandard>
+    </ClCompile>
+    <ClCompile Condition="'$(OS)'=='Windows'">
+      <AdditionalIncludeDirectories>$(LLVMSourceDir)\clang\include;$(LLVMBuildDir)\tools\clang\include;$(LLVMBuildDir)\include;$(LLVMSourceDir)\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <TreatSpecificWarningsAsError>5038;%(TreatSpecificWarningsAsError)</TreatSpecificWarningsAsError>
+    </ClCompile>
+    <ClCompile>
+      <AdditionalIncludeDirectories>../../third_party/tomlplusplus;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(BuildType)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <CppAdditionalWarning />
+    <Link Condition="'$(OS)'=='Linux'or'$(OS)'=='MacOS'">
+      <AdditionalDependencies>$(LLVMLibDir)/libclang$(DynLibExtension);$(LLVMLibDir)/libclangAST.a;$(LLVMLibDir)/libclangLex.a;$(LLVMLibDir)/libclangBasic.a;$(LLVMLibDir)/libLLVM$(DynLibExtension);%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <Link Condition="'$(OS)'=='MacOS'">
+      <FunctionBinding>false</FunctionBinding>
+      <NoExecStackRequired>false</NoExecStackRequired>
+      <Relocation />
+      <UnresolvedSymbolReferences>false</UnresolvedSymbolReferences>
+    </Link>
+    <Link Condition="'$(OS)'=='Windows'">
+      <AdditionalDependencies>clangAST.lib;clangBasic.lib;clangLex.lib;libclang.lib;LLVMAnalysis.lib;LLVMBinaryFormat.lib;LLVMBitReader.lib;LLVMBitstreamReader.lib;LLVMCore.lib;LLVMDemangle.lib;LLVMFrontendAtomic.lib;LLVMFrontendDirective.lib;LLVMFrontendHLSL.lib;LLVMFrontendOffloading.lib;LLVMFrontendOpenMP.lib;LLVMMC.lib;LLVMObject.lib;LLVMObjectYAML.lib;LLVMProfileData.lib;LLVMRemarks.lib;LLVMScalarOpts.lib;LLVMSupport.lib;LLVMTargetParser.lib;LLVMTransformUtils.lib;ntdll.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(LLVMBuildDir)\$(BuildType)\lib</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="CangjieWriter.cpp" />
+    <ClCompile Include="Config.cpp" />
+    <ClCompile Include="Diagnostics.cpp" />
+    <ClCompile Include="InputFile.cpp" />
+    <ClCompile Include="Logging.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Mappings.cpp" />
+    <ClCompile Include="MappingsConfig.cpp" />
+    <ClCompile Include="MarkPackage.cpp" />
+    <ClCompile Include="Package.cpp" />
+    <ClCompile Include="PackageFilters.cpp" />
+    <ClCompile Include="PackageOutputs.cpp" />
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader Condition="'$(OS)'=='Windows'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="SingleDeclarationSymbolVisitor.cpp" />
+    <ClCompile Include="SourceScanner.cpp" />
+    <ClCompile Include="SourceScannerConfig.cpp" />
+    <ClCompile Include="Symbol.cpp" />
+    <ClCompile Include="Transform.cpp" />
+    <ClCompile Include="Universe.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CangjieWriter.h" />
+    <ClInclude Include="ClangSession.h" />
+    <ClInclude Include="Config.h" />
+    <ClInclude Include="Diagnostics.h" />
+    <ClInclude Include="InputFile.h" />
+    <ClInclude Include="Logging.h" />
+    <ClInclude Include="Mappings.h" />
+    <ClInclude Include="MarkPackage.h" />
+    <ClInclude Include="Package.h" />
+    <ClInclude Include="PackageConfig.h" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="SingleDeclarationSymbolVisitor.h" />
+    <ClInclude Include="SourceScanner.h" />
+    <ClInclude Include="SourceScannerConfig.h" />
+    <ClInclude Include="Strings.h" />
+    <ClInclude Include="Symbol.h" />
+    <ClInclude Include="Test.h" />
+    <ClInclude Include="Transform.h" />
+    <ClInclude Include="Universe.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="1-simple.MacOS.toml" />
+    <None Include="1-simple.toml" />
+    <None Include="1-simple.Windows.toml" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

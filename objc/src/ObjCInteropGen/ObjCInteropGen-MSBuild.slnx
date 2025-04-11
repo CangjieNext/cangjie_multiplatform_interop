@@ -1,0 +1,24 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug.Clang.Ubuntu20" />
+    <BuildType Name="Debug.Clang.Ubuntu22" />
+    <BuildType Name="Debug.Clang.Ubuntu24" />
+    <BuildType Name="Debug.Clang.Windows" />
+    <BuildType Name="Debug.GCC.Ubuntu20" />
+    <BuildType Name="Debug.GCC.Ubuntu22" />
+    <BuildType Name="Debug.GCC.Ubuntu24" />
+    <BuildType Name="Debug.MacOS" />
+    <BuildType Name="Debug.MSVC" />
+    <BuildType Name="Release.Clang.Ubuntu20" />
+    <BuildType Name="Release.Clang.Ubuntu22" />
+    <BuildType Name="Release.Clang.Ubuntu24" />
+    <BuildType Name="Release.Clang.Windows" />
+    <BuildType Name="Release.GCC.Ubuntu20" />
+    <BuildType Name="Release.GCC.Ubuntu22" />
+    <BuildType Name="Release.GCC.Ubuntu24" />
+    <BuildType Name="Release.MacOS" />
+    <BuildType Name="Release.MSVC" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="ObjCInteropGen-MSBuild.vcxproj" />
+</Solution>
