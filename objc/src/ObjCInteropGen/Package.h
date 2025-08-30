@@ -355,7 +355,11 @@ public:
     }
 };
 
+#ifdef OBJCGEN_NO_WARNINGS
+extern Packages g_packages;
+#else
 extern Packages packages;
+#endif
 
 void create_packages();
 

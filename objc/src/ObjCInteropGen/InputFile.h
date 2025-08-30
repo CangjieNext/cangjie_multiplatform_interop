@@ -14,6 +14,16 @@
 #include <unordered_set>
 #include <vector>
 
+#ifdef OBJCGEN_NO_WARNINGS
+#// [[nodiscard]] is ignored in C++17 when being applied to constructors.  Older
+#// GCC issues warnings on that.
+#if __has_cpp_attribute(nodiscard) > 201603L
+#define OBJCGEN_NODISCARD_CONSTRUCTOR [[nodiscard]]
+#else
+#define OBJCGEN_NODISCARD_CONSTRUCTOR
+#endif
+#endif
+
 namespace objcgen {
 
 class FileLevelSymbol;
@@ -69,7 +79,11 @@ class InputFile final {
     void add_symbol(FileLevelSymbol* symbol);
 
 public:
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR InputFile(InputDirectory* directory, std::filesystem::path path);
+#else
     [[nodiscard]] InputFile(InputDirectory* directory, std::filesystem::path path);
+#endif
 
     [[nodiscard]] InputDirectory* directory() const
     {
@@ -113,7 +127,11 @@ class InputDirectory final {
     friend class InputFile;
 
 public:
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR explicit InputDirectory(std::filesystem::path path) : path_(std::move(path))
+#else
     [[nodiscard]] explicit InputDirectory(std::filesystem::path path) : path_(std::move(path))
+#endif
     {
     }
 

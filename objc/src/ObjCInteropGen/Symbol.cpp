@@ -312,7 +312,11 @@ NonTypeSymbol& TypeDeclarationSymbol::add_field(std::string name, TypeLikeSymbol
     assert(all_of_members([&name](const auto& member) { return !member.is_field() || member.name() != name; }));
 
     auto& member = members_.emplace_back(NonTypeSymbol::Private(), std::move(name), NonTypeSymbol::Kind::Field, type,
+#ifdef OBJCGEN_NO_WARNINGS
+        is_nullable ? ModifierNullable : static_cast<uint16_t>(0));
+#else
         is_nullable ? ModifierNullable : 0);
+#endif
     if (is_ctype_ && !member.return_type()->is_ctype()) {
         is_ctype_ = false;
     }

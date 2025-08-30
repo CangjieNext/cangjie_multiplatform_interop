@@ -32,11 +32,13 @@ static PackageFile* input_to_output(Package* package, const FileLevelSymbol* sym
     return input_to_output(package, input_file);
 }
 
+#if !defined OBJCGEN_NO_WARNINGS || !defined NDEBUG
 static bool check_symbol(FileLevelSymbol* symbol)
 {
     assert(symbol);
     return !dynamic_cast<PrimitiveTypeSymbol*>(symbol) && symbol->is_file_level();
 }
+#endif
 
 static bool set_package(FileLevelSymbol& symbol)
 {
@@ -46,7 +48,11 @@ static bool set_package(FileLevelSymbol& symbol)
 
     bool package_found = false;
 
+#ifdef OBJCGEN_NO_WARNINGS
+    for (auto&& package : g_packages) {
+#else
     for (auto&& package : packages) {
+#endif
         if (!package.filters()->apply(name)) {
             continue;
         }
@@ -98,7 +104,11 @@ static bool mark_roots()
 class SymbolReferenceCollector final : public SingleDeclarationSymbolVisitor {
 
 public:
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR explicit SymbolReferenceCollector(FileLevelSymbol& symbol)
+#else
     [[nodiscard]] explicit SymbolReferenceCollector(FileLevelSymbol& symbol)
+#endif
         : SingleDeclarationSymbolVisitor(true), symbol_(symbol)
     {
     }

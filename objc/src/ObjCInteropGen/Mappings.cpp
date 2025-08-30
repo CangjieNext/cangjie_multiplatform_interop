@@ -12,7 +12,11 @@
 
 namespace objcgen {
 
+#ifdef OBJCGEN_NO_WARNINGS
+std::vector<TypeMapping*> g_mappings;
+#else
 std::vector<TypeMapping*> mappings;
+#endif
 
 TypeLikeSymbol* NonGenericMapping::map([[maybe_unused]] NamedTypeSymbol* type)
 {
@@ -34,7 +38,11 @@ void initialize_mappings()
 NonGenericMapping& add_non_generic_mapping(const std::string_view to)
 {
     auto* mapping = new NonGenericMapping(to);
+#ifdef OBJCGEN_NO_WARNINGS
+    g_mappings.push_back(mapping);
+#else
     mappings.push_back(mapping);
+#endif
     return *mapping;
 }
 

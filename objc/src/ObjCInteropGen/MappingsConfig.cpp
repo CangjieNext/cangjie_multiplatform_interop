@@ -34,7 +34,11 @@ static void read_table_mappings(const toml::table& mapping, std::size_t i)
 
 void read_toml_mappings()
 {
+#ifdef OBJCGEN_NO_WARNINGS
+    if (auto* mappings_any = g_config.get("mappings")) {
+#else
     if (auto* mappings_any = config.get("mappings")) {
+#endif
         if (auto* mappings = mappings_any->as_array()) {
             std::size_t i = 0;
             for (auto&& mapping_any : *mappings) {

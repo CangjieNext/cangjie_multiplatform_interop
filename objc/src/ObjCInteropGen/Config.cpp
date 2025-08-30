@@ -15,7 +15,11 @@
 
 namespace objcgen {
 
+#ifdef OBJCGEN_NO_WARNINGS
+toml::table g_config;
+#else
 toml::table config;
+#endif
 
 static void append_to_left(toml::array& lhs, const toml::array& rhs)
 {
@@ -111,7 +115,11 @@ static toml::table parse_toml_file(const std::string_view path, std::unordered_s
 
 void parse_toml_config_file(const std::string_view path)
 {
+#ifdef OBJCGEN_NO_WARNINGS
+    g_config = parse_toml_file(path, {});
+#else
     config = parse_toml_file(path, {});
+#endif
 }
 
 } // namespace objcgen

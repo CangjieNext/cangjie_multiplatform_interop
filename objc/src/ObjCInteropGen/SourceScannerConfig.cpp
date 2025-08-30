@@ -167,9 +167,17 @@ static void parse_sources(const toml::table& options, const std::string& source_
 
 void parse_sources()
 {
+#ifdef OBJCGEN_NO_WARNINGS
+    const auto* mixins_any = g_config.get("sources-mixins");
+#else
     const auto* mixins_any = config.get("sources-mixins");
+#endif
 
+#ifdef OBJCGEN_NO_WARNINGS
+    if (auto* sources = g_config.get_as<toml::table>("sources")) {
+#else
     if (auto* sources = config.get_as<toml::table>("sources")) {
+#endif
         auto session = ClangSession::create();
 
         for (auto&& [source_name, source_any] : *sources) {

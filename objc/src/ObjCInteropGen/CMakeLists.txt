@@ -8,6 +8,8 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+add_compile_definitions(OBJCGEN_NO_WARNINGS)
+
 if(APPLE AND NOT Clang_DIR)
     set(Clang_DIR /opt/homebrew/opt/llvm@15/lib/cmake/clang)
 endif()

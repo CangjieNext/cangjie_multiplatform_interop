@@ -13,7 +13,11 @@
 
 namespace objcgen {
 
+#ifdef OBJCGEN_NO_WARNINGS
+Packages g_packages;
+#else
 Packages packages;
+#endif
 
 std::string_view PackageFilter::package_name() const
 {
@@ -65,14 +69,22 @@ static Package* create_package(std::size_t package_index, const toml::table& con
 
     assert(filters);
 
+#ifdef OBJCGEN_NO_WARNINGS
+    if (g_packages.by_cangjie_name(package_cangjie_name)) {
+#else
     if (packages.by_cangjie_name(package_cangjie_name)) {
-        fatal("There are multiple `packages` entries with the same `package-name` value `", package_cangjie_name, "`");
+#endif
+      fatal("There are multiple `packages` entries with the same `package-name` value `", package_cangjie_name, "`");
     }
 
     auto* package = new Package(package_cangjie_name, output_path);
     package->set_filters(create_filter(package, *filters));
 
+#ifdef OBJCGEN_NO_WARNINGS
+    g_packages.insert(package);
+#else
     packages.insert(package);
+#endif
     return package;
 }
 
@@ -83,7 +95,11 @@ PackagesIterator::reference PackagesIterator::get() const
 
 void create_packages()
 {
+#ifdef OBJCGEN_NO_WARNINGS
+    if (auto* packages = g_config.get_as<toml::array>("packages")) {
+#else
     if (auto* packages = config.get_as<toml::array>("packages")) {
+#endif
         std::size_t i = 0;
         for (auto&& package_any : *packages) {
             if (const auto* package = package_any.as_table()) {

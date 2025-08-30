@@ -17,7 +17,11 @@ namespace objcgen {
 
 static std::string compute_output_root(const std::string_view package_name)
 {
+#ifdef OBJCGEN_NO_WARNINGS
+    if (auto* output_roots_any = g_config.get("output-roots")) {
+#else
     if (auto* output_roots_any = config.get("output-roots")) {
+#endif
         if (const auto* output_roots_table = output_roots_any->as_table()) {
             if (output_roots_table->empty()) {
                 fatal("`packages` entry ", package_name,
@@ -78,7 +82,11 @@ static std::string compute_output_path_by_root_path(const std::string_view packa
 static std::string compute_output_path_by_root_name(const std::string_view package_name,
     const std::string_view output_root_name, const std::string_view package_cangjie_name)
 {
+#ifdef OBJCGEN_NO_WARNINGS
+    if (auto* output_roots_any = g_config.get("output-roots")) {
+#else
     if (auto* output_roots_any = config.get("output-roots")) {
+#endif
         if (auto* output_roots_table = output_roots_any->as_table()) {
             for (auto&& [output_root_key, output_root_any] : *output_roots_table) {
                 if (output_root_key != output_root_name) {

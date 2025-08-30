@@ -158,6 +158,9 @@
     <ClCompile>
       <AdditionalIncludeDirectories>../../third_party/tomlplusplus;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(BuildType)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>OBJCGEN_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
     <Link Condition="'$(OS)'=='Linux'or'$(OS)'=='MacOS'">
       <AdditionalDependencies>$(LLVMLibDir)/libclang$(DynLibExtension);$(LLVMLibDir)/libclangAST.a;$(LLVMLibDir)/libclangLex.a;$(LLVMLibDir)/libclangBasic.a;$(LLVMLibDir)/libLLVM$(DynLibExtension);%(AdditionalDependencies)</AdditionalDependencies>

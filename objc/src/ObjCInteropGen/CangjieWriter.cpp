@@ -124,10 +124,19 @@ static std::string_view current_package_name;
 static std::set<std::string> imports;
 
 class PackageFileScope final {
+#if !defined OBJCGEN_NO_WARNINGS || !defined NDEBUG
     const std::string_view package_name_;
+#endif
 
 public:
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR explicit PackageFileScope(std::string_view package_name) noexcept
+#ifndef NDEBUG
+        : package_name_(package_name)
+#endif
+#else
     [[nodiscard]] explicit PackageFileScope(std::string_view package_name) noexcept : package_name_(package_name)
+#endif
     {
         assert(current_package_name.empty());
         assert(!package_name.empty());
@@ -166,7 +175,11 @@ static std::string symbol_to_import_name(const FileLevelSymbol& symbol)
 
 class ImportCollectVisitor final : public SingleDeclarationSymbolVisitor {
 public:
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR explicit ImportCollectVisitor() : SingleDeclarationSymbolVisitor(false)
+#else
     [[nodiscard]] explicit ImportCollectVisitor() : SingleDeclarationSymbolVisitor(false)
+#endif
     {
     }
 
@@ -1115,7 +1128,11 @@ void TypeDeclarationWriter::write()
         collect_import(*base);
         for (std::size_t i = 1; i < base_count; ++i) {
             output_ << " & ";
+#ifdef OBJCGEN_NO_WARNINGS
+            base = type_.base(i);
+#else
             auto* base = type_.base(i);
+#endif
             assert(base);
             output_ << emit_cangjie(*base);
             collect_import(*base);
@@ -1178,7 +1195,11 @@ static void write_enum_declaration(IndentingStringStream& output, const EnumDecl
 void write_cangjie()
 {
     std::uint64_t generated_files = 0;
+#ifdef OBJCGEN_NO_WARNINGS
+    for (auto&& package : g_packages) {
+#else
     for (auto&& package : packages) {
+#endif
         for (auto&& package_file : package) {
             assert(package_file.package() == &package);
 
@@ -1234,7 +1255,11 @@ void write_cangjie()
     if (generated_files == 0) {
         std::cerr << "No output files are generated" << std::endl;
     } else {
+#ifdef OBJCGEN_NO_WARNINGS
+        std::cout << "Generated " << generated_files << " files for " << g_packages.size() << " packages" << std::endl;
+#else
         std::cout << "Generated " << generated_files << " files for " << packages.size() << " packages" << std::endl;
+#endif
     }
 
     if (verbosity >= LogLevel::INFO) {
@@ -1256,7 +1281,11 @@ void write_cangjie()
                 }
             }
         }
+#ifdef OBJCGEN_NO_WARNINGS
+        for (auto&& package : g_packages) {
+#else
         for (auto&& package : packages) {
+#endif
             auto& depends_on = package.depends_on();
             std::cout << "Package `" << package.cangjie_name() << "` depends on " << depends_on.size();
             if (depends_on.size() == 1) {

@@ -281,7 +281,11 @@ static void do_rename()
 static void set_type_mappings()
 {
     for (auto&& type : Universe::get().all_declarations()) {
+#ifdef OBJCGEN_NO_WARNINGS
+        for (auto mapping_ptr : g_mappings) {
+#else
         for (auto mapping_ptr : mappings) {
+#endif
             auto& mapping = *mapping_ptr;
             if (mapping.can_map(&type)) {
                 type.set_mapping(&mapping);

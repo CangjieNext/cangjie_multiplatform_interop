@@ -50,7 +50,11 @@ public:
     TypeLikeSymbol* map(NamedTypeSymbol* type) override;
 };
 
+#ifdef OBJCGEN_NO_WARNINGS
+extern std::vector<TypeMapping*> g_mappings;
+#else
 extern std::vector<TypeMapping*> mappings;
+#endif
 
 void initialize_mappings();
 

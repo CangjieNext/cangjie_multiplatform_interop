@@ -12,10 +12,27 @@
 #include <iostream>
 #include <optional>
 
+#if defined OBJCGEN_NO_WARNINGS && defined _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4100) // unreferenced parameter
+#pragma warning(disable : 4146) // unary minus operator applied to unsigned type, result still unsigned
+#pragma warning(disable : 4244) // conversion from 'clang::DiagnosticsEngine::ArgumentKind' to 'unsigned char', possible
+                                // loss of data
+#pragma warning(disable : 4245) // conversion from 'int' to 'size_t', signed/unsigned mismatch
+#pragma warning(disable : 4267) // conversion from 'size_t' to 'const int', possible loss of data
+#pragma warning(disable : 4291) // no matching operator delete found
+#pragma warning(disable : 4324) // structure was padded due to alignment specifier
+#pragma warning(disable : 4389) // signed/unsigned mismatch
+#pragma warning(disable : 4458) // declaration of 'EC' hides class member
+#pragma warning(disable : 4805) // unsafe mix of type 'unsigned int' and type 'bool' in operation
+#endif
 #include <clang-c/Index.h>
 #include <clang/AST/DeclBase.h>
 #include <clang/AST/DeclObjC.h>
 #include <clang/Basic/Version.h>
+#if defined OBJCGEN_NO_WARNINGS && defined _MSC_VER
+#pragma warning(pop)
+#endif
 
 #include "FatalException.h"
 #include "InputFile.h"
@@ -163,7 +180,13 @@ class SourceScanner final : public ClangVisitor {
     Symbol* push_current(NamedTypeSymbol* symbol, const bool is_objc)
     {
         assert(symbol);
+#ifdef OBJCGEN_NO_WARNINGS
+        assert(is_objc ==
+            (symbol->is(NamedTypeSymbol::Kind::Interface) || symbol->is(NamedTypeSymbol::Kind::Protocol) ||
+                symbol->is(NamedTypeSymbol::Kind::Category)));
+#else
         assert(is_objc == (symbol->is(Kind::Interface) || symbol->is(Kind::Protocol) || symbol->is(Kind::Category)));
+#endif
 
         current_.push_back(symbol);
 
@@ -302,6 +325,7 @@ ClangSessionImpl::~ClangSessionImpl()
     return type.kind != CXType_Invalid;
 }
 
+#if !defined OBJCGEN_NO_WARNINGS || !defined NDEBUG
 [[nodiscard]] static bool is_builtin(CXType type)
 {
     assert(is_valid(type));
@@ -318,6 +342,7 @@ ClangSessionImpl::~ClangSessionImpl()
     }
     return false;
 }
+#endif
 
 [[nodiscard]] static bool is_anonymous(CXCursor cursor)
 {
@@ -325,6 +350,7 @@ ClangSessionImpl::~ClangSessionImpl()
     return !!clang_Cursor_isAnonymous(cursor) || !!clang_Cursor_isAnonymousRecordDecl(cursor);
 }
 
+#if !defined OBJCGEN_NO_WARNINGS || !defined NDEBUG
 [[nodiscard]] static bool is_canonical(CXCursor cursor)
 {
     assert(is_valid(cursor));
@@ -350,6 +376,7 @@ ClangSessionImpl::~ClangSessionImpl()
     assert(is_valid(declaration));
     return cursor == declaration;
 }
+#endif
 
 [[nodiscard]] static bool is_null_location(const CXSourceLocation& loc)
 {
@@ -1261,8 +1288,13 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
                 assert(current_top_is_type());
                 assert(level() == 1);
                 auto* type_decl = current_type_declaration();
+#ifdef OBJCGEN_NO_WARNINGS
+                assert((is_interface && type_decl->kind() == Kind::Interface) ||
+                    (is_protocol && type_decl->kind() == Kind::Protocol));
+#else
                 [[maybe_unused]] const auto kind = type_decl->kind();
                 assert((is_interface && kind == Kind::Interface) || (is_protocol && kind == Kind::Protocol));
+#endif
                 const auto referenced = clang_getCursorReferenced(cursor);
                 assert(is_valid(referenced));
                 const auto referenced_type = as_string(clang_getCursorSpelling(referenced));

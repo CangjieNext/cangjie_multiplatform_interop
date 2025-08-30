@@ -107,7 +107,11 @@ inline KeywordEscaper escape_keyword(std::string_view name)
 template <typename Symbol, typename T> struct SymbolChildren {
     Symbol* self_ = nullptr;
 
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR explicit SymbolChildren(Symbol* self) : self_(self)
+#else
     [[nodiscard]] explicit SymbolChildren(Symbol* self) : self_(self)
+#endif
     {
         assert(self);
     }
@@ -198,7 +202,11 @@ public:
     virtual void print(std::ostream& stream, SymbolPrintFormat format) const;
 
 protected:
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR explicit Symbol(std::string name) noexcept;
+#else
     [[nodiscard]] explicit Symbol(std::string name) noexcept;
+#endif
 
     virtual ~Symbol() = default;
 };
@@ -698,7 +706,12 @@ enum class PrimitiveSize : uint8_t { Zero = 0, One = 1, Two = 2, Four = 4, Eight
 
 class PrimitiveTypeSymbol final : public NamedTypeSymbol {
 public:
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR PrimitiveTypeSymbol(
+        std::string name, PrimitiveTypeCategory category, PrimitiveSize size)
+#else
     [[nodiscard]] PrimitiveTypeSymbol(std::string name, PrimitiveTypeCategory category, PrimitiveSize size)
+#endif
         : NamedTypeSymbol(NamedTypeSymbol::Kind::Primitive, std::move(name)), category_(category), size_(size)
     {
     }
@@ -767,7 +780,11 @@ private:
  */
 class UnexposedTypeSymbol final : public NamedTypeSymbol {
 public:
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR UnexposedTypeSymbol(std::string name, const TypeLikeSymbol& type)
+#else
     [[nodiscard]] UnexposedTypeSymbol(std::string name, const TypeLikeSymbol& type)
+#endif
         : NamedTypeSymbol(NamedTypeSymbol::Kind::Unexposed, std::move(name)), type_(type)
     {
     }
@@ -887,7 +904,11 @@ public:
         }
     };
 
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR TypeDeclarationSymbol(Kind kind, std::string name);
+#else
     [[nodiscard]] TypeDeclarationSymbol(Kind kind, std::string name);
+#endif
 
     [[nodiscard]] bool is_ctype() const noexcept override
     {
@@ -1283,13 +1304,22 @@ public:
         }
     };
 
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR NonTypeSymbol(
+#else
     [[nodiscard]] NonTypeSymbol(
+#endif
         Private, std::string name, const Kind kind, TypeLikeSymbol* return_type, uint16_t modifiers = 0)
         : FileLevelSymbol(std::move(name)), kind_(kind), modifiers_(modifiers), return_type_(return_type)
     {
     }
 
+#ifdef OBJCGEN_NO_WARNINGS
+    OBJCGEN_NODISCARD_CONSTRUCTOR NonTypeSymbol(
+        Private, std::string name, std::string getter, std::string setter, uint16_t modifiers)
+#else
     [[nodiscard]] NonTypeSymbol(Private, std::string name, std::string getter, std::string setter, uint16_t modifiers)
+#endif
         : FileLevelSymbol(std::move(name)),
           kind_(Kind::Property),
           modifiers_(modifiers),
