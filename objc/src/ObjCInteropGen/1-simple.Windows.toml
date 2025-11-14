@@ -8,7 +8,7 @@ paths = ["D:/Cangjie-manifest/cangjie_multiplatform_interop/objc/src/ObjCInterop
 sources = [".*"]
 arguments-append = [
     "-I", "D:/GNUstep/x64/Debug/include",
-    "-fno-objc-arc",
+    "-fobjc-runtime=gnustep-2.0",
     "-fblocks"
 ]
 
