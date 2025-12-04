@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export DYLD_LIBRARY_PATH=/opt/homebrew/opt/openssl/lib:$DYLD_LIBRARY_PATH
-XCODE_DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+XCODE_DEVELOPER_DIR=/Applications/Xcode-15.4.0.app/Contents/Developer
 XCODE_TOOLCHAIN_BIN_DIR=$XCODE_DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/bin
 XCODE_PLATFORMS_DIR=$XCODE_DEVELOPER_DIR/Platforms
 INSTALL_DIR=install
