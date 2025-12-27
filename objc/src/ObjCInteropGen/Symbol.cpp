@@ -12,6 +12,8 @@
 #include "Mappings.h"
 #include "Mode.h"
 #include "Package.h"
+#include "PrintUtils.h"
+#include "SymbolVisitor.h"
 #include "Universe.h"
 
 namespace objcgen {
@@ -56,363 +58,15 @@ Symbol::Symbol(std::string name) noexcept : name_(std::move(name))
 {
 }
 
-void Symbol::print(std::ostream& stream, [[maybe_unused]] SymbolPrintFormat format)
+void Symbol::rename(std::string_view new_name)
+{
+    assert(!new_name.empty());
+    name_ = new_name;
+}
+
+void Symbol::print(std::ostream& stream, [[maybe_unused]] PrintFormat format) const
 {
     stream << escape_keyword(name_);
-}
-
-std::ostream& operator<<(std::ostream& stream, const SymbolPrinter& symbolPrinter)
-{
-    symbolPrinter.symbol_.print(stream, symbolPrinter.format_);
-    return stream;
-}
-
-void SymbolVisitor::recurse(FileLevelSymbol* value)
-{
-    value->visit_impl(*this);
-}
-
-void NamedTypeSymbol::rename(const std::string_view new_name)
-{
-    const auto old_name = name();
-    TypeLikeSymbol::rename(new_name);
-    Universe::get().process_rename(this, old_name);
-}
-
-template <class UnaryPred>
-bool NamedTypeSymbol::is_recursively(UnaryPred cond) const noexcept(noexcept(cond(std::declval<NamedTypeSymbol>())))
-{
-    if (cond(*this)) {
-        return true;
-    }
-    if (const auto* alias = dynamic_cast<const TypeAliasSymbol*>(this)) {
-        if (const auto* target = dynamic_cast<const NamedTypeSymbol*>(alias->target())) {
-            return target->is_recursively(cond);
-        }
-    }
-    return false;
-}
-
-bool NamedTypeSymbol::is_objc_reference() const noexcept
-{
-    return is_recursively([](const auto& symbol) {
-        switch (symbol.kind_) {
-            case Kind::Interface:
-            case Kind::Protocol:
-                return true;
-            default:
-                return false;
-        }
-    });
-}
-
-static void print_type_arguments(std::ostream& stream, const NamedTypeSymbol& type_symbol, SymbolPrintFormat format)
-{
-    auto no_type_arguments = format != SymbolPrintFormat::Raw;
-    if (no_type_arguments) {
-        stream << "/*";
-    }
-    stream << "<";
-    auto count = type_symbol.parameter_count();
-    assert(count);
-    for (std::size_t i = 0; i < count; ++i) {
-        if (i != 0) {
-            stream << ", ";
-        }
-
-        auto* parameter = type_symbol.parameter(i);
-        assert(parameter);
-        stream << raw(*parameter);
-    }
-    stream << '>';
-    if (no_type_arguments) {
-        stream << "*/";
-    }
-}
-
-void NamedTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
-{
-    auto name = this->name();
-    if (kind_ == Kind::Primitive) {
-        stream << name;
-    } else {
-        stream << escape_keyword(name);
-        if (parameter_count()) {
-            print_type_arguments(stream, *this, format);
-        }
-    }
-}
-
-TypeLikeSymbol* NamedTypeSymbol::map()
-{
-    if (auto* mapping = this->mapping())
-        return mapping->map(this);
-
-    if (const auto parameter_count = this->parameter_count(); parameter_count) {
-        std::vector<TypeLikeSymbol*> arguments;
-        arguments.reserve(parameter_count);
-        auto changed = false;
-
-        for (std::size_t i = 0; i < parameter_count; ++i) {
-            auto* old_parameter = this->parameter(i);
-            auto* new_parameter = old_parameter->map();
-            arguments.push_back(new_parameter);
-            changed = changed || new_parameter != old_parameter;
-        }
-
-        if (changed) {
-            return construct(arguments);
-        }
-    }
-
-    return this;
-}
-
-NamedTypeSymbol* NamedTypeSymbol::construct(const std::vector<TypeLikeSymbol*>& arguments)
-{
-    const auto parameter_count = this->parameter_count();
-    assert(parameter_count == arguments.size());
-
-    if (parameter_count) {
-        auto changed = false;
-
-        for (std::size_t i = 0; i < parameter_count; ++i) {
-            const auto* old_parameter = this->parameter(i);
-            const auto* new_parameter = arguments.at(i);
-            changed = changed || new_parameter != old_parameter;
-        }
-
-        if (changed) {
-            auto* original = this->original();
-            assert(original);
-            auto* original_type = dynamic_cast<TypeDeclarationSymbol*>(original);
-            assert(original_type);
-            auto* result = new ConstructedTypeSymbol(original_type);
-            const auto& cangjie_package_name = original_type->cangjie_package_name();
-            if (!cangjie_package_name.empty()) {
-                result->set_cangjie_package_name(cangjie_package_name);
-            }
-            for (auto* argument : arguments) {
-                result->add_parameter(argument);
-            }
-            return result;
-        }
-    }
-
-    return this;
-}
-
-NamedTypeSymbol& EnumDeclarationSymbol::underlying_type() const noexcept
-{
-    assert(underlying_type_);
-    return *underlying_type_;
-}
-
-void UnexposedTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
-{
-    canonical_type().print(stream, format);
-    stream << " /*" << name() << "*/";
-}
-
-void UnexposedTypeSymbol::print_default_value(
-    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
-{
-    canonical_type().print_default_value(stream, symbol, format, type_alias);
-}
-
-static bool is_ctype_by_default(NamedTypeSymbol::Kind kind, std::string_view name)
-{
-    switch (kind) {
-        case NamedTypeSymbol::Kind::Primitive:
-        case NamedTypeSymbol::Kind::Enum:
-
-        // Empty structures are CType.  If afterwards a non-CType member is added,
-        // `is_ctype_` will be set to `false`.
-        case NamedTypeSymbol::Kind::Struct:
-        case NamedTypeSymbol::Kind::Union:
-            return name != "ObjCPointer" && name != "ObjCFunc" && name != "ObjCBlock";
-        default:
-            return false;
-    }
-}
-
-TypeDeclarationSymbol::TypeDeclarationSymbol(const Kind kind, std::string name)
-    : NamedTypeSymbol(kind, std::move(name)), is_ctype_(is_ctype_by_default(kind, this->name()))
-{
-}
-
-TypeParameterSymbol* TypeDeclarationSymbol::parameter(const std::size_t index) const
-{
-    return parameters_.at(index).get();
-}
-
-void TypeDeclarationSymbol::member_remove(size_t index)
-{
-    auto it = members_.begin();
-    std::advance(it, index);
-    switch (kind()) {
-        case Kind::Struct:
-        case Kind::Union:
-            assert(it->kind() == NonTypeSymbol::Kind::Field);
-            {
-                auto removing_ctype = it->return_type()->is_ctype();
-                members_.erase(it);
-                if (!removing_ctype) {
-                    is_ctype_ = all_of_members([](const auto& member) { return member.return_type()->is_ctype(); });
-                }
-                contains_pointer_or_func_ =
-                    any_of_members([](const auto& member) { return member.return_type()->contains_pointer_or_func(); });
-            }
-            break;
-        default:
-            members_.erase(it);
-            break;
-    }
-}
-
-template <class Pred>
-bool TypeDeclarationSymbol::all_of_members(Pred cond) const noexcept(noexcept(cond(std::declval<NonTypeSymbol>())))
-{
-    return std::all_of(members_.cbegin(), members_.cend(), [cond](const auto& member) { return cond(member); });
-}
-
-template <class Pred>
-bool TypeDeclarationSymbol::any_of_members(Pred cond) const noexcept(noexcept(cond(std::declval<NonTypeSymbol>())))
-{
-    return std::any_of(members_.cbegin(), members_.cend(), [cond](const auto& member) { return cond(member); });
-}
-
-void TypeDeclarationSymbol::add_parameter(std::string name)
-{
-    for ([[maybe_unused]] const auto& parameter : parameters_) {
-        assert(parameter->name() != name);
-    }
-
-    parameters_.push_back(std::make_unique<TypeParameterSymbol>(TypeParameterSymbol::Private(), std::move(name)));
-}
-
-NonTypeSymbol& TypeDeclarationSymbol::add_member_method(
-    std::string name, TypeLikeSymbol* return_type, uint16_t modifiers)
-{
-    // No clash detection, otherwise might assert on method overloads
-
-    assert(kind() == Kind::Interface || kind() == Kind::Protocol || kind() == Kind::TopLevel);
-    return members_.emplace_back(
-        NonTypeSymbol::Private(), std::move(name), NonTypeSymbol::Kind::MemberMethod, return_type, modifiers);
-}
-
-NonTypeSymbol& TypeDeclarationSymbol::add_constructor(std::string name, TypeLikeSymbol* return_type)
-{
-    assert(kind() == Kind::Interface || kind() == Kind::Protocol);
-    return members_.emplace_back(
-        NonTypeSymbol::Private(), std::move(name), NonTypeSymbol::Kind::Constructor, return_type);
-}
-
-NonTypeSymbol& TypeDeclarationSymbol::add_field(std::string name, TypeLikeSymbol* type, uint16_t modifiers)
-{
-    assert(kind() == Kind::Struct || kind() == Kind::Union);
-
-    // Only bit-fields can be unnamed
-    assert(!name.empty() || modifiers & ModifierBitField);
-
-    // And once it is named, no other field with this name should exist
-    assert(name.empty() ||
-        all_of_members([&name](const auto& member) { return !member.is_field() || member.name() != name; }));
-
-    auto& member =
-        members_.emplace_back(NonTypeSymbol::Private(), std::move(name), NonTypeSymbol::Kind::Field, type, modifiers);
-    if (is_ctype_ && !member.return_type()->is_ctype()) {
-        is_ctype_ = false;
-    }
-    if (member.return_type()->contains_pointer_or_func()) {
-        contains_pointer_or_func_ = true;
-    }
-    return member;
-}
-
-NonTypeSymbol& TypeDeclarationSymbol::add_instance_variable(std::string name, TypeLikeSymbol* type, uint16_t modifiers)
-{
-    assert(kind() == Kind::Interface);
-    assert(all_of_members([&name](const auto& member) { return member.name() != name; }));
-
-    auto& ivar = members_.emplace_back(
-        NonTypeSymbol::Private(), std::move(name), NonTypeSymbol::Kind::InstanceVariable, type, modifiers);
-    if (is_ctype_ && !ivar.return_type()->is_ctype()) {
-        is_ctype_ = false;
-    }
-    if (ivar.return_type()->contains_pointer_or_func()) {
-        contains_pointer_or_func_ = true;
-    }
-    return ivar;
-}
-
-EnumConstantSymbol& EnumDeclarationSymbol::add_constant(std::string name, const std::array<uint64_t, 2>& value)
-{
-    assert(std::all_of(
-        constants_.begin(), constants_.end(), [name](const auto& constant) { return constant.name() != name; }));
-    return constants_.emplace_back(std::move(name), value);
-}
-
-void EnumDeclarationSymbol::print_default_value(
-    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
-{
-    assert(underlying_type_);
-    underlying_type_->canonical_type().print_default_value(stream, symbol, format, type_alias);
-}
-
-void PrimitiveTypeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]] const NonTypeSymbol& symbol,
-    [[maybe_unused]] SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
-{
-    switch (category_) {
-        case PrimitiveTypeCategory::Boolean:
-            stream << "false";
-            break;
-        case PrimitiveTypeCategory::SignedInteger:
-        case PrimitiveTypeCategory::UnsignedInteger:
-            stream << '0';
-            break;
-        case PrimitiveTypeCategory::FloatingPoint:
-            stream << "0.0";
-            break;
-        default:
-            assert(category_ == PrimitiveTypeCategory::Unit);
-            stream << "()";
-            break;
-    }
-}
-
-NonTypeSymbol& TypeDeclarationSymbol::add_property(
-    std::string name, std::string getter, std::string setter, uint16_t modifiers)
-{
-    assert(kind() == Kind::Interface || kind() == Kind::Protocol);
-
-    return members_.emplace_back(
-        NonTypeSymbol::Private(), std::move(name), std::move(getter), std::move(setter), modifiers);
-}
-
-void TypeDeclarationSymbol::add_base(TypeDeclarationSymbol& base)
-{
-    bases_.push_back(&base);
-}
-
-const std::string& FileLevelSymbol::cangjie_package_name() const
-{
-    if (!cangjie_package_name_.empty()) {
-        assert(!output_file_);
-        return cangjie_package_name_;
-    }
-    if (!output_file_) {
-        return cangjie_package_name_;
-    }
-    auto* package = output_file_->package();
-    assert(package);
-    return package->cangjie_name();
-}
-
-Package* FileLevelSymbol::package() const
-{
-    const auto* file = package_file();
-    return file ? file->package() : nullptr;
 }
 
 void FileLevelSymbol::set_definition_location(const Location& location)
@@ -420,24 +74,7 @@ void FileLevelSymbol::set_definition_location(const Location& location)
     assert(!input_file_);
     input_file_ = &inputs[location.file_];
     location_ = location.pos_;
-    input_file_->add_symbol(this);
-}
-
-void FileLevelSymbol::set_package_file(PackageFile* package_file)
-{
-    assert(cangjie_package_name_.empty());
-    assert(!output_file_);
-    assert(package_file);
-    assert(this->is_file_level());
-    output_file_ = package_file;
-}
-
-void FileLevelSymbol::set_cangjie_package_name(std::string cangjie_package_name) noexcept
-{
-    assert(cangjie_package_name_.empty());
-    assert(!output_file_);
-    assert(!cangjie_package_name.empty());
-    cangjie_package_name_ = std::move(cangjie_package_name);
+    input_file_->add_symbol(*this);
 }
 
 bool FileLevelSymbol::add_reference(FileLevelSymbol& symbol)
@@ -448,7 +85,15 @@ bool FileLevelSymbol::add_reference(FileLevelSymbol& symbol)
     return references_symbols_.insert(&symbol).second;
 }
 
-static bool referencing_packages_detailed_info() noexcept
+void FileLevelSymbol::set_package_file(PackageFile& package_file) noexcept
+{
+    assert(cangjie_package_name_.empty());
+    assert(!output_file_);
+    assert(this->is_file_level());
+    output_file_ = &package_file;
+}
+
+[[nodiscard]] static auto referencing_packages_detailed_info() noexcept
 {
     return verbosity > LogLevel::WARNING;
 }
@@ -459,6 +104,21 @@ void FileLevelSymbol::add_referencing_package(const Package& package)
     if (referencing_packages_detailed_info()) {
         referencing_packages_.insert(&package);
     }
+}
+
+const std::string& FileLevelSymbol::cangjie_package_name() const noexcept
+{
+    if (!cangjie_package_name_.empty()) {
+        assert(!output_file_);
+        return cangjie_package_name_;
+    }
+    return output_file_ ? output_file_->package().cangjie_name() : cangjie_package_name_;
+}
+
+Package* FileLevelSymbol::package() const noexcept
+{
+    const auto* file = package_file();
+    return file ? &file->package() : nullptr;
 }
 
 size_t FileLevelSymbol::number_of_referencing_packages() const noexcept
@@ -478,311 +138,607 @@ void FileLevelSymbol::print_referencing_packages_info() const
     }
 }
 
-void TypeLikeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]] const NonTypeSymbol& symbol,
-    [[maybe_unused]] SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+// Applicable only for symbols with the same defining file
+[[nodiscard]] bool operator<(const FileLevelSymbol& symbol1, const FileLevelSymbol& symbol2) noexcept
 {
-    stream << emit_cangjie(type_alias) << "()";
+    assert(symbol1.input_file_);
+    assert(symbol1.input_file_ == symbol2.input_file_);
+    return symbol1.location_ < symbol2.location_;
 }
 
-TypeParameterSymbol::TypeParameterSymbol(Private, std::string name) : TypeLikeSymbol(std::move(name))
+void FileLevelSymbol::set_cangjie_package_name(std::string cangjie_package_name) noexcept
 {
+    assert(cangjie_package_name_.empty());
+    assert(!output_file_);
+    assert(!cangjie_package_name.empty());
+    cangjie_package_name_ = std::move(cangjie_package_name);
 }
 
-static void print_tricky_default_value(std::ostream& stream, std::string_view type_name, bool is_nullable)
+[[nodiscard]] static Type::Kind get_kind(const TypeLikeSymbol& type_symbol)
 {
-    if (is_nullable) {
-        stream << "None";
-    } else {
-        // The dirty trick is applied for printing default values of:
-        // - Interface types -- instances of the interface type cannot be created.
-        // - @ObjCMirror classes -- they do not have a primary constructor.
-        stream << "Option<" << type_name << ">.None.getOrThrow()";
+    if (is<const TypeParameterSymbol&>(type_symbol)) {
+        return Type::Kind::TypeParam;
     }
+    auto& universe = Universe::get();
+    return &type_symbol == &universe.pointer() ? Type::Kind::Pointer
+        : &type_symbol == &universe.func()     ? Type::Kind::Function
+        : &type_symbol == &universe.block()    ? Type::Kind::Block
+                                               : Type::Kind::Named;
 }
 
-void TypeParameterSymbol::print(std::ostream& stream, SymbolPrintFormat format)
+Type::Type(TypeLikeSymbol& symbol, std::vector<Type>&& parameters, Nullability nullability) noexcept
+    : kind_(get_kind(symbol)),
+      symbol_(&symbol),
+      parameters_(std::move(parameters)),
+      nullability_(init_nullability(nullability))
 {
-    if (format == SymbolPrintFormat::Raw) {
-        stream << name();
-    } else {
-        stream << "ObjCId /*" << name() << "*/";
-    }
 }
 
-void TypeParameterSymbol::print_default_value(std::ostream& stream, const NonTypeSymbol& symbol,
-    [[maybe_unused]] SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
+Type::Type(TypeLikeSymbol& symbol, Nullability nullability) noexcept
+    : kind_(get_kind(symbol)), symbol_(&symbol), nullability_(init_nullability(nullability))
 {
-    print_tricky_default_value(stream, "ObjCId", symbol.is_nullable());
 }
 
-void NarrowedTypeParameterSymbol::print(std::ostream& stream, SymbolPrintFormat format)
+Type::Type(Type varray_element_type, size_t varray_size)
+    : kind_(Type::Kind::VArray),
+      symbol_(&Universe::get().varray()),
+      parameters_{varray_element_type},
+      varray_size_(varray_size)
 {
-    if (format == SymbolPrintFormat::Raw) {
-        stream << name() << '<' << protocol_name_ << '>';
-    } else {
-        stream << protocol_name_ << " /*" << name() << '<' << protocol_name_ << ">*/";
-    }
 }
 
-void PointerTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
+bool Type::is_unit() const noexcept
 {
-    if (!is_ctype() || format == SymbolPrintFormat::EmitCangjieStrict) {
-        stream << "ObjCPointer<";
-        pointee_->print(stream, SymbolPrintFormat::EmitCangjieStrict);
-    } else {
-        stream << "CPointer<";
-        pointee_->print(stream, format);
-    }
-    stream << '>';
+    assert(symbol_);
+    return symbol_->is_unit();
 }
 
-[[nodiscard]] PointerTypeSymbol* PointerTypeSymbol::map()
+const TypeLikeSymbol& Type::symbol() const noexcept
 {
-    auto* new_pointee = pointee_->map();
-    return new_pointee == pointee_ ? this : new PointerTypeSymbol(*new_pointee);
+    assert(symbol_);
+    return *symbol_;
 }
 
-void PointerTypeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]] const NonTypeSymbol& symbol,
-    SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
+TypeLikeSymbol& Type::symbol() noexcept
 {
-    print(stream, format);
-    stream << (!is_ctype() || format == SymbolPrintFormat::EmitCangjieStrict ? "(CPointer<Unit>())" : "()");
+    assert(symbol_);
+    return *symbol_;
 }
 
-void VArraySymbol::print(std::ostream& stream, SymbolPrintFormat format)
+const std::string& Type::name() const noexcept
 {
-    stream << name() << '<';
-    element_type_->print(stream, format);
-    stream << ", $" << size_ << '>';
+    assert(symbol_);
+    return symbol_->name();
 }
 
-[[nodiscard]] VArraySymbol* VArraySymbol::map()
+const TypeDeclarationSymbol& Type::actual_protocol() const noexcept
 {
-    auto* new_element_type = element_type_->map();
-    return new_element_type == element_type_ ? this : new VArraySymbol(*new_element_type, size_);
+    // Probably, it would be good to return the least common ancestor of all
+    // constraints here, not just `id`.
+    assert(kind_ == Kind::TypeParam);
+    return parameters_.size() == 1 ? as<const TypeDeclarationSymbol&>(parameters_.front().symbol())
+                                   : Universe::get().id();
 }
 
-void VArraySymbol::print_default_value(
-    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+void Type::set_nullability(Nullability nullability) noexcept
 {
-    stream << '[';
-    if (size_) {
-        element_type_->print_default_value(stream, symbol, format, type_alias);
-        for (size_t i = 1; i < size_; ++i) {
-            stream << ", ";
-            element_type_->print_default_value(stream, symbol, format, type_alias);
-        }
-    }
-    stream << ']';
+    assert(kind_ == Kind::Named || kind_ == Kind::TypeParam);
+    nullability_ = nullability;
 }
 
-void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor)
+const Type& Type::varray_element_type() const noexcept
 {
-    // It could make sense to analyze if infinite recursion is possible her.  With
-    // CRTP for example.
-    if (const auto count = this->parameter_count(); count) {
-        for (std::size_t i = 0; i < count; ++i) {
-            visitor.visit(this, this->parameter(i), SymbolProperty::TypeArgument);
-        }
-    }
-    if (const auto count = this->base_count(); count) {
-        for (std::size_t i = 0; i < count; ++i) {
-            visitor.visit(this, this->base(i), SymbolProperty::Base);
-        }
-    }
-    if (const auto count = this->member_count(); count) {
-        for (std::size_t i = 0; i < count; ++i) {
-            visitor.visit(this, &this->member(i), SymbolProperty::Member);
-        }
-    }
+    assert(kind_ == Kind::VArray);
+    assert(parameters_.size() == 1);
+    return parameters_.front();
 }
 
-void TypeDeclarationSymbol::print_default_value(
-    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+void Type::visit_impl(SymbolVisitor& visitor) const
 {
-    switch (kind()) {
-        case Kind::Interface:
-        case Kind::Protocol:
-            print_tricky_default_value(stream, type_alias.name(), symbol.is_nullable());
+    switch (kind_) {
+        case Kind::Unit:
+            break;
+        case Kind::Named:
+        case Kind::Function:
+        case Kind::Block:
+            assert(symbol_);
+            for (const auto& param : parameters_) {
+                visitor.visit_type_argument(*symbol_, param);
+            }
+            break;
+        case Kind::Pointer:
+        case Kind::VArray:
+            assert(symbol_);
+            assert(parameters_.size() == 1);
+            visitor.visit_type_argument(*symbol_, parameters_.front());
             break;
         default:
-            TypeLikeSymbol::print_default_value(stream, symbol, format, type_alias);
             break;
     }
 }
 
-TupleTypeSymbol::TupleTypeSymbol() : TypeLikeSymbol(""), is_ctype_(true), contains_pointer_or_func_(false)
+bool Type::is_ctype() const noexcept
 {
+    switch (kind_) {
+        case Kind::Named:
+            assert(symbol_);
+            return symbol_->is_ctype();
+        case Kind::VArray:
+            return varray_element_type().is_ctype();
+        case Kind::Pointer:
+            assert(parameters_.size() == 1);
+            return parameters_.front().is_ctype();
+        case Kind::Function:
+            return std::none_of(
+                parameters_.begin(), parameters_.end(), [](const auto& parameter) { return !parameter.is_ctype(); });
+        case Kind::Block:
+            return false;
+        default:
+            assert(kind_ == Kind::Unit || kind_ == Kind::TypeParam || kind_ == Kind::Unexposed);
+            return true;
+    }
 }
 
-TupleTypeSymbol::TupleTypeSymbol(std::vector<TypeLikeSymbol*> items)
-    : TypeLikeSymbol(""),
-      items_(std::move(items)),
-      is_ctype_(std::all_of(items_.cbegin(), items_.cend(), [](const auto* item) { return item->is_ctype(); })),
-      contains_pointer_or_func_(std::any_of(
-          items_.cbegin(), items_.cend(), [](const auto* item) { return item->contains_pointer_or_func(); }))
+bool Type::contains_pointer_or_func() const noexcept
 {
+    switch (kind_) {
+        case Kind::Named:
+            assert(symbol_);
+            return symbol_->contains_pointer_or_func();
+        case Kind::VArray:
+            return varray_element_type().contains_pointer_or_func();
+        case Kind::Pointer:
+        case Kind::Function:
+            return true;
+        case Kind::Block:
+            return std::any_of(parameters_.begin(), parameters_.end(),
+                [](const auto& parameter) { return parameter.contains_pointer_or_func(); });
+        default:
+            assert(kind_ == Kind::Unit || kind_ == Kind::TypeParam || kind_ == Kind::Unexposed);
+            return false;
+    }
 }
 
-TypeLikeSymbol* TupleTypeSymbol::item(const std::size_t index) const
+Type Type::canonical_type() const
 {
-    return items_.at(index);
+    const auto* alias = dynamic_cast<const TypeAliasSymbol*>(symbol_);
+    auto result = alias ? alias->canonical_type() : *this;
+    if (is_cj_option()) {
+        result.set_nullability(Nullability::Nullable);
+    }
+    return result;
 }
 
-void TupleTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
+const TypeLikeSymbol& Type::canonical_type_symbol() const noexcept
 {
-    stream << '(';
-    for (std::size_t i = 0; i < items_.size(); ++i) {
-        if (i != 0) {
-            stream << ", ";
+    const auto* alias = dynamic_cast<const TypeAliasSymbol*>(symbol_);
+    return alias ? alias->canonical_type_symbol() : symbol();
+}
+
+bool Type::is_optionable_reference() const noexcept
+{
+    return *this && symbol_->is_optionable_reference();
+}
+
+bool Type::is_cj_direct_option() const noexcept
+{
+    if (is_optionable_reference()) {
+        return nullability_ != Nullability::Nonnull;
+    }
+    if (kind_ != Kind::Named) {
+        return false;
+    }
+    assert(symbol_);
+    const auto* alias = dynamic_cast<const TypeAliasSymbol*>(symbol_);
+    return alias && alias->canonical_type_symbol().is_optionable_reference() && nullability_ == Nullability::Nullable &&
+        !alias->target().is_cj_option();
+}
+
+bool Type::is_cj_option() const noexcept
+{
+    if (is_optionable_reference()) {
+        return nullability_ != Nullability::Nonnull;
+    }
+    if (kind_ != Kind::Named) {
+        return false;
+    }
+    assert(symbol_);
+    const auto* alias = dynamic_cast<const TypeAliasSymbol*>(symbol_);
+    return alias && alias->canonical_type_symbol().is_optionable_reference() &&
+        (nullability_ == Nullability::Nullable || alias->target().is_cj_option());
+}
+
+void Type::map()
+{
+    switch (kind_) {
+        case Kind::Unit:
+            break;
+        case Kind::Named:
+        case Kind::Function:
+        case Kind::Block:
+            assert(symbol_);
+            symbol_ = &symbol_->map();
+            for (auto& parameter : parameters_) {
+                parameter.map();
+            }
+            break;
+        case Kind::Pointer:
+        case Kind::VArray:
+            assert(parameters_.size() == 1);
+            parameters_.front().map();
+            break;
+        default:
+            assert(symbol_);
+            symbol_ = &symbol_->map();
+            break;
+    }
+}
+
+static void print_raw_type_parameter(std::ostream& stream, const Type& type_param)
+{
+    assert(type_param.kind() == Type::Kind::TypeParam);
+    stream << type_param.name();
+    const auto& constraints = type_param.parameters();
+    if (!constraints.empty()) {
+        stream << '<';
+        print_list(stream, constraints, [](auto& stream, const auto& constraint) { stream << constraint.name(); });
+        stream << '>';
+    }
+}
+
+void Type::print(std::ostream& stream, PrintFormat format) const
+{
+    if (is_cj_direct_option()) {
+        stream << '?';
+    }
+    switch (kind_) {
+        case Kind::Unit:
+            break;
+        case Kind::Named: {
+            assert(symbol_);
+            symbol_->print(stream, format);
+            if (!parameters_.empty()) {
+                auto no_type_arguments = format != PrintFormat::Raw;
+                if (no_type_arguments) {
+                    stream << "/*";
+                }
+                stream << '<';
+                print_list(stream, parameters_, [](auto& stream, const auto& parameter) { stream << raw(parameter); });
+                stream << '>';
+                if (no_type_arguments) {
+                    stream << "*/";
+                }
+            }
+            break;
         }
-        items_[i]->print(stream, format);
-    }
-    stream << ')';
-}
-
-TupleTypeSymbol* TupleTypeSymbol::map()
-{
-    std::vector<TypeLikeSymbol*> new_items;
-    auto changed = false;
-    const std::size_t count = item_count();
-    for (std::size_t i = 0; i < count; i++) {
-        auto* item = this->item(i);
-        auto* new_item = item->map();
-        new_items.push_back(new_item);
-        changed = changed || item != new_item;
-    }
-    return changed ? new TupleTypeSymbol(new_items) : this;
-}
-
-void TupleTypeSymbol::visit_impl(SymbolVisitor& visitor)
-{
-    if (const auto count = this->item_count(); count) {
-        for (std::size_t i = 0; i < count; ++i) {
-            visitor.visit(this, this->item(i), SymbolProperty::TupleItem);
+        case Kind::Pointer: {
+            assert(parameters().size() == 1);
+            const auto& pointee = parameters().front();
+            if (!is_ctype() || format == PrintFormat::EmitCangjieStrict) {
+                stream << "ObjCPointer<";
+                pointee.print(stream, PrintFormat::EmitCangjieStrict);
+            } else {
+                stream << "CPointer<";
+                pointee.print(stream, format);
+            }
+            stream << '>';
+            break;
         }
+        case Kind::Function:
+            if (!is_ctype() || format == PrintFormat::EmitCangjieStrict) {
+                print_func_like(stream, "ObjCFunc", PrintFormat::EmitCangjieStrict);
+            } else {
+                print_func_like(stream, "CFunc", format);
+            }
+            break;
+        case Kind::Block:
+            print_func_like(stream, "ObjCBlock", PrintFormat::EmitCangjieStrict);
+            break;
+        case Kind::VArray:
+            stream << Universe::get().varray().name() << '<';
+            varray_element_type().print(stream, format);
+            stream << ", $" << varray_size() << '>';
+            break;
+        case Kind::TypeParam:
+            if (format == PrintFormat::Raw) {
+                print_raw_type_parameter(stream, *this);
+            } else {
+                actual_protocol().print(stream, format);
+                stream << " /*";
+                print_raw_type_parameter(stream, *this);
+                stream << "*/";
+            }
+            break;
+        default:
+            assert(symbol_);
+            symbol_->print(stream, format);
+            break;
     }
 }
 
-FuncLikeTypeSymbol::FuncLikeTypeSymbol() : TypeLikeSymbol("")
+Nullability Type::init_nullability(Nullability nullability) noexcept
 {
+    switch (kind_) {
+        case Type::Kind::Named:
+            switch (as<const NamedTypeSymbol&>(*symbol_).kind()) {
+                case NamedTypeSymbol::Kind::Protocol:
+                case NamedTypeSymbol::Kind::Interface:
+                case NamedTypeSymbol::Kind::TypeDef:
+                    return nullability;
+                default:
+                    break;
+            }
+            break;
+        case Type::Kind::TypeParam:
+            return nullability;
+        default:
+            break;
+    }
+    return Nullability::Nonnull;
 }
 
-FuncLikeTypeSymbol::FuncLikeTypeSymbol(TupleTypeSymbol* parameters, TypeLikeSymbol* return_type)
-    : TypeLikeSymbol(""), parameters_(parameters), return_type_(return_type)
+void Type::print_func_like(std::ostream& stream, std::string_view name, PrintFormat format) const
 {
-}
-
-void FuncLikeTypeSymbol::do_print(std::ostream& stream, std::string_view name, SymbolPrintFormat format) const
-{
-    stream << name << '<';
-    parameters_->print(stream, format);
-    stream << " -> ";
-    return_type_->print(stream, format);
-    stream << '>';
-}
-
-void FuncTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
-{
-    if (!is_ctype() || format == SymbolPrintFormat::EmitCangjieStrict) {
-        do_print(stream, "ObjCFunc", SymbolPrintFormat::EmitCangjieStrict);
+    if (parameters_.empty()) {
+        stream << name << "<() -> Unit>";
     } else {
-        do_print(stream, "CFunc", format);
+        stream << name << "<(";
+        auto return_type = parameters_.begin();
+        print_list(stream, std::next(return_type), parameters_.end(),
+            [format](auto& stream, const auto& item) { item.print(stream, format); });
+        stream << ") -> ";
+        return_type->print(stream, format);
+        stream << '>';
     }
 }
 
-void BlockTypeSymbol::print(std::ostream& stream, SymbolPrintFormat)
+void NamedTypeSymbol::rename(const std::string_view new_name)
 {
-    do_print(stream, "ObjCBlock", SymbolPrintFormat::EmitCangjieStrict);
+    auto old_name = name();
+    TypeLikeSymbol::rename(new_name);
+    Universe::get().process_rename(*this, old_name);
 }
 
-FuncTypeSymbol* FuncTypeSymbol::map()
+void NamedTypeSymbol::print(std::ostream& stream, PrintFormat) const
 {
-    auto* parameters = this->parameters();
-    auto* return_type = this->return_type();
-    auto* new_parameters = parameters->map();
-    auto* new_return_type = return_type->map();
-    const auto changed = parameters != new_parameters || return_type != new_return_type;
-    return changed ? new FuncTypeSymbol(new_parameters, new_return_type) : this;
+    const auto& name = this->name();
+    if (kind_ == Kind::Primitive) {
+        stream << name;
+    } else {
+        stream << escape_keyword(name);
+    }
 }
 
-void FuncTypeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]] const NonTypeSymbol& symbol,
-    SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
+void NamedTypeSymbol::set_mapping(const TypeMapping& mapping) noexcept
 {
-    print(stream, format);
-    stream << (!is_ctype() || format == SymbolPrintFormat::EmitCangjieStrict ? "(CPointer<CFunc<() -> Unit>>())"
-                                                                             : "(CPointer<Unit>())");
+    assert(mapping_ == nullptr);
+    mapping_ = &mapping;
 }
 
-BlockTypeSymbol* BlockTypeSymbol::map()
+TypeLikeSymbol& NamedTypeSymbol::map()
 {
-    auto* parameters = this->parameters();
-    auto* return_type = this->return_type();
-    auto* new_parameters = parameters->map();
-    auto* new_return_type = return_type->map();
-    const auto changed = parameters != new_parameters || return_type != new_return_type;
-    return changed ? new BlockTypeSymbol(new_parameters, new_return_type) : this;
+    if (auto* mapping = this->mapping()) {
+        assert(mapping->can_map(*this));
+        return mapping->map();
+    }
+    return *this;
 }
 
-void BlockTypeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]] const NonTypeSymbol& symbol,
-    SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
+[[nodiscard]] bool NamedTypeSymbol::is_optionable_reference() const noexcept
 {
-    print(stream, format);
-    stream << "(CPointer<NativeBlockABI>())";
+    switch (kind_) {
+        case Kind::Interface:
+        case Kind::Protocol:
+            return true;
+        default:
+            return false;
+    }
 }
 
-void FuncLikeTypeSymbol::visit_impl(SymbolVisitor& visitor)
+NamedTypeSymbol& EnumDeclarationSymbol::underlying_type() const noexcept
 {
-    visitor.visit(this, this->parameters(), SymbolProperty::FunctionParametersTuple);
-    visitor.visit(this, this->return_type(), SymbolProperty::FunctionReturnType);
+    return underlying_type_ ? *underlying_type_ : Universe::get().int32();
 }
 
-ConstructedTypeSymbol::ConstructedTypeSymbol(TypeDeclarationSymbol* original)
-    : NamedTypeSymbol(original->kind(), std::string(original->name())), original_(original)
+EnumConstantSymbol& EnumDeclarationSymbol::add_constant(std::string name, const std::array<uint64_t, 2>& value)
 {
-    assert(original->original() == original);
+    assert(std::all_of(
+        constants_.begin(), constants_.end(), [name](const auto& constant) { return constant.name() != name; }));
+    return constants_.emplace_back(std::move(name), value);
 }
 
-TypeLikeSymbol* ConstructedTypeSymbol::parameter(const std::size_t index) const
+void EnumDeclarationSymbol::visit_impl(SymbolVisitor& visitor) const
 {
-    return parameters_.at(index);
+    if (underlying_type_) {
+        visitor.visit_type(*underlying_type_);
+    }
 }
 
-void ConstructedTypeSymbol::print_default_value(
-    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+void UnexposedTypeSymbol::print(std::ostream& stream, PrintFormat format) const
 {
-    assert(original_);
-    return original_->print_default_value(stream, symbol, format, type_alias);
+    underlying_type().print(stream, format);
+    stream << " /*" << name() << "*/";
 }
 
-void ConstructedTypeSymbol::visit_impl(SymbolVisitor& visitor)
+[[nodiscard]] static bool is_ctype_by_default(NamedTypeSymbol::Kind kind, std::string_view name) noexcept
 {
-    if (const auto count = this->parameter_count(); count) {
-        for (std::size_t i = 0; i < count; ++i) {
-            visitor.visit(this, this->parameter(i), SymbolProperty::TypeArgument);
+    switch (kind) {
+        case NamedTypeSymbol::Kind::Primitive:
+        case NamedTypeSymbol::Kind::Enum:
+
+        // Empty structures are CType.  If afterwards a non-CType member is added,
+        // `is_ctype_` will be set to `false`.
+        case NamedTypeSymbol::Kind::Struct:
+        case NamedTypeSymbol::Kind::Union:
+            return name != "ObjCPointer" && name != "ObjCFunc" && name != "ObjCBlock";
+        default:
+            return false;
+    }
+}
+
+TypeDeclarationSymbol::TypeDeclarationSymbol(const Kind kind, std::string name) noexcept
+    : NamedTypeSymbol(kind, std::move(name)),
+      is_ctype_(is_ctype_by_default(kind, this->name())),
+      contains_pointer_or_func_(false),
+      static_instance_clashes_resolved_(false),
+      override_returns_resolved_(false)
+{
+}
+
+void TypeDeclarationSymbol::add_base(TypeDeclarationSymbol& base)
+{
+    bases_.push_back(&base);
+}
+
+const TypeParameterSymbol& TypeDeclarationSymbol::parameter(size_t index) const noexcept
+{
+    return parameters_[index];
+}
+
+TypeParameterSymbol& TypeDeclarationSymbol::parameter(size_t index) noexcept
+{
+    return parameters_[index];
+}
+
+void TypeDeclarationSymbol::add_parameter(std::string name)
+{
+    assert(std::all_of(
+        parameters_.begin(), parameters_.end(), [&name](const auto& parameter) { return parameter.name() != name; }));
+
+    parameters_.emplace_back(std::move(name));
+}
+
+void TypeDeclarationSymbol::member_remove(size_t index)
+{
+    auto it = members_.begin();
+    std::advance(it, index);
+    switch (kind()) {
+        case Kind::Struct:
+        case Kind::Union: {
+            assert(it->kind() == NonTypeSymbol::Kind::Field);
+            auto removing_ctype = it->return_type().is_ctype();
+            members_.erase(it);
+            if (!removing_ctype) {
+                is_ctype_ = all_of_members([](const auto& member) { return member.return_type().is_ctype(); });
+            }
+            contains_pointer_or_func_ =
+                any_of_members([](const auto& member) { return member.return_type().contains_pointer_or_func(); });
+            break;
         }
+        default:
+            members_.erase(it);
+            break;
     }
 }
 
-TypeAliasSymbol::TypeAliasSymbol(std::string name) : NamedTypeSymbol(Kind::TypeDef, std::move(name))
+NonTypeSymbol& TypeDeclarationSymbol::add_member_method(std::string name, Type return_type, Modifiers modifiers)
+{
+    // No clash detection, otherwise might assert on method overloads
+
+    assert(kind() == Kind::Interface || kind() == Kind::Protocol || kind() == Kind::TopLevel);
+    return members_.emplace_back(std::move(name), NonTypeSymbol::Kind::MemberMethod, std::move(return_type), modifiers);
+}
+
+NonTypeSymbol& TypeDeclarationSymbol::add_constructor(std::string name, Type return_type)
+{
+    assert(kind() == Kind::Interface || kind() == Kind::Protocol);
+    return members_.emplace_back(std::move(name), NonTypeSymbol::Kind::Constructor, std::move(return_type));
+}
+
+NonTypeSymbol& TypeDeclarationSymbol::add_field(std::string name, Type type, Modifiers modifiers)
+{
+    assert(kind() == Kind::Struct || kind() == Kind::Union);
+
+    // Only bit-fields can be unnamed
+    assert(!name.empty() || modifiers & ModifierBitField);
+
+    // And once it is named, no other field with this name should exist
+    assert(name.empty() ||
+        all_of_members([&name](const auto& member) { return !member.is_field() || member.name() != name; }));
+
+    auto& member = members_.emplace_back(std::move(name), NonTypeSymbol::Kind::Field, std::move(type), modifiers);
+    if (is_ctype_ && !member.return_type().is_ctype()) {
+        is_ctype_ = false;
+    }
+    if (member.return_type().contains_pointer_or_func()) {
+        contains_pointer_or_func_ = true;
+    }
+    return member;
+}
+
+NonTypeSymbol& TypeDeclarationSymbol::add_instance_variable(std::string name, Type type, Modifiers modifiers)
+{
+    assert(kind() == Kind::Interface);
+    assert(all_of_members([&name](const auto& member) { return member.name() != name; }));
+
+    auto& ivar =
+        members_.emplace_back(std::move(name), NonTypeSymbol::Kind::InstanceVariable, std::move(type), modifiers);
+    if (is_ctype_ && !ivar.return_type().is_ctype()) {
+        is_ctype_ = false;
+    }
+    if (ivar.return_type().contains_pointer_or_func()) {
+        contains_pointer_or_func_ = true;
+    }
+    return ivar;
+}
+
+NonTypeSymbol& TypeDeclarationSymbol::add_property(
+    std::string name, std::string getter, std::string setter, Modifiers modifiers)
+{
+    assert(kind() == Kind::Interface || kind() == Kind::Protocol);
+
+    return members_.emplace_back(std::move(name), std::move(getter), std::move(setter), modifiers);
+}
+
+void TypeDeclarationSymbol::mark_override_return_clashes_resolved() noexcept
+{
+    assert(!override_returns_resolved_);
+    override_returns_resolved_ = true;
+}
+
+void TypeDeclarationSymbol::mark_static_instance_clashes_resolved() noexcept
+{
+    assert(!static_instance_clashes_resolved_);
+    static_instance_clashes_resolved_ = true;
+}
+
+void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor) const
+{
+    // TODO: is infinite recursion possible? With CRTP for example.
+    for (auto& base : this->bases()) {
+        visitor.visit_type(base);
+    }
+    for (auto& member : this->members()) {
+        visitor.visit_member(member);
+    }
+}
+
+template <class Pred>
+bool TypeDeclarationSymbol::all_of_members(Pred cond) const noexcept(noexcept(cond(std::declval<NonTypeSymbol>())))
+{
+    return std::all_of(members_.cbegin(), members_.cend(), [cond](const auto& member) { return cond(member); });
+}
+
+template <class Pred>
+bool TypeDeclarationSymbol::any_of_members(Pred cond) const noexcept(noexcept(cond(std::declval<NonTypeSymbol>())))
+{
+    return std::any_of(members_.cbegin(), members_.cend(), [cond](const auto& member) { return cond(member); });
+}
+
+TypeAliasSymbol::TypeAliasSymbol(std::string name) noexcept : NamedTypeSymbol(Kind::TypeDef, std::move(name))
 {
 }
 
-void TypeAliasSymbol::visit_impl(SymbolVisitor& visitor)
+void TypeAliasSymbol::print(std::ostream& stream, PrintFormat format) const
 {
-    visitor.visit(this, this->target(), SymbolProperty::AliasTarget);
-}
-
-void TypeAliasSymbol::print(std::ostream& stream, SymbolPrintFormat format)
-{
-    auto* target = this->target();
-    if (target && name() == target->name()) {
+    const auto& target = this->target();
+    if (target && name() == target.name()) {
         // typedef struct S S;
-        target->print(stream, format);
+        target.print(stream, format);
         return;
     }
-    if (mode != Mode::EXPERIMENTAL && format == SymbolPrintFormat::EmitCangjieStrict) {
-        auto& canonical_type = this->canonical_type();
+    if (mode != Mode::EXPERIMENTAL && format == PrintFormat::EmitCangjieStrict) {
+        auto canonical_type = this->canonical_type();
         if (canonical_type.is_ctype() && canonical_type.contains_pointer_or_func()) {
             stream << emit_cangjie_strict(canonical_type) << " /*" << emit_cangjie(*this) << "*/";
             return;
@@ -791,51 +747,68 @@ void TypeAliasSymbol::print(std::ostream& stream, SymbolPrintFormat format)
     NamedTypeSymbol::print(stream, format);
 }
 
-void TypeAliasSymbol::print_default_value(
-    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+void TypeAliasSymbol::visit_impl(SymbolVisitor& visitor) const
 {
-    canonical_type().print_default_value(stream, symbol, format, type_alias);
+    const auto& target = this->target();
+    if (target) {
+        visitor.visit_type(target);
+    }
 }
 
-TypeLikeSymbol& TypeAliasSymbol::canonical_type()
+void NonTypeSymbol::rename(std::string_view new_name)
 {
-    auto* target = this->target();
-    assert(target);
-    return target->canonical_type();
+    assert(!new_name.empty());
+    if (selector_attribute_.empty()) {
+        selector_attribute_ = name();
+    }
+    FileLevelSymbol::rename(new_name);
 }
 
 bool NonTypeSymbol::is_ctype() const noexcept
 {
-    auto n = parameter_count();
-    for (size_t i = 0; i < n; ++i) {
-        const auto& p = parameter(i);
-        if (!p.type()->is_ctype()) {
-            return false;
-        }
-    }
-    return return_type_->is_ctype();
+    return std::all_of(parameters_.begin(), parameters_.end(), [](const auto& p) { return p.type().is_ctype(); }) &&
+        return_type_.is_ctype();
 }
 
-void NonTypeSymbol::visit_impl(SymbolVisitor& visitor)
+void NonTypeSymbol::visit_impl(SymbolVisitor& visitor) const
 {
-    if (const auto count = this->parameter_count(); count) {
-        for (std::size_t i = 0; i < count; ++i) {
-            visitor.visit(this, this->parameter(i).type(), SymbolProperty::ParameterType);
-        }
+    for (auto& parameter : this->parameters()) {
+        visitor.visit_type(parameter.type());
     }
 
-    visitor.visit(this, this->return_type(), SymbolProperty::ReturnType);
+    if (kind_ != Kind::Property) {
+        visitor.visit_type(return_type());
+    }
 }
 
-TypeLikeSymbol& pointer(TypeLikeSymbol& pointee)
+const Type& NonTypeSymbol::return_type() const noexcept
 {
-    // C pointer to anything other than function is converted to PointerTypeSymbol.
-    // Pointer-to-function is converted to FuncTypeSymbol.
-    auto* func = dynamic_cast<FuncTypeSymbol*>(&pointee);
-    if (func) {
-        return *func;
-    }
-    return *new PointerTypeSymbol(pointee);
+    // Property does not store its return type here.  Look for return type of the
+    // getter.
+    assert(kind_ != Kind::Property);
+
+    return return_type_;
+}
+
+Type& NonTypeSymbol::return_type() noexcept
+{
+    // Property does not store its return type here.  Look for return type of the
+    // getter.
+    assert(kind_ != Kind::Property);
+
+    return return_type_;
+}
+
+void NonTypeSymbol::set_return_type(Type return_type) noexcept
+{
+    assert(kind_ != Kind::Property);
+    return_type_ = std::move(return_type);
+}
+
+void NonTypeSymbol::add_parameter(std::string name, Type type)
+{
+    assert(is_method());
+    parameters_.emplace_back(std::move(name), std::move(type));
 }
 
 } // namespace objcgen
