@@ -15,48 +15,31 @@
 
 namespace objcgen {
 
-struct TypeMapping {
-    virtual ~TypeMapping() = default;
-
-    virtual bool can_map([[maybe_unused]] NamedTypeSymbol* type)
-    {
-        return true;
-    }
-
-    virtual TypeLikeSymbol* map(NamedTypeSymbol* type) = 0;
-};
-
-class NonGenericMapping final : public TypeMapping {
-    std::unordered_set<std::string> from_;
-    std::string to_;
-
+class TypeMapping final {
 public:
-    explicit NonGenericMapping(const std::string_view to) : to_(to)
+    explicit TypeMapping(std::string from, std::string to) noexcept : from_(std::move(from)), to_(std::move(to))
     {
     }
 
-    NonGenericMapping& add_from(const std::string_view from)
+    [[nodiscard]] bool can_map(const NamedTypeSymbol& type) const noexcept
     {
-        from_.emplace(from);
-        return *this;
+        return from_ == type.name();
     }
 
-    bool can_map(NamedTypeSymbol* type) override
-    {
-        const auto name = std::string(type->name());
-        return from_.find(name) != from_.end();
-    }
+    [[nodiscard]] NamedTypeSymbol& map() const;
 
-    TypeLikeSymbol* map(NamedTypeSymbol* type) override;
+private:
+    const std::string from_;
+    const std::string to_;
 };
 
-extern std::vector<TypeMapping*> mappings;
+extern std::deque<TypeMapping> mappings;
 
 void initialize_mappings();
 
 void read_toml_mappings();
 
-NonGenericMapping& add_non_generic_mapping(std::string_view to);
+void add_non_generic_mapping(std::string from, std::string to);
 
 } // namespace objcgen
 
