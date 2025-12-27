@@ -21,143 +21,99 @@ namespace objcgen {
 
 class Package;
 
-class PackageFilter {
-    const Package* package_;
-
-public:
-    explicit PackageFilter(const Package* package) : package_(package)
+class PackageFilter : private NonCopyable {
+protected:
+    explicit PackageFilter(const Package& package) noexcept : package_(package)
     {
-        assert(package);
     }
 
+public:
     virtual ~PackageFilter() = default;
 
     [[nodiscard]] virtual bool apply(std::string_view entity_name) const = 0;
 
-    PackageFilter(const PackageFilter& other) = delete;
-
-    PackageFilter(PackageFilter&& other) noexcept = delete;
-
-    PackageFilter& operator=(const PackageFilter& other) = delete;
-
-    PackageFilter& operator=(PackageFilter&& other) noexcept = delete;
-
-    [[nodiscard]] const Package* package() const
+    [[nodiscard]] const auto& package() const noexcept
     {
         return package_;
     }
 
-    [[nodiscard]] std::string_view package_name() const;
+    [[nodiscard]] const std::string& package_name() const noexcept;
+
+private:
+    const Package& package_;
 };
 
 class PackageFile final {
     std::string file_name_;
     std::filesystem::path output_path_;
-    Package* package_;
+    Package* const package_;
     std::vector<FileLevelSymbol*> symbols_;
 
 public:
-    PackageFile(std::string file_name, Package* package);
+    PackageFile(std::string file_name, Package& package);
 
     [[nodiscard]] std::string_view file_name() const
     {
         return file_name_;
     }
 
-    [[nodiscard]] std::filesystem::path output_path() const
+    [[nodiscard]] const auto& output_path() const noexcept
     {
         return output_path_;
     }
 
-    [[nodiscard]] Package* package() const
+    [[nodiscard]] auto& package() const noexcept
     {
-        return package_;
+        return *package_;
     }
 
-    void add_symbol(FileLevelSymbol* symbol)
+    void add_symbol(FileLevelSymbol& symbol)
     {
-        assert(symbol);
-        assert(symbol->is_file_level());
-        symbols_.push_back(symbol);
+        assert(symbol.is_file_level());
+        symbols_.push_back(&symbol);
     }
 
-    [[nodiscard]] auto cbegin() const
+    [[nodiscard]] auto begin() const noexcept
     {
-        return symbols_.cbegin();
+        return symbols_.begin();
     }
 
-    [[nodiscard]] auto cend() const
+    [[nodiscard]] auto end() const noexcept
     {
-        return symbols_.cend();
-    }
-
-    [[nodiscard]] auto begin() const
-    {
-        return cbegin();
-    }
-
-    [[nodiscard]] auto end() const
-    {
-        return cend();
+        return symbols_.end();
     }
 };
 
 using package_file_map_t = std::unordered_map<std::string, PackageFile*>;
 
 class PackageFilesIterator final {
-    using iterator_category = std::forward_iterator_tag;
-    using difference_type = std::ptrdiff_t;
-    using value_type = PackageFile;
-    using pointer = value_type*;   // or also value_type*
-    using reference = value_type&; // or also value_type&
-
     package_file_map_t::const_iterator it_;
 
-    [[nodiscard]] reference get() const;
-
 public:
-    explicit PackageFilesIterator(package_file_map_t::const_iterator it) : it_(std::move(it))
+    explicit PackageFilesIterator(package_file_map_t::const_iterator it) noexcept : it_(it)
     {
     }
 
-    reference operator*() const
+    [[nodiscard]] auto& operator*() const noexcept
     {
-        return get();
-    }
-    pointer operator->() const
-    {
-        return &get();
+        return *it_->second;
     }
 
-    // Prefix increment
     PackageFilesIterator& operator++()
     {
         ++it_;
         return *this;
     }
 
-    // Postfix increment
-    PackageFilesIterator operator++(int)
+    friend bool operator!=(const PackageFilesIterator& lhs, const PackageFilesIterator& rhs) noexcept
     {
-        PackageFilesIterator tmp = *this;
-        ++(*this);
-        return tmp;
-    }
-
-    friend bool operator==(const PackageFilesIterator& lhs, const PackageFilesIterator& rhs)
-    {
-        return lhs.it_ == rhs.it_;
-    }
-
-    friend bool operator!=(const PackageFilesIterator& lhs, const PackageFilesIterator& rhs)
-    {
-        return !(lhs == rhs);
+        return lhs.it_ != rhs.it_;
     }
 };
 
-class Package final {
-    std::string cangjie_name_;
-    std::string output_path_;
+class Package final : private NonCopyable {
+    const std::string cangjie_name_;
+    const std::string output_path_;
     const PackageFilter* filters_ = nullptr;
     package_file_map_t files_;
     std::unordered_set<Package*> depends_on_;
@@ -170,189 +126,130 @@ public:
 
     ~Package() = default;
 
-    Package(const Package& other) = delete;
-
-    Package(Package&& other) noexcept = delete;
-
-    Package& operator=(const Package& other) = delete;
-
-    Package& operator=(Package&& other) noexcept = delete;
-
     [[nodiscard]] const auto& cangjie_name() const noexcept
     {
         return cangjie_name_;
     }
 
-    [[nodiscard]] std::string_view output_path() const
+    [[nodiscard]] const auto& output_path() const noexcept
     {
         return output_path_;
     }
 
-    [[nodiscard]] const PackageFilter* filters() const
+    [[nodiscard]] const auto* filters() const noexcept
     {
         return filters_;
     }
 
-    [[nodiscard]] const std::unordered_set<Package*>& depends_on() const
+    [[nodiscard]] const auto& depends_on() const noexcept
     {
         return depends_on_;
     }
 
-    void set_filters(const PackageFilter* filters)
+    void set_filters(const PackageFilter& filters) noexcept
     {
         assert(!filters_);
-        assert(filters);
-        filters_ = filters;
+        filters_ = &filters;
     }
 
-    void add_file(PackageFile* file)
+    void add_file(PackageFile& file)
     {
-        assert(file);
-        [[maybe_unused]] auto [_, inserted] = files_.emplace(file->file_name(), file);
+        [[maybe_unused]] auto [_, inserted] = files_.try_emplace(std::string(file.file_name()), &file);
         assert(inserted);
     }
 
-    void add_dependency_edge(Package* package)
+    void add_dependency_edge(Package& package)
     {
-        assert(package);
-        assert(package != this);
-        depends_on_.emplace(package);
+        assert(&package != this);
+        depends_on_.emplace(&package);
     }
 
-    PackageFile* operator[](const std::string& name) const
+    [[nodiscard]] PackageFile* operator[](const std::string& name) const
     {
         const auto it = files_.find(name);
         return it == files_.end() ? nullptr : it->second;
     }
 
-    PackageFile* operator[](const std::string_view name) const
+    [[nodiscard]] PackageFile* operator[](const std::string_view name) const
     {
         return (*this)[std::string(name)];
     }
 
-    auto cbegin() const
+    [[nodiscard]] auto begin() const noexcept
     {
-        return PackageFilesIterator{files_.cbegin()};
+        return PackageFilesIterator{files_.begin()};
     }
 
-    auto cend() const
+    [[nodiscard]] auto end() const noexcept
     {
-        return PackageFilesIterator{files_.cend()};
-    }
-
-    auto begin() const
-    {
-        return cbegin();
-    }
-
-    auto end() const
-    {
-        return cend();
+        return PackageFilesIterator{files_.end()};
     }
 };
 
 using package_map_t = std::unordered_map<std::string, Package*>;
 
 class PackagesIterator final {
-    using iterator_category = std::forward_iterator_tag;
-    using difference_type = std::ptrdiff_t;
-    using value_type = Package;
-    using pointer = value_type*;   // or also value_type*
-    using reference = value_type&; // or also value_type&
-
     package_map_t::const_iterator it_;
 
-    [[nodiscard]] reference get() const;
-
 public:
-    explicit PackagesIterator(package_map_t::const_iterator it) : it_(std::move(it))
+    explicit PackagesIterator(package_map_t::const_iterator it) noexcept : it_(it)
     {
     }
 
-    reference operator*() const
+    [[nodiscard]] auto& operator*() const noexcept
     {
-        return get();
-    }
-    pointer operator->() const
-    {
-        return &get();
+        return *it_->second;
     }
 
-    // Prefix increment
-    PackagesIterator& operator++()
+    PackagesIterator& operator++() noexcept
     {
         ++it_;
         return *this;
     }
 
-    // Postfix increment
-    PackagesIterator operator++(int)
+    [[nodiscard]] friend bool operator!=(const PackagesIterator& lhs, const PackagesIterator& rhs) noexcept
     {
-        PackagesIterator tmp = *this;
-        ++(*this);
-        return tmp;
-    }
-
-    friend bool operator==(const PackagesIterator& lhs, const PackagesIterator& rhs)
-    {
-        return lhs.it_ == rhs.it_;
-    }
-
-    friend bool operator!=(const PackagesIterator& lhs, const PackagesIterator& rhs)
-    {
-        return !(lhs == rhs);
+        return lhs.it_ != rhs.it_;
     }
 };
 
 class Packages final {
-    package_map_t by_cangjie_name_;
-
 public:
-    Packages() = default;
-
-    void insert(Package* package)
+    void insert(Package& package)
     {
-        auto cangjie_name = std::string(package->cangjie_name());
+        const auto& cangjie_name = package.cangjie_name();
         assert(by_cangjie_name_.find(cangjie_name) == by_cangjie_name_.end());
-        by_cangjie_name_.emplace(cangjie_name, package);
+        by_cangjie_name_.try_emplace(cangjie_name, &package);
     }
 
-    Package* by_cangjie_name(const std::string_view name) const
+    [[nodiscard]] Package* by_cangjie_name(const std::string_view name) const
     {
         return by_cangjie_name(std::string(name));
     }
 
-    Package* by_cangjie_name(const std::string& name) const
+    [[nodiscard]] Package* by_cangjie_name(const std::string& name) const
     {
         const auto it = by_cangjie_name_.find(name);
         return it == by_cangjie_name_.end() ? nullptr : it->second;
     }
 
-    [[nodiscard]] std::size_t size() const
+    [[nodiscard]] std::size_t size() const noexcept
     {
-        assert(by_cangjie_name_.size() == by_cangjie_name_.size());
         return by_cangjie_name_.size();
     }
 
-    [[nodiscard]] auto cbegin() const
+    [[nodiscard]] auto begin() const noexcept
     {
-        return PackagesIterator{by_cangjie_name_.cbegin()};
+        return PackagesIterator{by_cangjie_name_.begin()};
     }
 
-    [[nodiscard]] auto cend() const
+    [[nodiscard]] auto end() const noexcept
     {
-        return PackagesIterator{by_cangjie_name_.cend()};
+        return PackagesIterator{by_cangjie_name_.end()};
     }
 
-    [[nodiscard]] auto begin() const
-    {
-        return cbegin();
-    }
-
-    [[nodiscard]] auto end() const
-    {
-        return cend();
-    }
+private:
+    package_map_t by_cangjie_name_;
 };
 
 extern Packages packages;
