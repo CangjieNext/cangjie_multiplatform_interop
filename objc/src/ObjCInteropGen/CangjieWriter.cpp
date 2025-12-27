@@ -14,8 +14,10 @@
 #include "Logging.h"
 #include "Mode.h"
 #include "Package.h"
-#include "SingleDeclarationSymbolVisitor.h"
+#include "PrintUtils.h"
 #include "Strings.h"
+#include "Symbol.h"
+#include "SymbolVisitor.h"
 #include "Universe.h"
 
 namespace objcgen {
