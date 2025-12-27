@@ -23,7 +23,7 @@ public open class NSUnitConverterLinear <: NSUnitConverter & NSSecureCoding {
 public open class NSUnit <: NSObject & NSCopying & NSSecureCoding {
     public open prop symbol: NSString
     public init()
-    public static func new(): NSUnit
+    public static func new(): ?NSObject
     @ForeignName["initWithSymbol:"] public init(symbol: NSString)
 }
 

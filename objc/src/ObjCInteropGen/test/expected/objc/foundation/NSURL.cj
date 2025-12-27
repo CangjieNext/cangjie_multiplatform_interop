@@ -26,10 +26,10 @@ public open class NSURL <: NSObject & NSSecureCoding & NSCopying {
     @ForeignName["fileURLWithFileSystemRepresentation:isDirectory:relativeToURL:"] public static func fileURLWithFileSystemRepresentationIsDirectoryRelativeToURL(path: ObjCPointer<Int8>, isDir: Bool, baseURL: ?NSURL): NSURL
     @ObjCInit @ForeignName["initWithString:"] public static func initWithString(URLString: NSString): NSURL
     @ObjCInit @ForeignName["initWithString:relativeToURL:"] public static func initWithStringRelativeToURL(URLString: NSString, baseURL: ?NSURL): NSURL
-    @ForeignName["URLWithString:"] public static func URLWithString(URLString: NSString): NSURL
-    @ForeignName["URLWithString:relativeToURL:"] public static func URLWithStringRelativeToURL(URLString: NSString, baseURL: ?NSURL): NSURL
+    @ForeignName["URLWithString:"] public static func URLWithString(URLString: NSString): ?NSURL
+    @ForeignName["URLWithString:relativeToURL:"] public static func URLWithStringRelativeToURL(URLString: NSString, baseURL: ?NSURL): ?NSURL
     @ObjCInit @ForeignName["initWithString:encodingInvalidCharacters:"] public static func initWithStringEncodingInvalidCharacters(URLString: NSString, encodingInvalidCharacters: Bool): NSURL
-    @ForeignName["URLWithString:encodingInvalidCharacters:"] public static func URLWithStringEncodingInvalidCharacters(URLString: NSString, encodingInvalidCharacters: Bool): NSURL
+    @ForeignName["URLWithString:encodingInvalidCharacters:"] public static func URLWithStringEncodingInvalidCharacters(URLString: NSString, encodingInvalidCharacters: Bool): ?NSURL
     @ObjCInit @ForeignName["initWithDataRepresentation:relativeToURL:"] public static func initWithDataRepresentationRelativeToURL(data: NSData, baseURL: ?NSURL): NSURL
     @ForeignName["URLWithDataRepresentation:relativeToURL:"] public static func URLWithDataRepresentationRelativeToURL(data: NSData, baseURL: ?NSURL): NSURL
     @ObjCInit @ForeignName["initAbsoluteURLWithDataRepresentation:relativeToURL:"] public static func initAbsoluteURLWithDataRepresentationRelativeToURL(data: NSData, baseURL: ?NSURL): NSURL
@@ -58,25 +58,25 @@ public open class NSURL <: NSObject & NSSecureCoding & NSCopying {
     public open func isFileReferenceURL(): Bool
     public open func fileReferenceURL(): ?NSURL
     public open prop filePathURL: ?NSURL
-    @ForeignName["getResourceValue:forKey:error:"] public open func getResourceValueForKeyError(value: ObjCPointer<ObjCId>, key: NSURLResourceKey, error: ObjCPointer<NSError>): Bool
-    @ForeignName["resourceValuesForKeys:error:"] public open func resourceValuesForKeysError(keys: NSArray/*<NSURLResourceKey>*/, error: ObjCPointer<NSError>): ?NSDictionary/*<NSURLResourceKey, ObjCId>*/
-    @ForeignName["setResourceValue:forKey:error:"] public open func setResourceValueForKeyError(value: ?ObjCId, key: NSURLResourceKey, error: ObjCPointer<NSError>): Bool
-    @ForeignName["setResourceValues:error:"] public open func setResourceValuesError(keyedValues: NSDictionary/*<NSURLResourceKey, ObjCId>*/, error: ObjCPointer<NSError>): Bool
+    @ForeignName["getResourceValue:forKey:error:"] public open func getResourceValueForKeyError(value: ObjCPointer<?ObjCId>, key: NSURLResourceKey, error: ObjCPointer<?NSError>): Bool
+    @ForeignName["resourceValuesForKeys:error:"] public open func resourceValuesForKeysError(keys: NSArray/*<NSURLResourceKey>*/, error: ObjCPointer<?NSError>): ?NSDictionary/*<NSURLResourceKey, ObjCId>*/
+    @ForeignName["setResourceValue:forKey:error:"] public open func setResourceValueForKeyError(value: ?ObjCId, key: NSURLResourceKey, error: ObjCPointer<?NSError>): Bool
+    @ForeignName["setResourceValues:error:"] public open func setResourceValuesError(keyedValues: NSDictionary/*<NSURLResourceKey, ObjCId>*/, error: ObjCPointer<?NSError>): Bool
     @ForeignName["removeCachedResourceValueForKey:"] public open func removeCachedResourceValueForKey(key: NSURLResourceKey): Unit
     public open func removeAllCachedResourceValues(): Unit
     @ForeignName["setTemporaryResourceValue:forKey:"] public open func setTemporaryResourceValueForKey(value: ?ObjCId, key: NSURLResourceKey): Unit
-    @ForeignName["bookmarkDataWithOptions:includingResourceValuesForKeys:relativeToURL:error:"] public open func bookmarkDataWithOptionsIncludingResourceValuesForKeysRelativeToURLError(options: NSUInteger /*NSURLBookmarkCreationOptions*/, keys: ?NSArray/*<NSURLResourceKey>*/, relativeURL: ?NSURL, error: ObjCPointer<NSError>): ?NSData
-    @ForeignName["initByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:"] public init(bookmarkData: NSData, options: NSUInteger /*NSURLBookmarkResolutionOptions*/, relativeURL: ?NSURL, isStale: ObjCPointer<Bool>, error: ObjCPointer<NSError>)
-    @ForeignName["URLByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:"] public static func URLByResolvingBookmarkDataOptionsRelativeToURLBookmarkDataIsStaleError(bookmarkData: NSData, options: NSUInteger /*NSURLBookmarkResolutionOptions*/, relativeURL: ?NSURL, isStale: ObjCPointer<Bool>, error: ObjCPointer<NSError>): NSURL
+    @ForeignName["bookmarkDataWithOptions:includingResourceValuesForKeys:relativeToURL:error:"] public open func bookmarkDataWithOptionsIncludingResourceValuesForKeysRelativeToURLError(options: NSUInteger /*NSURLBookmarkCreationOptions*/, keys: ?NSArray/*<NSURLResourceKey>*/, relativeURL: ?NSURL, error: ObjCPointer<?NSError>): ?NSData
+    @ForeignName["initByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:"] public init(bookmarkData: NSData, options: NSUInteger /*NSURLBookmarkResolutionOptions*/, relativeURL: ?NSURL, isStale: ObjCPointer<Bool>, error: ObjCPointer<?NSError>)
+    @ForeignName["URLByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:"] public static func URLByResolvingBookmarkDataOptionsRelativeToURLBookmarkDataIsStaleError(bookmarkData: NSData, options: NSUInteger /*NSURLBookmarkResolutionOptions*/, relativeURL: ?NSURL, isStale: ObjCPointer<Bool>, error: ObjCPointer<?NSError>): ?NSURL
     @ForeignName["resourceValuesForKeys:fromBookmarkData:"] public static func resourceValuesForKeysFromBookmarkData(keys: NSArray/*<NSURLResourceKey>*/, bookmarkData: NSData): ?NSDictionary/*<NSURLResourceKey, ObjCId>*/
-    @ForeignName["writeBookmarkData:toURL:options:error:"] public static func writeBookmarkDataToURLOptionsError(bookmarkData: NSData, bookmarkFileURL: NSURL, options: NSURLBookmarkFileCreationOptions, error: ObjCPointer<NSError>): Bool
-    @ForeignName["bookmarkDataWithContentsOfURL:error:"] public static func bookmarkDataWithContentsOfURLError(bookmarkFileURL: NSURL, error: ObjCPointer<NSError>): ?NSData
-    @ForeignName["URLByResolvingAliasFileAtURL:options:error:"] public static func URLByResolvingAliasFileAtURLOptionsError(url: NSURL, options: NSUInteger /*NSURLBookmarkResolutionOptions*/, error: ObjCPointer<NSError>): NSURL
+    @ForeignName["writeBookmarkData:toURL:options:error:"] public static func writeBookmarkDataToURLOptionsError(bookmarkData: NSData, bookmarkFileURL: NSURL, options: NSURLBookmarkFileCreationOptions, error: ObjCPointer<?NSError>): Bool
+    @ForeignName["bookmarkDataWithContentsOfURL:error:"] public static func bookmarkDataWithContentsOfURLError(bookmarkFileURL: NSURL, error: ObjCPointer<?NSError>): ?NSData
+    @ForeignName["URLByResolvingAliasFileAtURL:options:error:"] public static func URLByResolvingAliasFileAtURLOptionsError(url: NSURL, options: NSUInteger /*NSURLBookmarkResolutionOptions*/, error: ObjCPointer<?NSError>): ?NSURL
     public open func startAccessingSecurityScopedResource(): Bool
     public open func stopAccessingSecurityScopedResource(): Unit
-    @ForeignName["getPromisedItemResourceValue:forKey:error:"] public open func getPromisedItemResourceValueForKeyError(value: ObjCPointer<ObjCId>, key: NSURLResourceKey, error: ObjCPointer<NSError>): Bool
-    @ForeignName["promisedItemResourceValuesForKeys:error:"] public open func promisedItemResourceValuesForKeysError(keys: NSArray/*<NSURLResourceKey>*/, error: ObjCPointer<NSError>): ?NSDictionary/*<NSURLResourceKey, ObjCId>*/
-    @ForeignName["checkPromisedItemIsReachableAndReturnError:"] public open func checkPromisedItemIsReachableAndReturnError(error: ObjCPointer<NSError>): Bool
+    @ForeignName["getPromisedItemResourceValue:forKey:error:"] public open func getPromisedItemResourceValueForKeyError(value: ObjCPointer<?ObjCId>, key: NSURLResourceKey, error: ObjCPointer<?NSError>): Bool
+    @ForeignName["promisedItemResourceValuesForKeys:error:"] public open func promisedItemResourceValuesForKeysError(keys: NSArray/*<NSURLResourceKey>*/, error: ObjCPointer<?NSError>): ?NSDictionary/*<NSURLResourceKey, ObjCId>*/
+    @ForeignName["checkPromisedItemIsReachableAndReturnError:"] public open func checkPromisedItemIsReachableAndReturnError(error: ObjCPointer<?NSError>): Bool
     @ForeignName["fileURLWithPathComponents:"] public static func fileURLWithPathComponents(components: NSArray/*<NSString>*/): ?NSURL
     public open prop pathComponents: ?NSArray/*<NSString>*/
     public open prop lastPathComponent: ?NSString
@@ -86,7 +86,7 @@ public open class NSURL <: NSObject & NSSecureCoding & NSCopying {
     public open prop URLByDeletingLastPathComponent: ?NSURL
     @ForeignName["URLByAppendingPathExtension:"] public open func URLByAppendingPathExtension(pathExtension: NSString): ?NSURL
     public open prop URLByDeletingPathExtension: ?NSURL
-    @ForeignName["checkResourceIsReachableAndReturnError:"] public open func checkResourceIsReachableAndReturnError(error: ObjCPointer<NSError>): Bool
+    @ForeignName["checkResourceIsReachableAndReturnError:"] public open func checkResourceIsReachableAndReturnError(error: ObjCPointer<?NSError>): Bool
     public open prop URLByStandardizingPath: ?NSURL
     public open prop URLByResolvingSymlinksInPath: ?NSURL
 }
@@ -133,11 +133,11 @@ public open class NSURLQueryItem <: NSObject & NSSecureCoding & NSCopying {
 public open class NSURLComponents <: NSObject & NSCopying {
     public init()
     @ForeignName["initWithURL:resolvingAgainstBaseURL:"] public init(url: NSURL, resolve: Bool)
-    @ForeignName["componentsWithURL:resolvingAgainstBaseURL:"] public static func componentsWithURLResolvingAgainstBaseURL(url: NSURL, resolve: Bool): NSURLComponents
+    @ForeignName["componentsWithURL:resolvingAgainstBaseURL:"] public static func componentsWithURLResolvingAgainstBaseURL(url: NSURL, resolve: Bool): ?NSURLComponents
     @ForeignName["initWithString:"] public init(URLString: NSString)
-    @ForeignName["componentsWithString:"] public static func componentsWithString(URLString: NSString): NSURLComponents
+    @ForeignName["componentsWithString:"] public static func componentsWithString(URLString: NSString): ?NSURLComponents
     @ForeignName["initWithString:encodingInvalidCharacters:"] public init(URLString: NSString, encodingInvalidCharacters: Bool)
-    @ForeignName["componentsWithString:encodingInvalidCharacters:"] public static func componentsWithStringEncodingInvalidCharacters(URLString: NSString, encodingInvalidCharacters: Bool): NSURLComponents
+    @ForeignName["componentsWithString:encodingInvalidCharacters:"] public static func componentsWithStringEncodingInvalidCharacters(URLString: NSString, encodingInvalidCharacters: Bool): ?NSURLComponents
     public open prop URL: ?NSURL
     @ForeignName["URLRelativeToURL:"] public open func URLRelativeToURL(baseURL: ?NSURL): ?NSURL
     public open prop string: ?NSString

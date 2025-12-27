@@ -9,7 +9,7 @@ import objc.lang.*
 public open class NSRunLoop <: NSObject {
     public static prop currentRunLoop: NSRunLoop
     public static prop mainRunLoop: NSRunLoop
-    public open prop currentMode: NSRunLoopMode
+    public open prop currentMode: ?NSRunLoopMode
     public open func getCFRunLoop(): CFRunLoopRef
     @ForeignName["addTimer:forMode:"] public open func addTimerForMode(timer: NSTimer, mode: NSRunLoopMode): Unit
     @ForeignName["addPort:forMode:"] public open func addPortForMode(aPort: NSPort, mode: NSRunLoopMode): Unit

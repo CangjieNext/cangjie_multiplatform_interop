@@ -28,12 +28,12 @@ public open class NSTimeZone <: NSObject & NSCopying & NSSecureCoding {
     public open prop nextDaylightSavingTimeTransition: ?NSDate
     @ForeignName["isEqualToTimeZone:"] public open func isEqualToTimeZone(aTimeZone: NSTimeZone): Bool
     @ForeignName["localizedName:locale:"] public open func localizedNameLocale(style: NSInteger /*NSTimeZoneNameStyle*/, locale: ?NSLocale): ?NSString
-    @ForeignName["timeZoneWithName:"] public static func timeZoneWithName(tzName: NSString): NSTimeZone
-    @ForeignName["timeZoneWithName:data:"] public static func timeZoneWithNameData(tzName: NSString, aData: ?NSData): NSTimeZone
+    @ForeignName["timeZoneWithName:"] public static func timeZoneWithName(tzName: NSString): ?NSTimeZone
+    @ForeignName["timeZoneWithName:data:"] public static func timeZoneWithNameData(tzName: NSString, aData: ?NSData): ?NSTimeZone
     @ForeignName["initWithName:"] public init(tzName: NSString)
     @ForeignName["initWithName:data:"] public init(tzName: NSString, aData: ?NSData)
     @ForeignName["timeZoneForSecondsFromGMT:"] public static func timeZoneForSecondsFromGMT(seconds: NSInteger): NSTimeZone
-    @ForeignName["timeZoneWithAbbreviation:"] public static func timeZoneWithAbbreviation(abbreviation: NSString): NSTimeZone
+    @ForeignName["timeZoneWithAbbreviation:"] public static func timeZoneWithAbbreviation(abbreviation: NSString): ?NSTimeZone
 }
 
 public abstract sealed class NSTimeZoneNameStyle {

@@ -10,25 +10,25 @@ public open class NSFileHandle <: NSObject & NSSecureCoding {
     public open prop availableData: NSData
     @ForeignName["initWithFileDescriptor:closeOnDealloc:"] public init(fd: Int32, closeopt: Bool)
     @ForeignName["initWithCoder:"] public init(coder: NSCoder)
-    @ForeignName["readDataToEndOfFileAndReturnError:"] public open func readDataToEndOfFileAndReturnError(error: ObjCPointer<NSError>): ?NSData
-    @ForeignName["readDataUpToLength:error:"] public open func readDataUpToLengthError(length: NSUInteger, error: ObjCPointer<NSError>): ?NSData
-    @ForeignName["writeData:error:"] public open func writeDataError(data: NSData, error: ObjCPointer<NSError>): Bool
-    @ForeignName["getOffset:error:"] public open func getOffsetError(offsetInFile: ObjCPointer<UInt64>, error: ObjCPointer<NSError>): Bool
-    @ForeignName["seekToEndReturningOffset:error:"] public open func seekToEndReturningOffsetError(offsetInFile: ObjCPointer<UInt64>, error: ObjCPointer<NSError>): Bool
-    @ForeignName["seekToOffset:error:"] public open func seekToOffsetError(offset: UInt64, error: ObjCPointer<NSError>): Bool
-    @ForeignName["truncateAtOffset:error:"] public open func truncateAtOffsetError(offset: UInt64, error: ObjCPointer<NSError>): Bool
-    @ForeignName["synchronizeAndReturnError:"] public open func synchronizeAndReturnError(error: ObjCPointer<NSError>): Bool
-    @ForeignName["closeAndReturnError:"] public open func closeAndReturnError(error: ObjCPointer<NSError>): Bool
+    @ForeignName["readDataToEndOfFileAndReturnError:"] public open func readDataToEndOfFileAndReturnError(error: ObjCPointer<?NSError>): ?NSData
+    @ForeignName["readDataUpToLength:error:"] public open func readDataUpToLengthError(length: NSUInteger, error: ObjCPointer<?NSError>): ?NSData
+    @ForeignName["writeData:error:"] public open func writeDataError(data: NSData, error: ObjCPointer<?NSError>): Bool
+    @ForeignName["getOffset:error:"] public open func getOffsetError(offsetInFile: ObjCPointer<UInt64>, error: ObjCPointer<?NSError>): Bool
+    @ForeignName["seekToEndReturningOffset:error:"] public open func seekToEndReturningOffsetError(offsetInFile: ObjCPointer<UInt64>, error: ObjCPointer<?NSError>): Bool
+    @ForeignName["seekToOffset:error:"] public open func seekToOffsetError(offset: UInt64, error: ObjCPointer<?NSError>): Bool
+    @ForeignName["truncateAtOffset:error:"] public open func truncateAtOffsetError(offset: UInt64, error: ObjCPointer<?NSError>): Bool
+    @ForeignName["synchronizeAndReturnError:"] public open func synchronizeAndReturnError(error: ObjCPointer<?NSError>): Bool
+    @ForeignName["closeAndReturnError:"] public open func closeAndReturnError(error: ObjCPointer<?NSError>): Bool
     public static prop fileHandleWithStandardInput: NSFileHandle
     public static prop fileHandleWithStandardOutput: NSFileHandle
     public static prop fileHandleWithStandardError: NSFileHandle
     public static prop fileHandleWithNullDevice: NSFileHandle
-    @ForeignName["fileHandleForReadingAtPath:"] public static func fileHandleForReadingAtPath(path: NSString): NSFileHandle
-    @ForeignName["fileHandleForWritingAtPath:"] public static func fileHandleForWritingAtPath(path: NSString): NSFileHandle
-    @ForeignName["fileHandleForUpdatingAtPath:"] public static func fileHandleForUpdatingAtPath(path: NSString): NSFileHandle
-    @ForeignName["fileHandleForReadingFromURL:error:"] public static func fileHandleForReadingFromURLError(url: NSURL, error: ObjCPointer<NSError>): NSFileHandle
-    @ForeignName["fileHandleForWritingToURL:error:"] public static func fileHandleForWritingToURLError(url: NSURL, error: ObjCPointer<NSError>): NSFileHandle
-    @ForeignName["fileHandleForUpdatingURL:error:"] public static func fileHandleForUpdatingURLError(url: NSURL, error: ObjCPointer<NSError>): NSFileHandle
+    @ForeignName["fileHandleForReadingAtPath:"] public static func fileHandleForReadingAtPath(path: NSString): ?NSFileHandle
+    @ForeignName["fileHandleForWritingAtPath:"] public static func fileHandleForWritingAtPath(path: NSString): ?NSFileHandle
+    @ForeignName["fileHandleForUpdatingAtPath:"] public static func fileHandleForUpdatingAtPath(path: NSString): ?NSFileHandle
+    @ForeignName["fileHandleForReadingFromURL:error:"] public static func fileHandleForReadingFromURLError(url: NSURL, error: ObjCPointer<?NSError>): ?NSFileHandle
+    @ForeignName["fileHandleForWritingToURL:error:"] public static func fileHandleForWritingToURLError(url: NSURL, error: ObjCPointer<?NSError>): ?NSFileHandle
+    @ForeignName["fileHandleForUpdatingURL:error:"] public static func fileHandleForUpdatingURLError(url: NSURL, error: ObjCPointer<?NSError>): ?NSFileHandle
     @ForeignName["readInBackgroundAndNotifyForModes:"] public open func readInBackgroundAndNotifyForModes(modes: ?NSArray/*<NSRunLoopMode>*/): Unit
     public open func readInBackgroundAndNotify(): Unit
     @ForeignName["readToEndOfFileInBackgroundAndNotifyForModes:"] public open func readToEndOfFileInBackgroundAndNotifyForModes(modes: ?NSArray/*<NSRunLoopMode>*/): Unit

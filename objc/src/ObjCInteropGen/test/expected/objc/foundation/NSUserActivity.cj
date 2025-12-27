@@ -23,8 +23,8 @@ public open class NSUserActivity <: NSObject {
     public init()
     public open prop activityType: NSString
     public open mut prop title: ?NSString
-    public open mut prop userInfo: ?NSDictionary/*<KeyType, ObjectType>*/
-    @ForeignName["addUserInfoEntriesFromDictionary:"] public open func addUserInfoEntriesFromDictionary(otherDictionary: NSDictionary/*<KeyType, ObjectType>*/): Unit
+    public open mut prop userInfo: ?NSDictionary
+    @ForeignName["addUserInfoEntriesFromDictionary:"] public open func addUserInfoEntriesFromDictionary(otherDictionary: NSDictionary): Unit
     public open mut prop requiredUserInfoKeys: ?NSSet/*<NSString>*/
     public open mut prop needsSave: Bool
     public open mut prop webpageURL: ?NSURL
@@ -37,12 +37,12 @@ public open class NSUserActivity <: NSObject {
     public open func becomeCurrent(): Unit
     public open func resignCurrent(): Unit
     public open func invalidate(): Unit
-    @ForeignName["getContinuationStreamsWithCompletionHandler:"] public open func getContinuationStreamsWithCompletionHandler(completionHandler: ObjCBlock<(NSInputStream, NSOutputStream, NSError) -> Unit>): Unit
+    @ForeignName["getContinuationStreamsWithCompletionHandler:"] public open func getContinuationStreamsWithCompletionHandler(completionHandler: ObjCBlock<(?NSInputStream, ?NSOutputStream, ?NSError) -> Unit>): Unit
     @ForeignGetterName["isEligibleForHandoff"] public open mut prop eligibleForHandoff: Bool
     @ForeignGetterName["isEligibleForSearch"] public open mut prop eligibleForSearch: Bool
     @ForeignGetterName["isEligibleForPublicIndexing"] public open mut prop eligibleForPublicIndexing: Bool
     @ForeignGetterName["isEligibleForPrediction"] public open mut prop eligibleForPrediction: Bool
-    public open mut prop persistentIdentifier: NSUserActivityPersistentIdentifier
+    public open mut prop persistentIdentifier: ?NSUserActivityPersistentIdentifier
     @ForeignName["deleteSavedUserActivitiesWithPersistentIdentifiers:completionHandler:"] public static func deleteSavedUserActivitiesWithPersistentIdentifiersCompletionHandler(persistentIdentifiers: NSArray/*<NSUserActivityPersistentIdentifier>*/, handler: ObjCBlock<() -> Unit>): Unit
     @ForeignName["deleteAllSavedUserActivitiesWithCompletionHandler:"] public static func deleteAllSavedUserActivitiesWithCompletionHandler(handler: ObjCBlock<() -> Unit>): Unit
 }

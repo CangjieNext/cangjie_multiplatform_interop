@@ -44,8 +44,8 @@ public open class NSStream <: NSObject {
     @ForeignName["removeFromRunLoop:forMode:"] public open func removeFromRunLoopForMode(aRunLoop: NSRunLoop, mode: NSRunLoopMode): Unit
     public open prop streamStatus: NSUInteger /*NSStreamStatus*/
     public open prop streamError: ?NSError
-    @ForeignName["getStreamsToHostWithName:port:inputStream:outputStream:"] public static func getStreamsToHostWithNamePortInputStreamOutputStream(hostname: NSString, port: NSInteger, inputStream: ObjCPointer<NSInputStream>, outputStream: ObjCPointer<NSOutputStream>): Unit
-    @ForeignName["getBoundStreamsWithBufferSize:inputStream:outputStream:"] public static func getBoundStreamsWithBufferSizeInputStreamOutputStream(bufferSize: NSUInteger, inputStream: ObjCPointer<NSInputStream>, outputStream: ObjCPointer<NSOutputStream>): Unit
+    @ForeignName["getStreamsToHostWithName:port:inputStream:outputStream:"] public static func getStreamsToHostWithNamePortInputStreamOutputStream(hostname: NSString, port: NSInteger, inputStream: ObjCPointer<?NSInputStream>, outputStream: ObjCPointer<?NSOutputStream>): Unit
+    @ForeignName["getBoundStreamsWithBufferSize:inputStream:outputStream:"] public static func getBoundStreamsWithBufferSizeInputStreamOutputStream(bufferSize: NSUInteger, inputStream: ObjCPointer<?NSInputStream>, outputStream: ObjCPointer<?NSOutputStream>): Unit
 }
 
 @ObjCMirror
@@ -56,9 +56,9 @@ public open class NSInputStream <: NSStream {
     @ForeignName["initWithData:"] public init(data: NSData)
     @ForeignName["initWithURL:"] public init(url: NSURL)
     @ForeignName["initWithFileAtPath:"] public init(path: NSString)
-    @ForeignName["inputStreamWithData:"] public static func inputStreamWithData(data: NSData): NSInputStream
-    @ForeignName["inputStreamWithFileAtPath:"] public static func inputStreamWithFileAtPath(path: NSString): NSInputStream
-    @ForeignName["inputStreamWithURL:"] public static func inputStreamWithURL(url: NSURL): NSInputStream
+    @ForeignName["inputStreamWithData:"] public static func inputStreamWithData(data: NSData): ?NSInputStream
+    @ForeignName["inputStreamWithFileAtPath:"] public static func inputStreamWithFileAtPath(path: NSString): ?NSInputStream
+    @ForeignName["inputStreamWithURL:"] public static func inputStreamWithURL(url: NSURL): ?NSInputStream
 }
 
 @ObjCMirror
@@ -72,7 +72,7 @@ public open class NSOutputStream <: NSStream {
     public static func outputStreamToMemory(): NSOutputStream
     @ForeignName["outputStreamToBuffer:capacity:"] public static func outputStreamToBufferCapacity(buffer: ObjCPointer<uint8_t>, capacity: NSUInteger): NSOutputStream
     @ForeignName["outputStreamToFileAtPath:append:"] public static func outputStreamToFileAtPathAppend(path: NSString, shouldAppend: Bool): NSOutputStream
-    @ForeignName["outputStreamWithURL:append:"] public static func outputStreamWithURLAppend(url: NSURL, shouldAppend: Bool): NSOutputStream
+    @ForeignName["outputStreamWithURL:append:"] public static func outputStreamWithURLAppend(url: NSURL, shouldAppend: Bool): ?NSOutputStream
 }
 
 public type NSStreamSocketSecurityLevel = NSString

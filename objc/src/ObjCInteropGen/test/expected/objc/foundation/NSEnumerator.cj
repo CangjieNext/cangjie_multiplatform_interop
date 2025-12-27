@@ -8,14 +8,14 @@ import objc.lang.*
 @ObjCMirror
 public struct NSFastEnumerationState {
     public var state: UInt64
-    public var itemsPtr: ObjCPointer<ObjCId>
+    public var itemsPtr: ObjCPointer<?ObjCId>
     public var mutationsPtr: CPointer<UInt64>
     public var extra: VArray<UInt64, $5>
 }
 
 @ObjCMirror
 public interface NSFastEnumeration {
-    @ForeignName["countByEnumeratingWithState:objects:count:"] func countByEnumeratingWithStateObjectsCount(state: ObjCPointer<NSFastEnumerationState>, buffer: ObjCPointer<ObjCId>, len: NSUInteger): NSUInteger
+    @ForeignName["countByEnumeratingWithState:objects:count:"] func countByEnumeratingWithStateObjectsCount(state: ObjCPointer<NSFastEnumerationState>, buffer: ObjCPointer<?ObjCId>, len: NSUInteger): NSUInteger
 }
 
 @ObjCMirror

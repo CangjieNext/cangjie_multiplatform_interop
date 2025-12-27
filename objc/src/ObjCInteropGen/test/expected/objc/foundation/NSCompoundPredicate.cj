@@ -16,7 +16,7 @@ public open class NSCompoundPredicate <: NSPredicate {
     @ForeignName["initWithType:subpredicates:"] public init(`type`: NSUInteger /*NSCompoundPredicateType*/, subpredicates: NSArray/*<NSPredicate>*/)
     @ForeignName["initWithCoder:"] public init(coder: NSCoder)
     public open prop compoundPredicateType: NSUInteger /*NSCompoundPredicateType*/
-    public open prop subpredicates: NSArray/*<ObjectType>*/
+    public open prop subpredicates: NSArray
     @ForeignName["andPredicateWithSubpredicates:"] public static func andPredicateWithSubpredicates(subpredicates: NSArray/*<NSPredicate>*/): NSCompoundPredicate
     @ForeignName["orPredicateWithSubpredicates:"] public static func orPredicateWithSubpredicates(subpredicates: NSArray/*<NSPredicate>*/): NSCompoundPredicate
     @ForeignName["notPredicateWithSubpredicate:"] public static func notPredicateWithSubpredicate(predicate: NSPredicate): NSCompoundPredicate

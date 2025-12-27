@@ -33,8 +33,8 @@ public open class NSPort <: NSObject & NSCopying & NSCoding {
     @ForeignName["scheduleInRunLoop:forMode:"] public open func scheduleInRunLoopForMode(runLoop: NSRunLoop, mode: NSRunLoopMode): Unit
     @ForeignName["removeFromRunLoop:forMode:"] public open func removeFromRunLoopForMode(runLoop: NSRunLoop, mode: NSRunLoopMode): Unit
     public open prop reservedSpaceLength: NSUInteger
-    @ForeignName["sendBeforeDate:components:from:reserved:"] public open func sendBeforeDateComponentsFromReserved(limitDate: NSDate, components: ?NSMutableArray/*<ObjectType>*/, receivePort: ?NSPort, headerSpaceReserved: NSUInteger): Bool
-    @ForeignName["sendBeforeDate:msgid:components:from:reserved:"] public open func sendBeforeDateMsgidComponentsFromReserved(limitDate: NSDate, msgID: NSUInteger, components: ?NSMutableArray/*<ObjectType>*/, receivePort: ?NSPort, headerSpaceReserved: NSUInteger): Bool
+    @ForeignName["sendBeforeDate:components:from:reserved:"] public open func sendBeforeDateComponentsFromReserved(limitDate: NSDate, components: ?NSMutableArray, receivePort: ?NSPort, headerSpaceReserved: NSUInteger): Bool
+    @ForeignName["sendBeforeDate:msgid:components:from:reserved:"] public open func sendBeforeDateMsgidComponentsFromReserved(limitDate: NSDate, msgID: NSUInteger, components: ?NSMutableArray, receivePort: ?NSPort, headerSpaceReserved: NSUInteger): Bool
 }
 
 @ObjCMirror

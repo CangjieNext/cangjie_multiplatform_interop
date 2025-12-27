@@ -13,7 +13,7 @@ public abstract sealed class NSNumberFormatterBehavior {
 @ObjCMirror
 public open class NSNumberFormatter <: NSFormatter {
     public open mut prop formattingContext: NSInteger /*NSFormattingContext*/
-    @ForeignName["getObjectValue:forString:range:error:"] public open func getObjectValueForStringRangeError(obj: ObjCPointer<ObjCId>, string: NSString, rangep: ObjCPointer<NSRange>, error: ObjCPointer<NSError>): Bool
+    @ForeignName["getObjectValue:forString:range:error:"] public open func getObjectValueForStringRangeError(obj: ObjCPointer<?ObjCId>, string: NSString, rangep: ObjCPointer<NSRange>, error: ObjCPointer<?NSError>): Bool
     @ForeignName["stringFromNumber:"] public open func stringFromNumber(number: NSNumber): ?NSString
     @ForeignName["numberFromString:"] public open func numberFromString(string: NSString): ?NSNumber
     @ForeignName["localizedStringFromNumber:numberStyle:"] public static func localizedStringFromNumberNumberStyle(num: NSNumber, nstyle: NSUInteger /*NSNumberFormatterStyle*/): NSString

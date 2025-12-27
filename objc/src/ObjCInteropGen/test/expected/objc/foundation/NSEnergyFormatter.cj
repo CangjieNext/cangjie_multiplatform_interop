@@ -21,6 +21,6 @@ public open class NSEnergyFormatter <: NSFormatter {
     @ForeignName["stringFromJoules:"] public open func stringFromJoules(numberInJoules: Float64): NSString
     @ForeignName["unitStringFromValue:unit:"] public open func unitStringFromValueUnit(value: Float64, unit: NSInteger /*NSEnergyFormatterUnit*/): NSString
     @ForeignName["unitStringFromJoules:usedUnit:"] public open func unitStringFromJoulesUsedUnit(numberInJoules: Float64, unitp: ObjCPointer<NSInteger /*NSEnergyFormatterUnit*/>): NSString
-    public open func getObjectValueForStringErrorDescription(obj: ObjCPointer<ObjCId>, string: NSString, error: ObjCPointer<NSString>): Bool
+    public open func getObjectValueForStringErrorDescription(obj: ObjCPointer<?ObjCId>, string: NSString, error: ObjCPointer<?NSString>): Bool
 }
 

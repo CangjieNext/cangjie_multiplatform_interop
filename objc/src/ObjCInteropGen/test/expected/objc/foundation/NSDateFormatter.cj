@@ -8,7 +8,7 @@ import objc.lang.*
 @ObjCMirror
 public open class NSDateFormatter <: NSFormatter {
     public open mut prop formattingContext: NSInteger /*NSFormattingContext*/
-    @ForeignName["getObjectValue:forString:range:error:"] public open func getObjectValueForStringRangeError(obj: ObjCPointer<ObjCId>, string: NSString, rangep: ObjCPointer<NSRange>, error: ObjCPointer<NSError>): Bool
+    @ForeignName["getObjectValue:forString:range:error:"] public open func getObjectValueForStringRangeError(obj: ObjCPointer<?ObjCId>, string: NSString, rangep: ObjCPointer<NSRange>, error: ObjCPointer<?NSError>): Bool
     @ForeignName["stringFromDate:"] public open func stringFromDate(date: NSDate): NSString
     @ForeignName["dateFromString:"] public open func dateFromString(string: NSString): ?NSDate
     @ForeignName["localizedStringFromDate:dateStyle:timeStyle:"] public static func localizedStringFromDateDateStyleTimeStyle(date: NSDate, dstyle: NSUInteger /*NSDateFormatterStyle*/, tstyle: NSUInteger /*NSDateFormatterStyle*/): NSString

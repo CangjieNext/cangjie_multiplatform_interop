@@ -28,7 +28,7 @@ public open class NSPointerFunctions <: NSObject & NSCopying {
     public open mut prop hashFunction: ObjCFunc<(ObjCPointer<Unit>, ObjCFunc<(ObjCPointer<Unit>) -> NSUInteger>) -> NSUInteger>
     public open mut prop isEqualFunction: ObjCFunc<(ObjCPointer<Unit>, ObjCPointer<Unit>, ObjCFunc<(ObjCPointer<Unit>) -> NSUInteger>) -> Bool>
     public open mut prop sizeFunction: ObjCFunc<(ObjCPointer<Unit>) -> NSUInteger>
-    public open mut prop descriptionFunction: ObjCFunc<(ObjCPointer<Unit>) -> NSString>
+    public open mut prop descriptionFunction: ObjCFunc<(ObjCPointer<Unit>) -> ?NSString>
     public open mut prop relinquishFunction: ObjCFunc<(ObjCPointer<Unit>, ObjCFunc<(ObjCPointer<Unit>) -> NSUInteger>) -> Unit>
     public open mut prop acquireFunction: ObjCFunc<(ObjCPointer<Unit>, ObjCFunc<(ObjCPointer<Unit>) -> NSUInteger>, Bool) -> ObjCPointer<Unit>>
     public open mut prop usesStrongWriteBarrier: Bool

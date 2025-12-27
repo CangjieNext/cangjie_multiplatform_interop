@@ -8,9 +8,9 @@ import objc.lang.*
 @ObjCMirror
 public open class NSBundle <: NSObject {
     public static prop mainBundle: NSBundle
-    @ForeignName["bundleWithPath:"] public static func bundleWithPath(path: NSString): NSBundle
+    @ForeignName["bundleWithPath:"] public static func bundleWithPath(path: NSString): ?NSBundle
     @ForeignName["initWithPath:"] public init(path: NSString)
-    @ForeignName["bundleWithURL:"] public static func bundleWithURL(url: NSURL): NSBundle
+    @ForeignName["bundleWithURL:"] public static func bundleWithURL(url: NSURL): ?NSBundle
     @ForeignName["initWithURL:"] public init(url: NSURL)
     @ForeignName["bundleForClass:"] public static func bundleForClass(aClass: ObjCClass): NSBundle
     @ForeignName["bundleWithIdentifier:"] public static func bundleWithIdentifier(identifier: NSString): ?NSBundle
@@ -19,8 +19,8 @@ public open class NSBundle <: NSObject {
     @ForeignName["load"] public open func loadInstance(): Bool
     @ForeignGetterName["isLoaded"] public open prop loaded: Bool
     public open func unload(): Bool
-    @ForeignName["preflightAndReturnError:"] public open func preflightAndReturnError(error: ObjCPointer<NSError>): Bool
-    @ForeignName["loadAndReturnError:"] public open func loadAndReturnError(error: ObjCPointer<NSError>): Bool
+    @ForeignName["preflightAndReturnError:"] public open func preflightAndReturnError(error: ObjCPointer<?NSError>): Bool
+    @ForeignName["loadAndReturnError:"] public open func loadAndReturnError(error: ObjCPointer<?NSError>): Bool
     public open prop bundleURL: NSURL
     public open prop resourceURL: ?NSURL
     public open prop executableURL: ?NSURL
@@ -78,7 +78,7 @@ public open class NSBundleResourceRequest <: NSObject & NSProgressReporting {
     public open mut prop loadingPriority: Float64
     public open prop tags: NSSet/*<NSString>*/
     public open prop bundle: NSBundle
-    @ForeignName["beginAccessingResourcesWithCompletionHandler:"] public open func beginAccessingResourcesWithCompletionHandler(completionHandler: ObjCBlock<(NSError) -> Unit>): Unit
+    @ForeignName["beginAccessingResourcesWithCompletionHandler:"] public open func beginAccessingResourcesWithCompletionHandler(completionHandler: ObjCBlock<(?NSError) -> Unit>): Unit
     @ForeignName["conditionallyBeginAccessingResourcesWithCompletionHandler:"] public open func conditionallyBeginAccessingResourcesWithCompletionHandler(completionHandler: ObjCBlock<(Bool) -> Unit>): Unit
     public open func endAccessingResources(): Unit
 }

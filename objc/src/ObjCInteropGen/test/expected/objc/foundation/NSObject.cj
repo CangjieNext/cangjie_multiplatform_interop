@@ -11,7 +11,7 @@ public interface NSObjectProtocol {
     prop hash: NSUInteger
     prop superclass: ?ObjCClass
     func `class`(): ?ObjCClass
-    func self(): NSObjectProtocol
+    func self(): ?NSObjectProtocol
     @ForeignName["performSelector:"] func performSelector(aSelector: ?SEL): ?ObjCId
     @ForeignName["performSelector:withObject:"] func performSelectorWithObject(aSelector: ?SEL, object: ?ObjCId): ?ObjCId
     @ForeignName["performSelector:withObject:withObject:"] func performSelectorWithObjectWithObject(aSelector: ?SEL, object1: ?ObjCId, object2: ?ObjCId): ?ObjCId
@@ -35,9 +35,9 @@ public open class NSObject <: NSObjectProtocol {
     public static func load(): Unit
     public static func initialize(): Unit
     public init()
-    public static func new(): NSObject
-    @ForeignName["allocWithZone:"] public static func allocWithZone(zone: ObjCPointer<_NSZone>): NSObject
-    public static func alloc(): NSObject
+    public static func new(): ?NSObject
+    @ForeignName["allocWithZone:"] public static func allocWithZone(zone: ObjCPointer<_NSZone>): ?NSObject
+    public static func alloc(): ?NSObject
     public open func dealloc(): Unit
     public open func finalize(): Unit
     public open func copy(): ?ObjCId
@@ -71,21 +71,21 @@ public open class NSObject <: NSObjectProtocol {
     @ForeignName["performSelector:withObject:afterDelay:"] public open func performSelectorWithObjectAfterDelay(aSelector: SEL, anArgument: ?ObjCId, delay: NSTimeInterval): Unit
     @ForeignName["cancelPreviousPerformRequestsWithTarget:selector:object:"] public static func cancelPreviousPerformRequestsWithTargetSelectorObject(aTarget: ObjCId, aSelector: SEL, anArgument: ?ObjCId): Unit
     @ForeignName["cancelPreviousPerformRequestsWithTarget:"] public static func cancelPreviousPerformRequestsWithTarget(aTarget: ObjCId): Unit
-    @ForeignName["fileManager:shouldProceedAfterError:"] public open func fileManagerShouldProceedAfterError(fm: NSFileManager, errorInfo: NSDictionary/*<KeyType, ObjectType>*/): Bool
+    @ForeignName["fileManager:shouldProceedAfterError:"] public open func fileManagerShouldProceedAfterError(fm: NSFileManager, errorInfo: NSDictionary): Bool
     @ForeignName["fileManager:willProcessPath:"] public open func fileManagerWillProcessPath(fm: NSFileManager, path: NSString): Unit
     public static prop accessInstanceVariablesDirectly: Bool
     @ForeignName["valueForKey:"] public open func valueForKey(key: NSString): ?ObjCId
     @ForeignName["setValue:forKey:"] public open func setValueForKey(value: ?ObjCId, key: NSString): Unit
-    @ForeignName["validateValue:forKey:error:"] public open func validateValueForKeyError(ioValue: ObjCPointer<ObjCId>, inKey: NSString, outError: ObjCPointer<NSError>): Bool
-    @ForeignName["mutableArrayValueForKey:"] public open func mutableArrayValueForKey(key: NSString): NSMutableArray/*<ObjectType>*/
-    @ForeignName["mutableOrderedSetValueForKey:"] public open func mutableOrderedSetValueForKey(key: NSString): NSMutableOrderedSet/*<ObjectType>*/
-    @ForeignName["mutableSetValueForKey:"] public open func mutableSetValueForKey(key: NSString): NSMutableSet/*<ObjectType>*/
+    @ForeignName["validateValue:forKey:error:"] public open func validateValueForKeyError(ioValue: ObjCPointer<?ObjCId>, inKey: NSString, outError: ObjCPointer<?NSError>): Bool
+    @ForeignName["mutableArrayValueForKey:"] public open func mutableArrayValueForKey(key: NSString): NSMutableArray
+    @ForeignName["mutableOrderedSetValueForKey:"] public open func mutableOrderedSetValueForKey(key: NSString): NSMutableOrderedSet
+    @ForeignName["mutableSetValueForKey:"] public open func mutableSetValueForKey(key: NSString): NSMutableSet
     @ForeignName["valueForKeyPath:"] public open func valueForKeyPath(keyPath: NSString): ?ObjCId
     @ForeignName["setValue:forKeyPath:"] public open func setValueForKeyPath(value: ?ObjCId, keyPath: NSString): Unit
-    @ForeignName["validateValue:forKeyPath:error:"] public open func validateValueForKeyPathError(ioValue: ObjCPointer<ObjCId>, inKeyPath: NSString, outError: ObjCPointer<NSError>): Bool
-    @ForeignName["mutableArrayValueForKeyPath:"] public open func mutableArrayValueForKeyPath(keyPath: NSString): NSMutableArray/*<ObjectType>*/
-    @ForeignName["mutableOrderedSetValueForKeyPath:"] public open func mutableOrderedSetValueForKeyPath(keyPath: NSString): NSMutableOrderedSet/*<ObjectType>*/
-    @ForeignName["mutableSetValueForKeyPath:"] public open func mutableSetValueForKeyPath(keyPath: NSString): NSMutableSet/*<ObjectType>*/
+    @ForeignName["validateValue:forKeyPath:error:"] public open func validateValueForKeyPathError(ioValue: ObjCPointer<?ObjCId>, inKeyPath: NSString, outError: ObjCPointer<?NSError>): Bool
+    @ForeignName["mutableArrayValueForKeyPath:"] public open func mutableArrayValueForKeyPath(keyPath: NSString): NSMutableArray
+    @ForeignName["mutableOrderedSetValueForKeyPath:"] public open func mutableOrderedSetValueForKeyPath(keyPath: NSString): NSMutableOrderedSet
+    @ForeignName["mutableSetValueForKeyPath:"] public open func mutableSetValueForKeyPath(keyPath: NSString): NSMutableSet
     @ForeignName["valueForUndefinedKey:"] public open func valueForUndefinedKey(key: NSString): ?ObjCId
     @ForeignName["setValue:forUndefinedKey:"] public open func setValueForUndefinedKey(value: ?ObjCId, key: NSString): Unit
     @ForeignName["setNilValueForKey:"] public open func setNilValueForKey(key: NSString): Unit
@@ -99,8 +99,8 @@ public open class NSObject <: NSObjectProtocol {
     @ForeignName["handleQueryWithUnboundKey:"] public open func handleQueryWithUnboundKey(key: NSString): ?ObjCId
     @ForeignName["handleTakeValue:forUnboundKey:"] public open func handleTakeValueForUnboundKey(value: ?ObjCId, key: NSString): Unit
     @ForeignName["unableToSetNilForKey:"] public open func unableToSetNilForKey(key: NSString): Unit
-    @ForeignName["valuesForKeys:"] public open func valuesForKeys(keys: NSArray/*<ObjectType>*/): NSDictionary/*<KeyType, ObjectType>*/
-    @ForeignName["takeValuesFromDictionary:"] public open func takeValuesFromDictionary(properties: NSDictionary/*<KeyType, ObjectType>*/): Unit
+    @ForeignName["valuesForKeys:"] public open func valuesForKeys(keys: NSArray): NSDictionary
+    @ForeignName["takeValuesFromDictionary:"] public open func takeValuesFromDictionary(properties: NSDictionary): Unit
     @ForeignName["observeValueForKeyPath:ofObject:change:context:"] public open func observeValueForKeyPathOfObjectChangeContext(keyPath: ?NSString, object: ?ObjCId, change: ?NSDictionary/*<NSKeyValueChangeKey, ObjCId>*/, context: ObjCPointer<Unit>): Unit
     @ForeignName["addObserver:forKeyPath:options:context:"] public open func addObserverForKeyPathOptionsContext(observer: NSObject, keyPath: NSString, options: NSUInteger /*NSKeyValueObservingOptions*/, context: ObjCPointer<Unit>): Unit
     @ForeignName["removeObserver:forKeyPath:context:"] public open func removeObserverForKeyPathContext(observer: NSObject, keyPath: NSString, context: ObjCPointer<Unit>): Unit
@@ -109,8 +109,8 @@ public open class NSObject <: NSObjectProtocol {
     @ForeignName["didChangeValueForKey:"] public open func didChangeValueForKey(key: NSString): Unit
     @ForeignName["willChange:valuesAtIndexes:forKey:"] public open func willChangeValuesAtIndexesForKey(changeKind: NSUInteger /*NSKeyValueChange*/, indexes: NSIndexSet, key: NSString): Unit
     @ForeignName["didChange:valuesAtIndexes:forKey:"] public open func didChangeValuesAtIndexesForKey(changeKind: NSUInteger /*NSKeyValueChange*/, indexes: NSIndexSet, key: NSString): Unit
-    @ForeignName["willChangeValueForKey:withSetMutation:usingObjects:"] public open func willChangeValueForKeyWithSetMutationUsingObjects(key: NSString, mutationKind: NSUInteger /*NSKeyValueSetMutationKind*/, objects: NSSet/*<ObjectType>*/): Unit
-    @ForeignName["didChangeValueForKey:withSetMutation:usingObjects:"] public open func didChangeValueForKeyWithSetMutationUsingObjects(key: NSString, mutationKind: NSUInteger /*NSKeyValueSetMutationKind*/, objects: NSSet/*<ObjectType>*/): Unit
+    @ForeignName["willChangeValueForKey:withSetMutation:usingObjects:"] public open func willChangeValueForKeyWithSetMutationUsingObjects(key: NSString, mutationKind: NSUInteger /*NSKeyValueSetMutationKind*/, objects: NSSet): Unit
+    @ForeignName["didChangeValueForKey:withSetMutation:usingObjects:"] public open func didChangeValueForKeyWithSetMutationUsingObjects(key: NSString, mutationKind: NSUInteger /*NSKeyValueSetMutationKind*/, objects: NSSet): Unit
     @ForeignName["keyPathsForValuesAffectingValueForKey:"] public static func keyPathsForValuesAffectingValueForKey(key: NSString): NSSet/*<NSString>*/
     @ForeignName["automaticallyNotifiesObserversForKey:"] public static func automaticallyNotifiesObserversForKey(key: NSString): Bool
     public open mut prop observationInfo: ObjCPointer<Unit>

@@ -26,6 +26,6 @@ public open class NSPersonNameComponentsFormatter <: NSFormatter {
     @ForeignName["stringFromPersonNameComponents:"] public open func stringFromPersonNameComponents(components: NSPersonNameComponents): NSString
     @ForeignName["annotatedStringFromPersonNameComponents:"] public open func annotatedStringFromPersonNameComponents(components: NSPersonNameComponents): NSAttributedString
     @ForeignName["personNameComponentsFromString:"] public open func personNameComponentsFromString(string: NSString): ?NSPersonNameComponents
-    public open func getObjectValueForStringErrorDescription(obj: ObjCPointer<ObjCId>, string: NSString, error: ObjCPointer<NSString>): Bool
+    public open func getObjectValueForStringErrorDescription(obj: ObjCPointer<?ObjCId>, string: NSString, error: ObjCPointer<?NSString>): Bool
 }
 

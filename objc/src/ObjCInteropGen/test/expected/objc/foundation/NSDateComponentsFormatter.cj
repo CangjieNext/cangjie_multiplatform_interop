@@ -42,6 +42,6 @@ public open class NSDateComponentsFormatter <: NSFormatter {
     public open mut prop includesApproximationPhrase: Bool
     public open mut prop includesTimeRemainingPhrase: Bool
     public open mut prop formattingContext: NSInteger /*NSFormattingContext*/
-    public open func getObjectValueForStringErrorDescription(obj: ObjCPointer<ObjCId>, string: NSString, error: ObjCPointer<NSString>): Bool
+    public open func getObjectValueForStringErrorDescription(obj: ObjCPointer<?ObjCId>, string: NSString, error: ObjCPointer<?NSString>): Bool
 }
 

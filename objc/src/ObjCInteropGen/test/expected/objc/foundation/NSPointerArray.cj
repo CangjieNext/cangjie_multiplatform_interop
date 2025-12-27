@@ -21,6 +21,6 @@ public open class NSPointerArray <: NSObject & NSFastEnumeration & NSCopying & N
     public open mut prop count: NSUInteger
     public static func strongObjectsPointerArray(): NSPointerArray
     public static func weakObjectsPointerArray(): NSPointerArray
-    public open prop allObjects: NSArray/*<ObjectType>*/
+    public open prop allObjects: NSArray
 }
 

@@ -23,7 +23,7 @@ public open class NSError <: NSObject & NSCopying & NSSecureCoding {
     public open prop recoveryAttempter: ?ObjCId
     public open prop helpAnchor: ?NSString
     public open prop underlyingErrors: NSArray/*<NSError>*/
-    @ForeignName["setUserInfoValueProviderForDomain:provider:"] public static func setUserInfoValueProviderForDomainProvider(errorDomain: NSErrorDomain, provider: ObjCBlock<(NSError, NSErrorUserInfoKey) -> ObjCId>): Unit
-    @ForeignName["userInfoValueProviderForDomain:"] public static func userInfoValueProviderForDomain(err: NSError, userInfoKey: NSErrorUserInfoKey, errorDomain: NSErrorDomain): ObjCBlock<(NSError, NSErrorUserInfoKey) -> ObjCId>
+    @ForeignName["setUserInfoValueProviderForDomain:provider:"] public static func setUserInfoValueProviderForDomainProvider(errorDomain: NSErrorDomain, provider: ObjCBlock<(NSError, NSErrorUserInfoKey) -> ?ObjCId>): Unit
+    @ForeignName["userInfoValueProviderForDomain:"] public static func userInfoValueProviderForDomain(err: NSError, userInfoKey: NSErrorUserInfoKey, errorDomain: NSErrorDomain): ObjCBlock<(NSError, NSErrorUserInfoKey) -> ?ObjCId>
 }
 

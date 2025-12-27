@@ -14,7 +14,7 @@ namespace objcgen {
 
 template <class T, class... Args> [[noreturn]] void fatal(T&& what, Args&&... args);
 
-class FatalException : public std::exception {
+class FatalException final : public std::exception {
 private:
     // Use the `fatal` function for throwing this exception
     FatalException() = default;
