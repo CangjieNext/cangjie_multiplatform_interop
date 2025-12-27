@@ -9,10 +9,13 @@
 #define INPUTFILE_H
 
 #include <climits>
+#include <deque>
 #include <filesystem>
 #include <set>
 #include <unordered_set>
 #include <vector>
+
+#include "Collection.h"
 
 namespace objcgen {
 
@@ -21,19 +24,19 @@ class InputDirectory;
 
 struct LineCol {
     struct Hash {
-        size_t operator()(const LineCol& pos) const noexcept
+        [[nodiscard]] size_t operator()(const LineCol& pos) const noexcept
         {
             constexpr auto half_width = sizeof(size_t) * CHAR_BIT / 2;
             return (static_cast<size_t>(pos.line_) << half_width) + pos.line_;
         }
     };
 
-    friend bool operator<(const LineCol& loc1, const LineCol& loc2) noexcept
+    [[nodiscard]] friend bool operator<(const LineCol& loc1, const LineCol& loc2) noexcept
     {
         return loc1.line_ < loc2.line_ || (loc1.line_ == loc2.line_ && loc1.col_ < loc2.col_);
     }
 
-    friend bool operator==(const LineCol& loc1, const LineCol& loc2) noexcept
+    [[nodiscard]] friend bool operator==(const LineCol& loc1, const LineCol& loc2) noexcept
     {
         return loc1.line_ == loc2.line_ && loc1.col_ == loc2.col_;
     }
@@ -57,8 +60,7 @@ class InputFile final {
         bool operator()(const FileLevelSymbol* symbol1, const FileLevelSymbol* symbol2) const noexcept;
     };
 
-    InputDirectory* directory_;
-    std::filesystem::path path_;
+    const std::filesystem::path path_;
 
     std::unordered_set<LineCol, LineCol::Hash> cursors_up_to_this_translation_;
     std::unordered_set<LineCol, LineCol::Hash> cursors_in_this_translation_;
@@ -67,39 +69,24 @@ class InputFile final {
 
     friend class FileLevelSymbol;
 
-    void add_symbol(FileLevelSymbol* symbol);
+    void add_symbol(FileLevelSymbol& symbol);
 
 public:
-    [[nodiscard]] InputFile(InputDirectory* directory, std::filesystem::path path);
+    [[nodiscard]] InputFile(std::filesystem::path path) noexcept;
 
-    [[nodiscard]] InputDirectory* directory() const
-    {
-        return directory_;
-    }
-
-    [[nodiscard]] std::filesystem::path path() const
+    [[nodiscard]] const auto& path() const noexcept
     {
         return path_;
     }
 
-    [[nodiscard]] auto cbegin() const
+    [[nodiscard]] auto begin() const noexcept
     {
-        return symbols_.cbegin();
+        return PointerIterator<decltype(symbols_.begin())>(symbols_.begin());
     }
 
-    [[nodiscard]] auto cend() const
+    [[nodiscard]] auto end() const noexcept
     {
-        return symbols_.cend();
-    }
-
-    [[nodiscard]] auto begin() const
-    {
-        return cbegin();
-    }
-
-    [[nodiscard]] auto end() const
-    {
-        return cend();
+        return PointerIterator<decltype(symbols_.end())>(symbols_.end());
     }
 
     void next_translation();
@@ -108,76 +95,63 @@ public:
 };
 
 class InputDirectory final {
-    std::filesystem::path path_;
+    const std::filesystem::path path_;
     std::vector<InputFile*> files_;
-
-    friend class InputFile;
 
 public:
     [[nodiscard]] explicit InputDirectory(std::filesystem::path path) : path_(std::move(path))
     {
     }
 
-    [[nodiscard]] std::filesystem::path path() const
+    [[nodiscard]] const auto& path() const noexcept
     {
         return path_;
     }
 
-    [[nodiscard]] auto cbegin() const
+    [[nodiscard]] auto begin() const noexcept
     {
-        return files_.cbegin();
+        return files_.begin();
     }
 
-    [[nodiscard]] auto cend() const
+    [[nodiscard]] auto end() const noexcept
     {
-        return files_.cend();
+        return files_.end();
     }
 
-    [[nodiscard]] auto begin() const
+    [[nodiscard]] auto& add_file(InputFile& input_file)
     {
-        return cbegin();
-    }
-
-    [[nodiscard]] auto end() const
-    {
-        return cend();
+        return *files_.emplace_back(&input_file);
     }
 };
 
 class Inputs final {
-    std::vector<InputDirectory*> directories_;
-
-    std::set<std::string> builtin_cursors_up_to_this_translation_;
-    std::set<std::string> builtin_cursors_in_this_translation_;
-
 public:
-    Inputs() = default;
+    [[nodiscard]] InputFile& operator[](const std::filesystem::path& path);
 
-    InputFile& operator[](const std::filesystem::path& path);
-
-    auto cbegin() const
+    [[nodiscard]] auto begin() const noexcept
     {
-        return directories_.cbegin();
+        return PointerIterator<decltype(files_.begin())>(files_.begin());
     }
 
-    auto cend() const
+    [[nodiscard]] auto end() const noexcept
     {
-        return directories_.cend();
+        return PointerIterator<decltype(files_.end())>(files_.end());
     }
 
-    auto begin() const
+    [[nodiscard]] auto& add_file(InputFile& input_file)
     {
-        return cbegin();
-    }
-
-    auto end() const
-    {
-        return cend();
+        return *files_.emplace_back(&input_file);
     }
 
     void next_translation();
 
     [[nodiscard]] bool add_cursor(const Location& location, const std::string& name);
+
+private:
+    std::deque<InputFile*> files_;
+
+    std::set<std::string> builtin_cursors_up_to_this_translation_;
+    std::set<std::string> builtin_cursors_in_this_translation_;
 };
 
 extern Inputs inputs;

@@ -11,31 +11,28 @@
 #include "InputFile.h"
 #include "Logging.h"
 #include "Package.h"
-#include "SingleDeclarationSymbolVisitor.h"
+#include "SymbolVisitor.h"
 #include "Universe.h"
 
 namespace objcgen {
 
-static PackageFile* input_to_output(Package* package, const InputFile* input)
+static PackageFile& input_to_output(Package& package, const InputFile& input)
 {
-    const auto file_name = input->path().stem().u8string();
-    if (auto* file = (*package)[file_name]) {
-        return file;
-    }
-    return new PackageFile(file_name, package);
+    const auto file_name = input.path().stem().u8string();
+    auto* file = package[file_name];
+    return *(file ? file : new PackageFile(file_name, package));
 }
 
-static PackageFile* input_to_output(Package* package, const FileLevelSymbol* symbol)
+static PackageFile& input_to_output(Package& package, const FileLevelSymbol& symbol)
 {
-    auto* input_file = symbol->defining_file();
+    auto* input_file = symbol.defining_file();
     assert(input_file);
-    return input_to_output(package, input_file);
+    return input_to_output(package, *input_file);
 }
 
-static bool check_symbol(FileLevelSymbol* symbol)
+static bool check_symbol(FileLevelSymbol& symbol) noexcept
 {
-    assert(symbol);
-    return !dynamic_cast<PrimitiveTypeSymbol*>(symbol) && symbol->is_file_level();
+    return !is<PrimitiveTypeSymbol&>(symbol) && symbol.is_file_level();
 }
 
 static bool set_package(FileLevelSymbol& symbol)
@@ -53,13 +50,13 @@ static bool set_package(FileLevelSymbol& symbol)
 
         if (symbol.package()) {
             std::cerr << "Entity `" << name << "` is ambiguous between packages `" << symbol.package()->cangjie_name()
-                      << "` and `" << package.cangjie_name() << "`" << std::endl;
+                      << "` and `" << package.cangjie_name() << '`' << std::endl;
             success = false;
             continue;
         }
 
         symbol.set_output_status(OutputStatus::Root);
-        symbol.set_package_file(input_to_output(&package, &symbol));
+        symbol.set_package_file(input_to_output(package, symbol));
         package_found = true;
     }
 
@@ -95,77 +92,86 @@ static bool mark_roots()
     return success;
 }
 
-class SymbolReferenceCollector final : public SingleDeclarationSymbolVisitor {
+class SymbolReferenceCollector final : public SymbolVisitor {
 
 public:
-    [[nodiscard]] explicit SymbolReferenceCollector(FileLevelSymbol& symbol)
-        : SingleDeclarationSymbolVisitor(true), symbol_(symbol)
+    [[nodiscard]] explicit SymbolReferenceCollector(FileLevelSymbol& symbol) noexcept
+        : SymbolVisitor(true), symbol_(symbol)
     {
     }
-
-    SymbolReferenceCollector(const SymbolReferenceCollector& other) = delete;
-
-    SymbolReferenceCollector(SymbolReferenceCollector&& other) noexcept = delete;
-
-    SymbolReferenceCollector& operator=(const SymbolReferenceCollector& other) = delete;
-
-    SymbolReferenceCollector& operator=(SymbolReferenceCollector&& other) noexcept = delete;
 
     void visit()
     {
-        SingleDeclarationSymbolVisitor::visit(&symbol_);
-    }
-
-protected:
-    void visit_impl(FileLevelSymbol* owner, FileLevelSymbol* value, SymbolProperty, bool) override
-    {
-        assert(value);
-        if (!owner) {
-            // Skip the root type of this visit session to avoid self-referencing of each type.
-            return;
-        }
-        auto* named_value = dynamic_cast<NamedTypeSymbol*>(value);
-        if (named_value) {
-            value = named_value->original();
-        }
-        if (value != &symbol_ // Self-reference
-            && value->is_file_level() && value->defining_file()) {
-            if (symbol_.add_reference(*value) && verbosity >= LogLevel::TRACE) {
-                std::cerr << "Entity `" << symbol_.name() << "` references `" << value->name() << "`\n";
-            }
-        }
+        SymbolVisitor::visit(symbol_);
     }
 
 private:
     FileLevelSymbol& symbol_;
+
+    void do_visit_impl(const FileLevelSymbol& value);
+
+    void visit_type_impl(const Type& value) override
+    {
+        do_visit_impl(value.symbol());
+    }
+
+    void visit_type_impl(const NamedTypeSymbol& value) override
+    {
+        do_visit_impl(value);
+    }
+
+    void visit_type_argument_impl(const TypeLikeSymbol&, const Type& value) override
+    {
+        do_visit_impl(value.symbol());
+    }
+
+    void visit_member_impl(const NonTypeSymbol& value) override
+    {
+        do_visit_impl(value);
+    }
+
+    void visit_impl(const FileLevelSymbol&) override
+    {
+        // Skip the root type of this visit session to avoid self-referencing of each type.
+    }
 };
+
+void SymbolReferenceCollector::do_visit_impl(const FileLevelSymbol& value)
+{
+    if (&value != &symbol_ // Self-reference
+        && value.is_file_level() && value.defining_file()) {
+        if (symbol_.add_reference(const_cast<FileLevelSymbol&>(value)) && verbosity >= LogLevel::TRACE) {
+            std::cerr << "Entity `" << symbol_.name() << "` references `" << value.name() << "`\n";
+        }
+    }
+}
 
 class ScopeBuilderStatus final {
     bool success_ = true;
     bool changed_ = false;
 
 public:
-    [[nodiscard]] bool success() const
+    [[nodiscard]] bool success() const noexcept
     {
         return success_;
     }
 
-    [[nodiscard]] bool error() const
+    [[nodiscard]] bool error() const noexcept
     {
         return !success();
     }
 
-    [[nodiscard]] bool changed() const
+    [[nodiscard]] bool changed() const noexcept
     {
         return changed_;
     }
 
-    void mark_error()
+    void mark_error() noexcept
     {
         success_ = false;
     }
 
-    void mark_changed()
+    void mark_changed() noexcept
     {
         changed_ = true;
     }
@@ -173,20 +179,17 @@ public:
 
 static void add_all_symbol_references()
 {
-    for (const auto* input_directory : inputs) {
-        for (const auto* input_file : *input_directory) {
-            for (auto* symbol : *input_file) {
-                assert(check_symbol(symbol));
-
-                SymbolReferenceCollector(*symbol).visit();
-            }
+    for (const auto& input_file : inputs) {
+        for (auto& symbol : input_file) {
+            assert(check_symbol(symbol));
+            SymbolReferenceCollector(symbol).visit();
         }
     }
 }
 
 static void symbol_references_to_packages_pass(ScopeBuilderStatus& status, FileLevelSymbol& symbol, bool roots_only)
 {
-    assert(check_symbol(&symbol));
+    assert(check_symbol(symbol));
 
     if (symbol.output_status() != (roots_only ? OutputStatus::Root : OutputStatus::Referenced)) {
         return;
@@ -200,8 +203,9 @@ static void symbol_references_to_packages_pass(ScopeBuilderStatus& status, FileL
         switch (reference->output_status()) {
             case OutputStatus::Undefined: {
                 assert(!reference->package());
-                auto* package_file = input_to_output(package, reference->defining_file());
-                assert(package_file);
+                const auto* input_file = reference->defining_file();
+                assert(input_file);
+                auto& package_file = input_to_output(*package, *input_file);
                 reference->set_output_status(OutputStatus::Referenced);
                 reference->add_referencing_package(*package);
                 reference->set_package_file(package_file);
@@ -213,8 +217,8 @@ static void symbol_references_to_packages_pass(ScopeBuilderStatus& status, FileL
                 const auto* reference_package = reference->package();
                 assert(reference_package);
                 if (reference_package != package) {
-                    // It makes sense to build graph of dependencies between packages and resolve
-                    // the most common cases by selecting the closest common dependency package.
+                    // TODO: build graph of dependencies between packages and resolve the most
+                    // common cases by selecting the closest common dependency package
                     reference->set_output_status(OutputStatus::MultiReferenced);
                     reference->add_referencing_package(*package);
                     status.mark_error();
@@ -236,11 +240,9 @@ static ScopeBuilderStatus symbol_references_to_packages_pass(bool roots_only)
 {
     ScopeBuilderStatus status;
 
-    for (const auto* input_directory : inputs) {
-        for (const auto* input_file : *input_directory) {
-            for (auto* symbol : *input_file) {
-                symbol_references_to_packages_pass(status, *symbol, roots_only);
-            }
+    for (const auto& input_file : inputs) {
+        for (auto& symbol : input_file) {
+            symbol_references_to_packages_pass(status, symbol, roots_only);
         }
     }
 
@@ -258,36 +260,33 @@ static bool symbol_references_to_packages()
         }
     }
 
-    for (const auto* input_directory : inputs) {
-        for (const auto* input_file : *input_directory) {
-            for (auto* symbol : *input_file) {
-                switch (symbol->output_status()) {
-                    case OutputStatus::Undefined:
-                        if (verbosity >= LogLevel::DEBUG) {
-                            std::cerr << "Entity `" << symbol->name() << "` from `" << input_file->path().u8string()
-                                      << "` is not used" << std::endl;
-                        }
-                        break;
-                    case OutputStatus::Referenced:
-                    case OutputStatus::ReferencedMarked:
-                        assert(symbol->package());
-                        assert(symbol->package_file());
-                        if (verbosity >= LogLevel::TRACE) {
-                            std::cerr << "Entity `" << symbol->name() << "` from `" << input_file->path().u8string()
-                                      << "` is only used from `" << symbol->package()->cangjie_name()
-                                      << "` package, assigning `" << symbol->package_file()->output_path().u8string()
-                                      << '`' << std::endl;
-                        }
-                        break;
-                    case OutputStatus::MultiReferenced:
-                        std::cerr << "Entity `" << symbol->name() << "` from `" << input_file->path().u8string()
-                                  << "` is ambiguous between " << symbol->number_of_referencing_packages()
-                                  << " packages";
-                        symbol->print_referencing_packages_info();
-                        break;
-                    default:
-                        break;
-                }
+    for (const auto& input_file : inputs) {
+        for (auto& symbol : input_file) {
+            switch (symbol.output_status()) {
+                case OutputStatus::Undefined:
+                    if (verbosity >= LogLevel::DEBUG) {
+                        std::cerr << "Entity `" << symbol.name() << "` from `" << input_file.path().u8string()
+                                  << "` is not used" << std::endl;
+                    }
+                    break;
+                case OutputStatus::Referenced:
+                case OutputStatus::ReferencedMarked:
+                    assert(symbol.package());
+                    assert(symbol.package_file());
+                    if (verbosity >= LogLevel::TRACE) {
+                        std::cerr << "Entity `" << symbol.name() << "` from `" << input_file.path().u8string()
+                                  << "` is only used from `" << symbol.package()->cangjie_name()
+                                  << "` package, assigning `" << symbol.package_file()->output_path().u8string() << '`'
+                                  << std::endl;
+                    }
+                    break;
+                case OutputStatus::MultiReferenced:
+                    std::cerr << "Entity `" << symbol.name() << "` from `" << input_file.path().u8string()
+                              << "` is ambiguous between " << symbol.number_of_referencing_packages() << " packages";
+                    symbol.print_referencing_packages_info();
+                    break;
+                default:
+                    break;
             }
         }
     }
@@ -297,24 +296,23 @@ static bool symbol_references_to_packages()
 
 static void register_symbols_in_declaration_order()
 {
-    for (const auto* input_directory : inputs) {
-        for (const auto* input_file : *input_directory) {
-            for (auto* symbol : *input_file) {
-                assert(check_symbol(symbol));
+    for (const auto& input_file : inputs) {
+        for (auto& symbol : input_file) {
+            assert(check_symbol(symbol));
 
-                if (auto* package_file = symbol->package_file()) {
-                    package_file->add_symbol(symbol);
-                }
+            if (auto* package_file = symbol.package_file()) {
+                package_file->add_symbol(symbol);
             }
         }
     }
 }
 
 /** Given the N-dimensional VArray, get the type of its element */
-static TypeLikeSymbol& get_element_type(const VArraySymbol& varray) noexcept
+[[nodiscard]] static const Type& get_element_type(const Type& varray) noexcept
 {
-    const auto* subvarray = dynamic_cast<const VArraySymbol*>(varray.element_type_);
-    return subvarray ? get_element_type(*subvarray) : *varray.element_type_;
+    assert(varray.kind() == Type::Kind::VArray);
+    const auto& element_type = varray.varray_element_type();
+    return element_type.kind() == Type::Kind::VArray ? get_element_type(element_type) : element_type;
 }
 
 /**
@@ -324,10 +322,9 @@ static TypeLikeSymbol& get_element_type(const VArraySymbol& varray) noexcept
 static void decay_parameter_types(NonTypeSymbol& function)
 {
     for (auto& parameter : function.parameters()) {
-        auto* parameter_type = parameter.type();
-        const auto* varray = dynamic_cast<const VArraySymbol*>(&parameter_type->canonical_type());
-        if (varray) {
-            parameter.set_type(&pointer(get_element_type(*varray)));
+        auto type = parameter.type().canonical_type();
+        if (type.kind() == Type::Kind::VArray) {
+            parameter.set_type(Type(Universe::get().pointer(), {get_element_type(type)}));
         }
     }
 }

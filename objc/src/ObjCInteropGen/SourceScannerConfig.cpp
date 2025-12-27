@@ -42,12 +42,12 @@ static void toml_array_to_vector(const toml::Table& table, const std::string& so
     }
 }
 
-static bool is_mixin_applicable(
+[[nodiscard]] static bool is_mixin_applicable(
     const std::string& source_name, const std::string& mixin_name, const toml::Array& mixin_sources_array)
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
         std::cerr << "`sources-mixins` entry `" << mixin_name
-                  << "` is being being checked for applicability to `sources` entry `" << source_name << "`"
+                  << "` is being being checked for applicability to `sources` entry `" << source_name << '`'
                   << std::endl;
     }
 
@@ -63,7 +63,7 @@ static bool is_mixin_applicable(
             if (verbosity >= LogLevel::DEBUG) {
                 std::cerr << "`sources-mixins` entry `" << mixin_name << "` array `sources` item #" << i << " (`"
                           << mixin_source_string << "`) does" << (regex_match ? "" : " NOT") << " match source `"
-                          << source_name << "`" << std::endl;
+                          << source_name << '`' << std::endl;
             }
             if (regex_match) {
                 return true;
@@ -105,7 +105,7 @@ static void apply_mixin(
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
         std::cerr << "`sources-mixins` entry `" << mixin_name << "` is being applied to `sources` entry `"
-                  << source_name << "`" << std::endl;
+                  << source_name << '`' << std::endl;
     }
 
     merge_array_property(table, mixin, source_name, mixin_name, "arguments-prepend");
