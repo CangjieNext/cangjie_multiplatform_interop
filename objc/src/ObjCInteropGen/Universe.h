@@ -39,117 +39,104 @@ constexpr std::uint8_t TYPE_NAMESPACE_COUNT = static_cast<std::uint8_t>(TypeName
 
 using type_order_t = std::vector<std::pair<TypeNamespace, std::string>>;
 
-template <class TypeSymbol> type_order_t::const_iterator find_first(type_order_t::const_iterator it);
-
-template <class TypeSymbol> class UniverseIterator final {
-    using iterator_category = std::forward_iterator_tag;
-    using difference_type = std::ptrdiff_t;
-    using value_type = TypeSymbol;
-    using pointer = value_type*;   // or also value_type*
-    using reference = value_type&; // or also value_type&
-
-    type_order_t::const_iterator it_;
-
-    [[nodiscard]] reference get() const;
+template <bool constant> class UniverseNamedTypeIterator final {
+    using Iterator = std::conditional_t<constant, type_order_t::const_iterator, type_order_t::iterator>;
+    using Value = std::conditional_t<constant, const NamedTypeSymbol, NamedTypeSymbol>;
 
 public:
-    explicit UniverseIterator(type_order_t::const_iterator it) : it_(std::move(it))
+    explicit UniverseNamedTypeIterator(Iterator it) noexcept : it_(it)
     {
     }
 
-    reference operator*() const
-    {
-        return get();
-    }
-    pointer operator->()
-    {
-        return &get();
-    }
+    [[nodiscard]] Value& operator*() const;
 
-    // Prefix increment
-    UniverseIterator& operator++();
-
-    friend bool operator==(const UniverseIterator& lhs, const UniverseIterator& rhs)
+    auto& operator++() noexcept
     {
-        return lhs.it_ == rhs.it_;
+        ++it_;
+        return *this;
     }
 
-    friend bool operator!=(const UniverseIterator& lhs, const UniverseIterator& rhs)
+    [[nodiscard]] friend bool operator!=(
+        const UniverseNamedTypeIterator& it1, const UniverseNamedTypeIterator& it2) noexcept
     {
-        return !(lhs == rhs);
-    }
-};
-
-template <class TypeSymbol> struct UniverseTypes final {
-    [[nodiscard]] UniverseIterator<TypeSymbol> cbegin() const;
-
-    [[nodiscard]] UniverseIterator<TypeSymbol> cend() const;
-
-    [[nodiscard]] auto begin() const
-    {
-        return cbegin();
-    }
-
-    [[nodiscard]] auto end() const
-    {
-        return cend();
-    }
-};
-
-class TopLevelIterator final {
-public:
-    explicit TopLevelIterator(std::deque<NonTypeSymbol>& members) noexcept : members_(members)
-    {
-    }
-
-    [[nodiscard]] auto begin() const noexcept
-    {
-        return members_.begin();
-    }
-
-    [[nodiscard]] auto end() const noexcept
-    {
-        return members_.end();
+        return it1.it_ != it2.it_;
     }
 
 private:
-    std::deque<NonTypeSymbol>& members_;
+    Iterator it_;
+};
+
+template <bool constant> class UniverseTypeDeclarationIterator final {
+    using Iterator = std::conditional_t<constant, type_order_t::const_iterator, type_order_t::iterator>;
+
+public:
+    explicit UniverseTypeDeclarationIterator(Iterator it) : it_(it)
+    {
+        get();
+    }
+
+    [[nodiscard]] auto& operator*() const noexcept
+    {
+        return *symbol_;
+    }
+
+    auto& operator++()
+    {
+        ++it_;
+        get();
+        return *this;
+    }
+
+    [[nodiscard]] friend bool operator!=(
+        const UniverseTypeDeclarationIterator& it1, const UniverseTypeDeclarationIterator& it2) noexcept
+    {
+        return it1.it_ != it2.it_;
+    }
+
+private:
+    Iterator it_;
+    std::conditional_t<constant, const TypeDeclarationSymbol, TypeDeclarationSymbol>* symbol_;
+
+    void get();
 };
 
 class TopLevel final {
 public:
-    auto get_iterator() noexcept
+    [[nodiscard]] auto members() const noexcept
     {
-        return TopLevelIterator(members_);
+        return ConstCollection(members_);
     }
 
-    NonTypeSymbol& add_function(std::string name, TypeLikeSymbol& return_type, uint16_t modifiers);
+    [[nodiscard]] auto members() noexcept
+    {
+        return Collection(members_);
+    }
+
+    [[nodiscard]] NonTypeSymbol& add_function(std::string name, Type return_type, Modifiers modifiers);
 
 private:
     std::deque<NonTypeSymbol> members_;
 };
 
-class Universe final {
+class Universe final : private NonCopyable {
     using type_map_t = std::unordered_map<std::string, NamedTypeSymbol*>;
 
-    template <class TypeSymbol> friend class UniverseIterator;
-    template <class TypeSymbol> friend struct UniverseTypes;
+    template <bool constant> friend class UniverseNamedTypeIterator;
+    template <bool constant> friend class UniverseTypeDeclarationIterator;
 
     static constexpr int PREALLOCATED_TYPE_COUNT = 8192;
 
     Universe();
 
-    type_map_t& types_map(const TypeNamespace index)
+    [[nodiscard]] type_map_t& types_map(const TypeNamespace index) noexcept
     {
         return types_[static_cast<std::uint8_t>(index)];
     }
 
-    const type_map_t& types_map(const TypeNamespace index) const
+    [[nodiscard]] const type_map_t& types_map(const TypeNamespace index) const noexcept
     {
         return types_[static_cast<std::uint8_t>(index)];
     }
-
-    template <class TypeSymbol> friend type_order_t::const_iterator find_first(type_order_t::const_iterator it);
 
     TopLevel top_level_;
 
@@ -174,13 +161,18 @@ class Universe final {
     TypeDeclarationSymbol class_;
     TypeDeclarationSymbol id_;
     TypeDeclarationSymbol sel_;
+    BuiltInTypeSymbol pointer_;
+    BuiltInTypeSymbol func_;
+    BuiltInTypeSymbol block_;
+    BuiltInTypeSymbol varray_;
+    BuiltInTypeSymbol unexposed_;
 
 public:
-    static Universe& get();
+    [[nodiscard]] static Universe& get();
 
-    NonTypeSymbol& register_top_level_function(std::string name, TypeLikeSymbol& return_type, uint16_t modifiers);
+    [[nodiscard]] NonTypeSymbol& register_top_level_function(std::string name, Type return_type, Modifiers modifiers);
 
-    void register_type(NamedTypeSymbol* symbol);
+    void register_type(NamedTypeSymbol& symbol);
 
     [[nodiscard]] auto& unit() noexcept
     {
@@ -272,7 +264,30 @@ public:
         return sel_;
     }
 
-    [[nodiscard]] TypeLikeSymbol* primitive_type(PrimitiveTypeCategory category, size_t size) noexcept;
+    [[nodiscard]] auto& pointer() noexcept
+    {
+        return pointer_;
+    }
+
+    [[nodiscard]] auto& func() noexcept
+    {
+        return func_;
+    }
+
+    [[nodiscard]] auto& block() noexcept
+    {
+        return block_;
+    }
+
+    [[nodiscard]] auto& varray() noexcept
+    {
+        return varray_;
+    }
+
+    [[nodiscard]] auto& unexposed() noexcept
+    {
+        return unexposed_;
+    }
 
     // Find the registered type symbol by its name and kind.  Return nullptr if no
     // such type has been registered.
@@ -286,62 +301,70 @@ public:
     // has been registered.
     [[nodiscard]] NamedTypeSymbol* type(const std::string& name) const;
 
-    void process_rename(NamedTypeSymbol* symbol, const std::string& old_name);
+    void process_rename(NamedTypeSymbol& symbol, const std::string& old_name);
 
-    TopLevelIterator top_level() noexcept;
-
-    auto all_declarations()
+    [[nodiscard]] auto top_level() const noexcept
     {
-        return UniverseTypes<NamedTypeSymbol>{};
+        return top_level_.members();
     }
 
-    auto type_definitions()
+    [[nodiscard]] auto top_level() noexcept
     {
-        return UniverseTypes<TypeDeclarationSymbol>{};
+        return top_level_.members();
+    }
+
+    [[nodiscard]] auto all_declarations() const noexcept
+    {
+        using TypeOrder = decltype(type_order_);
+        return ConstCollection<const TypeOrder, UniverseNamedTypeIterator<true>>(type_order_);
+    }
+
+    [[nodiscard]] auto all_declarations() noexcept
+    {
+        using TypeOrder = decltype(type_order_);
+        return Collection<TypeOrder, UniverseNamedTypeIterator<true>, UniverseNamedTypeIterator<false>>(type_order_);
+    }
+
+    [[nodiscard]] auto type_definitions() const noexcept
+    {
+        using TypeOrder = decltype(type_order_);
+        return ConstCollection<const TypeOrder, UniverseTypeDeclarationIterator<true>>(type_order_);
+    }
+
+    [[nodiscard]] auto type_definitions() noexcept
+    {
+        using TypeOrder = decltype(type_order_);
+        return Collection<TypeOrder, UniverseTypeDeclarationIterator<true>, UniverseTypeDeclarationIterator<false>>(
+            type_order_);
     }
 };
 
-template <class TypeSymbol> typename UniverseIterator<TypeSymbol>::reference UniverseIterator<TypeSymbol>::get() const
+template <bool constant>
+typename UniverseNamedTypeIterator<constant>::Value& UniverseNamedTypeIterator<constant>::operator*() const
 {
-    auto* symbol = Universe::get().type(it_->first, it_->second);
+    assert(it_ != Universe::get().type_order_.end());
+    auto& el = *it_;
+    auto* symbol = Universe::get().type(el.first, el.second);
     assert(symbol);
-    if constexpr (std::is_same_v<TypeSymbol, NamedTypeSymbol>) {
-        return *symbol;
-    } else {
-        assert(dynamic_cast<TypeSymbol*>(symbol));
-        return static_cast<TypeSymbol&>(*symbol);
-    }
+    return *symbol;
 }
 
-template <class TypeSymbol> type_order_t::const_iterator find_first(type_order_t::const_iterator it)
+template <bool constant> void UniverseTypeDeclarationIterator<constant>::get()
 {
-    if constexpr (!std::is_same_v<TypeSymbol, NamedTypeSymbol>) {
-        const auto& universe = Universe::get();
-        for (auto e = universe.type_order_.cend(); it != e; ++it) {
-            auto* symbol = universe.type(it->first, it->second);
-            assert(symbol);
-            if (dynamic_cast<TypeSymbol*>(symbol)) {
-                break;
-            }
+    const auto& universe = Universe::get();
+    for (auto e = universe.type_order_.end();; ++it_) {
+        if (it_ == e) {
+            symbol_ = nullptr;
+            break;
+        }
+        auto& el = *it_;
+        auto* s = universe.type(el.first, el.second);
+        assert(s);
+        symbol_ = dynamic_cast<TypeDeclarationSymbol*>(s);
+        if (symbol_) {
+            break;
         }
     }
-    return it;
-}
-
-template <class TypeSymbol> UniverseIterator<TypeSymbol>& UniverseIterator<TypeSymbol>::operator++()
-{
-    it_ = find_first<TypeSymbol>(++it_);
-    return *this;
-}
-
-template <class TypeSymbol> UniverseIterator<TypeSymbol> UniverseTypes<TypeSymbol>::cbegin() const
-{
-    return UniverseIterator<TypeSymbol>{find_first<TypeSymbol>(Universe::get().type_order_.cbegin())};
-}
-
-template <class TypeSymbol> UniverseIterator<TypeSymbol> UniverseTypes<TypeSymbol>::cend() const
-{
-    return UniverseIterator<TypeSymbol>{Universe::get().type_order_.cend()};
 }
 
 } // namespace objcgen

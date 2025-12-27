@@ -14,6 +14,108 @@
 
 namespace objcgen {
 
+[[nodiscard]] static bool is_base_of(const TypeDeclarationSymbol& base, const TypeDeclarationSymbol& derived) noexcept
+{
+    if (&base == &derived) {
+        return true;
+    }
+    for (const auto& b : derived.bases()) {
+        if (is_base_of(base, b)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void fix_override_return_types(TypeDeclarationSymbol& type) noexcept;
+
+static void fix_override_return_types(TypeDeclarationSymbol& subclass, TypeDeclarationSymbol& superclass) noexcept
+{
+    // Recursively process `superclass` and its ancestor hierarchy.
+    fix_override_return_types(superclass);
+
+    // Asserting that `superclass` is an ancestor of `subclass`, this loop
+    // recursively resolves clashes between `subclass` and each of the ancestors of
+    // `superclass`, starting from the root(s), sequentially.
+    for (auto& super_superclass : superclass.bases()) {
+        fix_override_return_types(subclass, super_superclass);
+    }
+
+    // This loop resolves clashes between `subclass` and `superclass`, where the
+    // latter is asserted to be one of the ancestors of the former.
+    for (auto& submember : subclass.members()) {
+        if (submember.kind() == NonTypeSymbol::Kind::MemberMethod) {
+            for (auto& supermember : superclass.members()) {
+                if (supermember.kind() == NonTypeSymbol::Kind::MemberMethod &&
+                    supermember.is_static() == submember.is_static() &&
+                    supermember.selector() == submember.selector()) {
+                    submember.set_override();
+                    const auto& supermember_type = supermember.return_type();
+                    auto& submember_type = submember.return_type();
+                    if (supermember_type.nullability() != Nullability::Nonnull) {
+                        if (submember_type.nullability() == Nullability::Nonnull) {
+                            submember_type.set_nullability(Nullability::Nullable);
+                        }
+
+                        // Both are Option.  Must be the same type.
+                        submember.set_return_type(supermember_type);
+                    } else {
+                        if (submember_type.nullability() != Nullability::Nonnull) {
+                            submember_type.set_nullability(Nullability::Nonnull);
+                        }
+
+                        // Both are non-Option.  Either they must be the same or the overridden must be
+                        // the base of the overrider.
+                        const auto* submember_type_decl =
+                            dynamic_cast<const TypeDeclarationSymbol*>(&submember_type.symbol());
+                        if (submember_type_decl) {
+                            const auto* supermember_type_decl =
+                                dynamic_cast<const TypeDeclarationSymbol*>(&supermember_type.symbol());
+                            if (supermember_type_decl) {
+                                if (!is_base_of(*supermember_type_decl, *submember_type_decl)) {
+                                    submember.set_return_type(supermember_type);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+static void fix_override_return_types(TypeDeclarationSymbol& type) noexcept
+{
+    if (type.are_override_return_clashes_resolved()) {
+        return;
+    }
+
+    // Recursively call this function for all ancestors, then resolve conflicts
+    // between this class and each of the ancestors.
+    for (auto& supertype : type.bases()) {
+        fix_override_return_types(type, supertype);
+    }
+
+    type.mark_override_return_clashes_resolved();
+}
+
+/**
+ * 1) In Cangjie, Option is not covariant.  If the overridden and overrider have
+ * different nullabilities, fix the result type of the overrider.
+ *
+ * 3) In Cangjie, Option is not covariant.  If both the overridden and overrider
+ * are nullable, ensure that the overrider does not change the result type.
+ *
+ * 2) In Objective-C, contravariant return types are allowed.  That will not
+ * compile in Cangjie. Fix the result type of the overrider accordingly.
+ */
+static void fix_override_return_types()
+{
+    for (auto& type : Universe::get().type_definitions()) {
+        fix_override_return_types(type);
+    }
+}
+
 static void resolve_static_instance_clash(Symbol& symbol, bool is_static)
 {
     symbol.rename(std::string(symbol.name()).append(is_static ? "Static" : "Instance"));
@@ -80,17 +182,17 @@ struct StaticInstancePair {
 public:
     void add(NonTypeSymbol& type) noexcept;
 
-    bool both() const noexcept
+    [[nodiscard]] bool both() const noexcept
     {
         return static_ && instance_;
     }
 
-    NonTypeSymbol* get_static() const noexcept
+    [[nodiscard]] NonTypeSymbol* get_static() const noexcept
     {
         return static_;
     }
 
-    NonTypeSymbol* get_instance() const noexcept
+    [[nodiscard]] NonTypeSymbol* get_instance() const noexcept
     {
         return instance_;
     }
@@ -192,40 +294,13 @@ static void remove_duplicates(TypeDeclarationSymbol& type)
                 const auto& member_j = type.member(j);
                 if (member_j.kind() == NonTypeSymbol::Kind::MemberMethod &&
                     member_j.is_static() == member_i.is_static() && member_j.name() == member_i.name()) {
-                    assert(member_j.parameter_count() == member_i.parameter_count());
+                    assert(member_j.parameters().size() == member_i.parameters().size());
                     type.member_remove(j);
                     --num_members;
                 } else {
                     ++j;
                 }
             }
-        }
-    }
-}
-
-static void rename_clashing_protocols(TypeDeclarationSymbol& type)
-{
-    auto& universe = Universe::get();
-    for (;;) {
-        const auto& name = type.name();
-        bool clashing = false;
-        for (uint8_t ns = 0; ns < TYPE_NAMESPACE_COUNT; ++ns) {
-            auto namespaze = static_cast<TypeNamespace>(ns);
-            if (namespaze != TypeNamespace::Protocols) {
-                const auto* non_protocol_type = universe.type(namespaze, name);
-                if (non_protocol_type && non_protocol_type->package() == type.package()) {
-                    auto new_name = name + "Protocol";
-                    if (verbosity >= LogLevel::INFO) {
-                        std::cerr << "Renaming clashing protocol `" << name << "` to `" << new_name << "`" << std::endl;
-                    }
-                    type.rename(new_name);
-                    clashing = true;
-                    break;
-                }
-            }
-        }
-        if (!clashing) {
-            break;
         }
     }
 }
@@ -237,16 +312,40 @@ static void do_rename()
 
     for (auto&& type : type_definitions) {
         if (type.is(NamedTypeSymbol::Kind::Protocol)) {
-            rename_clashing_protocols(type);
+            for (;;) {
+                const auto& name = type.name();
+                bool clashing = false;
+                for (uint8_t ns = 0; ns < TYPE_NAMESPACE_COUNT; ++ns) {
+                    auto namespaze = static_cast<TypeNamespace>(ns);
+                    if (namespaze != TypeNamespace::Protocols) {
+                        const auto* non_protocol_type = universe.type(namespaze, name);
+                        if (non_protocol_type && non_protocol_type->package() == type.package()) {
+                            auto new_name = name + "Protocol";
+                            if (verbosity >= LogLevel::INFO) {
+                                std::cerr << "Renaming clashing protocol `" << name << "` to `" << new_name << '`'
+                                          << std::endl;
+                            }
+                            type.rename(new_name);
+                            clashing = true;
+                            break;
+                        }
+                    }
+                }
+                if (!clashing) {
+                    break;
+                }
+            }
         }
 
         remove_duplicates(type);
 
         for (auto&& member : type.members()) {
-            if (member.name().find(':') != std::string_view::npos) {
+            const auto& name = member.name();
+            if (name.find(':') != std::string_view::npos) {
+
                 std::string new_name;
                 auto upcase = false;
-                for (auto c : member.name()) {
+                for (auto c : name) {
                     if (c == ':') {
                         upcase = true;
                         continue;
@@ -283,51 +382,42 @@ static void do_rename()
     }
 }
 
-static void set_type_mappings()
+static void set_type_mappings() noexcept
 {
     for (auto&& type : Universe::get().all_declarations()) {
-        for (auto mapping_ptr : mappings) {
-            auto& mapping = *mapping_ptr;
-            if (mapping.can_map(&type)) {
-                type.set_mapping(&mapping);
+        for (const auto& mapping : mappings) {
+            if (mapping.can_map(type)) {
+                type.set_mapping(mapping);
             }
         }
     }
 }
 
-static void do_map(NonTypeSymbol& symbol, TypeDeclarationSymbol* decl)
+static void do_map(NonTypeSymbol& symbol)
 {
     for (auto&& parameter : symbol.parameters()) {
-        parameter.set_type(parameter.type()->map());
+        parameter.type().map();
     }
-    auto return_type = symbol.return_type()->map();
-    assert(return_type);
-    if (return_type->is_instancetype()) {
-        assert(decl);
-        return_type = decl;
-    }
-    symbol.set_return_type(return_type);
+    symbol.return_type().map();
 }
 
 static void do_map()
 {
     auto& universe = Universe::get();
     for (auto& top_level : universe.top_level()) {
-        do_map(top_level, nullptr);
+        do_map(top_level);
     }
     for (auto&& decl : universe.all_declarations()) {
         if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(&decl)) {
             for (auto&& member : type->members()) {
                 if (!member.is_property()) {
-                    do_map(member, type);
+                    do_map(member);
                 }
             }
         } else if (auto* alias = dynamic_cast<TypeAliasSymbol*>(&decl)) {
-            auto* target = alias->target();
-            // `instancetype` is a special type which has no explicit declaration located in
-            // a file, so it does not set a target.
+            auto& target = alias->target();
             if (target) {
-                alias->set_target(target->map());
+                target.map();
             }
         }
     }
@@ -335,7 +425,19 @@ static void do_map()
 
 void apply_transforms()
 {
+    // 1) Resolve contravariance and nullability clashes in return types of override
+    // methods.
+    // 2) Set ModifierOverride where needed.
+    fix_override_return_types();
+
+    // 1) Resolve class/protocol name clashes.
+    // 2) Remove duplicate member declarations.
+    // 3) Rename methods in accordance with their Objective-C selectors.
+    // 4) Resolve static/instance name clashes.
+    // 5) Resolve global function - class/protocol/structure name clashes.
     do_rename();
+
+    // Apply mappings
     set_type_mappings();
     do_map();
 }
