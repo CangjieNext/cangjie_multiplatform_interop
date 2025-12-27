@@ -47,12 +47,12 @@ static void toml_array_to_vector(const toml::table& table, const std::string& so
     }
 }
 
-static bool is_mixin_applicable(
+[[nodiscard]] static bool is_mixin_applicable(
     const toml::key& source_name, const toml::key& mixin_name, const toml::array& mixin_sources_array)
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
         std::cerr << "`sources-mixins` entry `" << mixin_name
-                  << "` is being being checked for applicability to `sources` entry `" << source_name << "`"
+                  << "` is being being checked for applicability to `sources` entry `" << source_name << '`'
                   << std::endl;
     }
 
@@ -67,7 +67,7 @@ static bool is_mixin_applicable(
                     if (verbosity >= LogLevel::DEBUG) {
                         std::cerr << "`sources-mixins` entry `" << mixin_name << "` array `sources` item #" << i
                                   << " (`" << *mixin_source_string_optional << "`) does" << (regex_match ? "" : " NOT")
-                                  << " match source `" << source_name << "`" << std::endl;
+                                  << " match source `" << source_name << '`' << std::endl;
                     }
                     if (regex_match) {
                         return true;
@@ -118,7 +118,7 @@ static void apply_mixin(
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
         std::cerr << "`sources-mixins` entry `" << mixin_name << "` is being applied to `sources` entry `"
-                  << source_name << "`" << std::endl;
+                  << source_name << '`' << std::endl;
     }
 
     merge_array_property(table, mixin, source_name, mixin_name, "arguments-prepend");
@@ -188,8 +188,7 @@ void parse_sources()
                     apply_mixins(*mixins_any, source_name, entry);
                 }
 
-                auto source_name_string = std::string(source_name.str());
-                parse_sources(entry, source_name_string, *session);
+                parse_sources(entry, std::string(source_name.str()), *session);
             } else {
                 fatal("`sources` entry `", source_name, "` is not a TOML table");
             }

@@ -8,42 +8,39 @@
 
 #include <iostream>
 
+#include "FatalException.h"
 #include "Universe.h"
 
 namespace objcgen {
 
 #ifdef OBJCGEN_NO_WARNINGS
-std::vector<TypeMapping*> g_mappings;
+std::deque<TypeMapping> g_mappings;
 #else
-std::vector<TypeMapping*> mappings;
+std::deque<TypeMapping> mappings;
 #endif
 
-TypeLikeSymbol* NonGenericMapping::map([[maybe_unused]] NamedTypeSymbol* type)
+NamedTypeSymbol& TypeMapping::map() const
 {
-    assert(can_map(type));
     auto* result = Universe::get().type(to_);
     if (!result) {
-        std::cerr << "Unknown type " << to_ << " specified in [[mappings]]" << std::endl;
-        exit(1);
+        fatal("Unknown type ", to_, " specified in [[mappings]]");
     }
-    return result;
+    return *result;
 }
 
 void initialize_mappings()
 {
-    add_non_generic_mapping("Bool").add_from("BOOL");
+    add_non_generic_mapping("BOOL", "Bool");
     read_toml_mappings();
 }
 
-NonGenericMapping& add_non_generic_mapping(const std::string_view to)
+void add_non_generic_mapping(std::string from, std::string to)
 {
-    auto* mapping = new NonGenericMapping(to);
 #ifdef OBJCGEN_NO_WARNINGS
-    g_mappings.push_back(mapping);
+    g_mappings.emplace_back(std::move(from), std::move(to));
 #else
-    mappings.push_back(mapping);
+    mappings.emplace_back(std::move(from), std::move(to));
 #endif
-    return *mapping;
 }
 
 } // namespace objcgen

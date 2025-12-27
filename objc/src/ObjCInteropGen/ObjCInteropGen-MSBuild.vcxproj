@@ -193,16 +193,17 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(OS)'=='Windows'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="SingleDeclarationSymbolVisitor.cpp" />
     <ClCompile Include="SourceScanner.cpp" />
     <ClCompile Include="SourceScannerConfig.cpp" />
     <ClCompile Include="Symbol.cpp" />
+    <ClCompile Include="SymbolVisitor.cpp" />
     <ClCompile Include="Transform.cpp" />
     <ClCompile Include="Universe.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CangjieWriter.h" />
     <ClInclude Include="ClangSession.h" />
+    <ClInclude Include="Collection.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="Diagnostics.h" />
     <ClInclude Include="FatalException.h" />
@@ -214,10 +215,11 @@
     <ClInclude Include="Package.h" />
     <ClInclude Include="PackageConfig.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="SingleDeclarationSymbolVisitor.h" />
+    <ClInclude Include="PrintUtils.h" />
     <ClInclude Include="SourceScannerConfig.h" />
     <ClInclude Include="Strings.h" />
     <ClInclude Include="Symbol.h" />
+    <ClInclude Include="SymbolVisitor.h" />
     <ClInclude Include="Test.h" />
     <ClInclude Include="Transform.h" />
     <ClInclude Include="Universe.h" />
