@@ -8,34 +8,31 @@
 
 #include <iostream>
 
+#include "FatalException.h"
 #include "Universe.h"
 
 namespace objcgen {
 
-std::vector<TypeMapping*> mappings;
+std::deque<TypeMapping> mappings;
 
-TypeLikeSymbol* NonGenericMapping::map([[maybe_unused]] NamedTypeSymbol* type)
+NamedTypeSymbol& TypeMapping::map() const
 {
-    assert(can_map(type));
     auto* result = Universe::get().type(to_);
     if (!result) {
-        std::cerr << "Unknown type " << to_ << " specified in [[mappings]]" << std::endl;
-        exit(1);
+        fatal("Unknown type ", to_, " specified in [[mappings]]");
     }
-    return result;
+    return *result;
 }
 
 void initialize_mappings()
 {
-    add_non_generic_mapping("Bool").add_from("BOOL");
+    add_non_generic_mapping("BOOL", "Bool");
     read_toml_mappings();
 }
 
-NonGenericMapping& add_non_generic_mapping(const std::string_view to)
+void add_non_generic_mapping(std::string from, std::string to)
 {
-    auto* mapping = new NonGenericMapping(to);
-    mappings.push_back(mapping);
-    return *mapping;
+    mappings.emplace_back(std::move(from), std::move(to));
 }
 
 } // namespace objcgen

@@ -16,32 +16,12 @@
 
 namespace objcgen {
 
-template <typename T, typename Desc>
-std::string get_string_value(
-    const toml::table& config, const Desc& package_name, const std::string_view property_name, T fallback)
-{
-    if (auto* package_name_any = config.get(property_name)) {
-        if (auto* package_name_string = package_name_any->as_string()) {
-            if (auto package_name_value = package_name_string->value_exact<std::string>()) {
-                if (package_name_value->empty()) {
-                    fatal("`packages` entry ", package_name, " string `", property_name, "` is empty");
-                }
+[[nodiscard]] std::optional<std::string> get_string_value(
+    const toml::table& config, std::string_view package_name, std::string_view property_name);
 
-                return *package_name_value;
-            }
+[[nodiscard]] PackageFilter& create_filter(const Package& package, const toml::table& table);
 
-            fatal("`packages` entry ", package_name, " string `", property_name, "` has no string value");
-        }
-
-        fatal("`packages` entry ", package_name, " property `", property_name, "` should be a TOML string");
-    }
-
-    return fallback(config);
-}
-
-[[nodiscard]] PackageFilter* create_filter(const Package* package, const toml::table& table);
-
-std::string compute_output_path(
+[[nodiscard]] std::string compute_output_path(
     const std::string& name, const toml::table& config, std::string_view package_cangjie_name);
 
 } // namespace objcgen

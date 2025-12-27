@@ -19,6 +19,7 @@ add_executable(ObjCInteropGen
         CangjieWriter.cpp
         CangjieWriter.h
         ClangSession.h
+        Collection.h
         Config.cpp
         Config.h
         Diagnostics.cpp
@@ -40,14 +41,15 @@ add_executable(ObjCInteropGen
         PackageConfig.h
         PackageFilters.cpp
         PackageOutputs.cpp
-        SingleDeclarationSymbolVisitor.cpp
-        SingleDeclarationSymbolVisitor.h
+        PrintUtils.h
         SourceScanner.cpp
         SourceScannerConfig.cpp
         SourceScannerConfig.h
         Strings.h
         Symbol.cpp
         Symbol.h
+        SymbolVisitor.cpp
+        SymbolVisitor.h
         Transform.cpp
         Transform.h
         Universe.cpp

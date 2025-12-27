@@ -60,10 +60,10 @@ static void merge_to_left(toml::table& lhs, const toml::table& rhs)
     merge_to_left_array(lhs, rhs, "mappings");
 }
 
-static toml::table parse_toml_file(const std::string_view path, std::unordered_set<std::string> imported)
+[[nodiscard]] static toml::table parse_toml_file(const std::string_view path, std::unordered_set<std::string>& imported)
 {
     if (verbosity >= LogLevel::INFO) {
-        std::cerr << "Reading TOML file `" << path << "`" << std::endl;
+        std::cerr << "Reading TOML file `" << path << '`' << std::endl;
     }
 
     if (auto [_, new_path] = imported.emplace(path); !new_path) {
@@ -89,7 +89,7 @@ static toml::table parse_toml_file(const std::string_view path, std::unordered_s
                         auto import_config = parse_toml_file(import_path, imported);
 
                         if (verbosity >= LogLevel::INFO) {
-                            std::cerr << "Merging TOML file `" << import_path << "` into `" << path << "`" << std::endl;
+                            std::cerr << "Merging TOML file `" << import_path << "` into `" << path << '`' << std::endl;
                         }
 
                         merge_to_left(config, import_config);
@@ -111,7 +111,8 @@ static toml::table parse_toml_file(const std::string_view path, std::unordered_s
 
 void parse_toml_config_file(const std::string_view path)
 {
-    config = parse_toml_file(path, {});
+    std::unordered_set<std::string> imported;
+    config = parse_toml_file(path, imported);
 }
 
 } // namespace objcgen
