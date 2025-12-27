@@ -22,7 +22,7 @@ static void read_table_mappings(const toml::Table& mapping, std::size_t i)
             if (value_string.empty()) {
                 fatal("`mappings` entry #", i, " for key `", key, "` is empty");
             }
-            add_non_generic_mapping(value_string).add_from(key);
+            add_non_generic_mapping(std::string(key), value_string);
         } else {
             fatal("`mappings` entry #", i, " for key `", key, "` is not a TOML string");
         }

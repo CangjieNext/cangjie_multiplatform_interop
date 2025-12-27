@@ -17,7 +17,7 @@ enum class LogLevel { WARNING = 0, INFO = 1, DIAGNOSTIC = 2, DEBUG = 3, TRACE = 
 
 extern LogLevel verbosity;
 
-std::string_view describe_regex_error(std::regex_constants::error_type type);
+[[nodiscard]] std::string_view describe_regex_error(std::regex_constants::error_type type);
 
 } // namespace objcgen
 
