@@ -479,6 +479,7 @@ static bool is_objc_compatible_parameters(NonTypeSymbol& method) noexcept
     return true;
 }
 
+namespace {
 template <class Symbol> void write_result_type(std::ostream& output, const Symbol& symbol, const TypeLikeSymbol& type)
 {
     output << ": ";
@@ -487,6 +488,7 @@ template <class Symbol> void write_result_type(std::ostream& output, const Symbo
     }
     output << emit_cangjie(type);
 }
+} // namespace
 
 static void write_method_parameters(std::ostream& output, const NonTypeSymbol& method)
 {

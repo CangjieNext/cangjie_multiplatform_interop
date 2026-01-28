@@ -227,7 +227,7 @@ void set_type_mappings()
     }
 }
 
-void do_type_map()
+static void do_type_map()
 {
     for (auto&& decl : Universe::all_declarations()) {
         if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(&decl)) {
