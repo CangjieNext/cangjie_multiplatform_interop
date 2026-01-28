@@ -25,7 +25,7 @@ public class Registry {
         freeSize = 0
     }
 
-    public func put(any: Any): Int64 {
+    public unsafe func put(any: Any): Int64 {
         synchronized(mutex) {
             var id: Int64
 
@@ -47,13 +47,13 @@ public class Registry {
         }
     }
 
-    public func get<T>(id: Int64): ?T {
+    public unsafe func get<T>(id: Int64): ?T {
         mockRegistry[id] as T
     }
 
-    public func remove(id: Int64): Unit {
+    public unsafe func remove(id: Int64): Unit {
         synchronized(mutex) {
-            mockRegistry[id] = unsafe { zeroValue<Any>() }
+            mockRegistry[id] = zeroValue<Any>()
 
             if (freeSize == freeList.size) {
                 growFreeList()
@@ -63,14 +63,14 @@ public class Registry {
         }
     }
 
-    private func grow() {
+    private unsafe func grow() {
         let newSize = mockRegistry.size * 2
-        let cloneRegistry = Array<Any>(newSize) {_ => unsafe { zeroValue<Any>() }}
+        let cloneRegistry = Array<Any>(newSize) {_ => zeroValue<Any>() }
         mockRegistry.copyTo(cloneRegistry)
         mockRegistry = cloneRegistry
     }
 
-    private func growFreeList() {
+    private unsafe func growFreeList() {
         let newSize = freeList.size * 2
         let cloneFreeList = Array<Int64>(newSize) {_ => -1}
         freeList.copyTo(cloneFreeList)
