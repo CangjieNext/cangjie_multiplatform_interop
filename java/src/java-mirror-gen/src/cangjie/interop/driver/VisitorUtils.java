@@ -304,6 +304,9 @@ public final class VisitorUtils {
         return suffix;
     }
 
+    /**
+     * Determines whether the given entity should be generated in the output.
+     */
     public static boolean shouldBeGenerated(Symbol symbol) {
         if (hasAppropriateModifiers(symbol)) {
             return true;
@@ -365,6 +368,9 @@ public final class VisitorUtils {
         return hasAppropriateModifiers(typeSymbol);
     }
 
+    /**
+     * Determines whether the given entity's dependencies are all appropriate.
+     */
     public static boolean hasOnlyAppropriateDeps(Symbol symbol, Types types) {
         if (symbol instanceof Symbol.MethodSymbol methodSymbol) {
             for (var param : methodSymbol.params()) {
@@ -374,10 +380,9 @@ public final class VisitorUtils {
                 }
             }
             final var returnTypeSymbol = erasureType(methodSymbol.getReturnType(), types);
-            if (!isAppropriateType(returnTypeSymbol)) {
-                return false;
-            }
-        } else if (symbol instanceof Symbol.VarSymbol varSymbol) {
+            return isAppropriateType(returnTypeSymbol);
+        }
+        if (symbol instanceof Symbol.VarSymbol varSymbol) {
             return isAppropriateType(erasureType(varSymbol.type, types));
         }
         return true;
