@@ -96,9 +96,15 @@ def fatal(message):
     LOG.critical(message)
     raise Exception(message)
 
+def fixedEnv(env=None):
+    if env is None:
+        env = os.environ.copy()
+    env["ZERO_AR_DATE"] = "1"
+    return env
+
 def command(*args, cwd=None, env=None):
     """Execute a child program via 'subprocess.Popen' and log the output"""
-    output = subprocess.Popen(args, stdout=PIPE, cwd=cwd, env=env)
+    output = subprocess.Popen(args, stdout=PIPE, cwd=cwd, env=fixedEnv(env))
     log_output(output)
     if output.returncode:
         fatal('"' + ' '.join(args) + '" returned ' + output.returncode)
@@ -223,7 +229,7 @@ def change_install_names(dylib, dependencies):
     dylib - the name of the dynamic library where to change the dependency
     dependencies - array of dependency file names (without paths)
     """
-    otool_output = subprocess.run(["otool", "-l", dylib], capture_output=True).stdout.decode().splitlines()
+    otool_output = subprocess.run(["otool", "-l", dylib], capture_output=True, env=fixedEnv()).stdout.decode().splitlines()
     rpath = find_match(otool_output, r"path (.*) \(offset \d*\)")
     command("install_name_tool", "-id", "@rpath/" + os.path.basename(dylib), dylib)
     if rpath:
