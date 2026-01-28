@@ -95,6 +95,24 @@ def init_log(name):
     log.addHandler(filehandler)
     return log
 
+def fatal(message):
+    """Log the message as CRITICAL and raise Exception with the same message"""
+    LOG.critical(message)
+    raise Exception(message)
+
+def fixedEnv(env=None):
+    if env is None:
+        env = os.environ.copy()
+    env["ZERO_AR_DATE"] = "1"
+    return env
+
+def command(*args, cwd=None, env=None):
+    """Execute a child program via 'subprocess.Popen' and log the output"""
+    output = subprocess.Popen(args, stdout=PIPE, cwd=cwd, env=fixedEnv(env))
+    log_output(output)
+    if output.returncode:
+        fatal('"' + ' '.join(args) + '" returned ' + output.returncode)
+
 def dylib_pref(target):
     if "windows" in target:
         return ""
@@ -188,7 +206,7 @@ def fetch_jdk(target_dir):
     if not os.path.exists(clone_dir) and not os.path.exists(jdk_src_dir):
         # Download the BishengJDK
         LOG.info(f'Cloning bishengjdk-21 repository (tag: {tag_name})...\n')
-        output = subprocess.run(
+        subprocess.run(
             ["git", "clone", "--depth=1", "-b", tag_name, repo_url, clone_dir],
             stdout=PIPE,
         )
@@ -245,7 +263,7 @@ def fetch_jdk(target_dir):
         if os.path.exists(patch_path):
             patch_cmd = f"patch -p1 -l -f < {patch_path}"
             LOG.info("CMDPATH: %s", HOME_DIR)
-            patch_process = subprocess.run(patch_cmd, shell=True, stdout=PIPE, cwd=HOME_DIR, check=True)
+            subprocess.run(patch_cmd, shell=True, cwd=HOME_DIR, check=True)
             LOG.info('Patch applied successfully')
         else:
             LOG.info("Warning: jdk_interop.patch not found at %s", HOME_DIR)
@@ -266,7 +284,7 @@ def build(args):
             os.makedirs(DIST_DIR)
 
         #clang c_core.c
-        clang_args = ["-D_XOPEN_SOURCE=600"] if IS_DARWIN else []
+        clang_args = ["clang", "-D_XOPEN_SOURCE=600"] if IS_DARWIN else ["clang"]
         clang_args += ["-fstack-protector-strong", "-s", "-Wl,-z,relro,-z,now", "-fPIC", "-shared"]
         clang_args += ["-o", OUT_CINTEROPLIB_SO]
         clang_args += ["-lcangjie-runtime"]
@@ -279,15 +297,10 @@ def build(args):
         if args.target_sysroot:
             clang_args += ["-isysroot", args.target_sysroot]
 
-        output = subprocess.Popen(
-            ["clang"] + clang_args,
-            cwd=INTEROPLIB_DIR,
-            stdout=PIPE,
-        )
-        log_output(output)
+        command(*clang_args, cwd=INTEROPLIB_DIR)
 
         #cjc jni.cj registry.cj
-        cjc_args = list(CJC_BASE_ARGS)
+        cjc_args = ["cjc"] + list(CJC_BASE_ARGS)
         cjc_args += ["jni.cj", "registry.cj"]
         cjc_args += ["-L" + DIST_DIR, "-lcinteroplib"]
 
@@ -298,15 +311,10 @@ def build(args):
         if args.target_toolchain:
             cjc_args += ["-B", args.target_toolchain]
 
-        output = subprocess.Popen(
-            ["cjc"] + cjc_args,
-            cwd=INTEROPLIB_DIR,
-            stdout=PIPE,
-        )
-        log_output(output)
+        command(*cjc_args, cwd=INTEROPLIB_DIR)
 
         #cjc javalib/*.cj
-        cjc_args = list(CJC_BASE_ARGS)
+        cjc_args = ["cjc"] + list(CJC_BASE_ARGS)
         cjc_args += ["--import-path=" + DIST_DIR]
         cjc_args += list(glob.glob(os.path.join(INTEROPLIB_DIR, "javalib") + "/*.cj", recursive=False))
 
@@ -317,26 +325,17 @@ def build(args):
         if args.target_toolchain:
             cjc_args += ["-B", args.target_toolchain]
 
-        output = subprocess.Popen(
-            ["cjc"] + cjc_args,
-            cwd=INTEROPLIB_DIR,
-            stdout=PIPE,
-        )
-        log_output(output)
+        command(*cjc_args, cwd=INTEROPLIB_DIR)
 
-        output = subprocess.Popen(
-            ["javac", "-d", DIST_DIR, "-source", "8", "-target", "8", "LibraryLoader.java", "$$NativeConstructorMarker.java", "ClassAnalyser.java", "MethodDef.java"],
+        command(
+            "javac", "-d", DIST_DIR, "-source", "8", "-target", "8", "LibraryLoader.java", "$$NativeConstructorMarker.java", "ClassAnalyser.java", "MethodDef.java",
             cwd=INTEROPLIB_DIR,
-            stdout=PIPE,
         )
-        log_output(output)
 
-        output = subprocess.Popen(
-            ["jar", "cf",  LIBRARY_LOADER_JAR, "cangjie/lang/LibraryLoader.class", "cangjie/lang/internal/$$NativeConstructorMarker.class", "cangjie/interop/java/ClassAnalyser.class", "cangjie/interop/java/MethodDef.class"],
+        command(
+            "jar", "cf",  LIBRARY_LOADER_JAR, "cangjie/lang/LibraryLoader.class", "cangjie/lang/internal/$$NativeConstructorMarker.class", "cangjie/interop/java/ClassAnalyser.class", "cangjie/interop/java/MethodDef.class"
             cwd=DIST_DIR,
-            stdout=PIPE,
         )
-        log_output(output)
 
         LOG.info('end build interoplib for ' + args.target_lib + '\n')
     else:
@@ -345,12 +344,7 @@ def build(args):
         # Fetch jdk before building
         fetch_jdk(JAVA_INTEROP_THIRD_PARTY)
 
-        output = subprocess.Popen(
-            ["ant", "clean", "build"],
-            cwd=MIRROR_GEN_DIR,
-            stdout=PIPE,
-        )
-        log_output(output)
+        command("ant", "clean", "build", cwd=MIRROR_GEN_DIR)
 
         LOG.info('end build java-binding-gen\n')
 
@@ -362,10 +356,12 @@ def clean(args):
         ["ant", "clean"],
         cwd=MIRROR_GEN_DIR,
         stdout=PIPE,
+        env=fixedEnv(),
     )
-    jdk_dir = os.path.join(JAVA_INTEROP_THIRD_PARTY, "jdk")
-    subprocess.run(f"rm -rf {jdk_dir}", shell=True, check=True)
     log_output(output)
+    jdk_dir = os.path.join(JAVA_INTEROP_THIRD_PARTY, "jdk")
+    if os.path.isdir(jdk_dir):
+        shutil.rmtree(jdk_dir, ignore_errors=True)
     LOG.info("end clean java-binding-gen\n")
     LOG.info("begin clean interoplib...\n")
     if os.path.isdir(DIST_DIR):
