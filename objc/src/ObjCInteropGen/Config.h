@@ -8,11 +8,15 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include "toml.hpp"
 #include <string_view>
+#include "toml.hpp"
+
+namespace objcgen {
 
 extern toml::table config;
 
 void parse_toml_config_file(std::string_view path);
+
+} // namespace objcgen
 
 #endif // CONFIG_H

@@ -6,7 +6,13 @@
 
 #include "Universe.h"
 
-Universe universe;
+namespace objcgen {
+
+Universe& Universe::get()
+{
+    static Universe universe;
+    return universe;
+}
 
 NonTypeSymbol& TopLevel::add_function(std::string name, TypeLikeSymbol& return_type, uint16_t modifiers)
 {
@@ -16,7 +22,7 @@ NonTypeSymbol& TopLevel::add_function(std::string name, TypeLikeSymbol& return_t
 
 TopLevelIterator Universe::top_level() noexcept
 {
-    return universe.top_level_.get_iterator();
+    return top_level_.get_iterator();
 }
 
 Universe::Universe()
@@ -201,3 +207,5 @@ void Universe::process_rename(NamedTypeSymbol* symbol, const std::string& old_na
 
     assert(changed);
 }
+
+} // namespace objcgen

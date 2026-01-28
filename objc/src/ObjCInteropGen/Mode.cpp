@@ -6,4 +6,8 @@
 
 #include "Mode.h"
 
+namespace objcgen {
+
 Mode mode = Mode::NORMAL;
+
+} // namespace objcgen

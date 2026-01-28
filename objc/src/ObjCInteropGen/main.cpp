@@ -10,6 +10,7 @@
 #include "CangjieWriter.h"
 #include "Config.h"
 #include "Diagnostics.h"
+#include "FatalException.h"
 #include "Logging.h"
 #include "Mappings.h"
 #include "MarkPackage.h"
@@ -21,6 +22,8 @@
 #include "Universe.h"
 
 // clang -fobjc-runtime=gnustep `gnustep-config --objc-flags` -Xclang -ast-dump -c M.m -o M.o -v > ast.txt
+
+using namespace objcgen;
 
 static void show_help(const char* executable)
 {
@@ -135,6 +138,9 @@ int main(int argc, char* argv[])
         write_cangjie();
     } catch (const toml::parse_error& e) {
         std::cerr << e << std::endl;
+        return 1;
+    } catch (const FatalException&) {
+        // FatalException is assumed to print the error message before throwing
         return 1;
     } catch (const std::exception& e) {
         std::cerr << stage << ":\n" << e.what() << std::endl;

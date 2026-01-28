@@ -8,6 +8,10 @@
 #ifndef CANGJIEWRITER_H
 #define CANGJIEWRITER_H
 
+namespace objcgen {
+
 void write_cangjie();
+
+} // namespace objcgen
 
 #endif // CANGJIEWRITER_H

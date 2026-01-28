@@ -13,6 +13,8 @@
 
 #include "Symbol.h"
 
+namespace objcgen {
+
 enum class TypeNamespace : std::uint8_t {
     Primary,
 
@@ -65,11 +67,7 @@ public:
     }
 
     // Prefix increment
-    UniverseIterator& operator++()
-    {
-        it_ = find_first<TypeSymbol>(++it_);
-        return *this;
-    }
+    UniverseIterator& operator++();
 
     friend bool operator==(const UniverseIterator& lhs, const UniverseIterator& rhs)
     {
@@ -132,9 +130,26 @@ private:
 };
 
 class Universe final {
+    using type_map_t = std::unordered_map<std::string, NamedTypeSymbol*>;
+
+    template <class TypeSymbol> friend class UniverseIterator;
+    template <class TypeSymbol> friend struct UniverseTypes;
+
     static constexpr int PREALLOCATED_TYPE_COUNT = 8192;
 
-    using type_map_t = std::unordered_map<std::string, NamedTypeSymbol*>;
+    Universe();
+
+    type_map_t& types_map(const TypeNamespace index)
+    {
+        return types_[static_cast<std::uint8_t>(index)];
+    }
+
+    const type_map_t& types_map(const TypeNamespace index) const
+    {
+        return types_[static_cast<std::uint8_t>(index)];
+    }
+
+    template <class TypeSymbol> friend type_order_t::const_iterator find_first(type_order_t::const_iterator it);
 
     TopLevel top_level_;
 
@@ -160,22 +175,8 @@ class Universe final {
     TypeDeclarationSymbol id_;
     TypeDeclarationSymbol sel_;
 
-    type_map_t& types_map(const TypeNamespace index)
-    {
-        return types_[static_cast<std::uint8_t>(index)];
-    }
-
-    const type_map_t& types_map(const TypeNamespace index) const
-    {
-        return types_[static_cast<std::uint8_t>(index)];
-    }
-
-    template <class TypeSymbol> friend class UniverseIterator;
-    template <class TypeSymbol> friend struct UniverseTypes;
-    template <class TypeSymbol> friend type_order_t::const_iterator find_first(type_order_t::const_iterator it);
-
 public:
-    Universe();
+    static Universe& get();
 
     NonTypeSymbol& register_top_level_function(std::string name, TypeLikeSymbol& return_type, uint16_t modifiers);
 
@@ -287,24 +288,22 @@ public:
 
     void process_rename(NamedTypeSymbol* symbol, const std::string& old_name);
 
-    static TopLevelIterator top_level() noexcept;
+    TopLevelIterator top_level() noexcept;
 
-    static auto all_declarations()
+    auto all_declarations()
     {
         return UniverseTypes<NamedTypeSymbol>{};
     }
 
-    static auto type_definitions()
+    auto type_definitions()
     {
         return UniverseTypes<TypeDeclarationSymbol>{};
     }
 };
 
-extern Universe universe;
-
 template <class TypeSymbol> typename UniverseIterator<TypeSymbol>::reference UniverseIterator<TypeSymbol>::get() const
 {
-    auto* symbol = universe.type(it_->first, it_->second);
+    auto* symbol = Universe::get().type(it_->first, it_->second);
     assert(symbol);
     if constexpr (std::is_same_v<TypeSymbol, NamedTypeSymbol>) {
         return *symbol;
@@ -317,6 +316,7 @@ template <class TypeSymbol> typename UniverseIterator<TypeSymbol>::reference Uni
 template <class TypeSymbol> type_order_t::const_iterator find_first(type_order_t::const_iterator it)
 {
     if constexpr (!std::is_same_v<TypeSymbol, NamedTypeSymbol>) {
+        const auto& universe = Universe::get();
         for (auto e = universe.type_order_.cend(); it != e; ++it) {
             auto* symbol = universe.type(it->first, it->second);
             assert(symbol);
@@ -328,14 +328,22 @@ template <class TypeSymbol> type_order_t::const_iterator find_first(type_order_t
     return it;
 }
 
+template <class TypeSymbol> UniverseIterator<TypeSymbol>& UniverseIterator<TypeSymbol>::operator++()
+{
+    it_ = find_first<TypeSymbol>(++it_);
+    return *this;
+}
+
 template <class TypeSymbol> UniverseIterator<TypeSymbol> UniverseTypes<TypeSymbol>::cbegin() const
 {
-    return UniverseIterator<TypeSymbol>{find_first<TypeSymbol>(universe.type_order_.cbegin())};
+    return UniverseIterator<TypeSymbol>{find_first<TypeSymbol>(Universe::get().type_order_.cbegin())};
 }
 
 template <class TypeSymbol> UniverseIterator<TypeSymbol> UniverseTypes<TypeSymbol>::cend() const
 {
-    return UniverseIterator<TypeSymbol>{universe.type_order_.cend()};
+    return UniverseIterator<TypeSymbol>{Universe::get().type_order_.cend()};
 }
+
+} // namespace objcgen
 
 #endif // UNIVERSE_H

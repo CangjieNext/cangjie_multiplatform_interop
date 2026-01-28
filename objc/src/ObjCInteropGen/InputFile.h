@@ -14,22 +14,19 @@
 #include <unordered_set>
 #include <vector>
 
-#ifdef OBJCINTEROPGEN_NO_WARNINGS
-#// [[nodiscard]] is ignored in C++17 when being applied to constructors.  Older
-#// GCC issues warnings on that.
-#if __has_cpp_attribute(nodiscard) > 201603L
-#define OBJCINTEROPGEN_NODISCARD_CONSTRUCTOR [[nodiscard]]
-#else
-#define OBJCINTEROPGEN_NODISCARD_CONSTRUCTOR
-#endif
-#endif
+namespace objcgen {
 
 class FileLevelSymbol;
 class InputDirectory;
 
 struct LineCol {
-    unsigned line_;
-    unsigned col_;
+    struct Hash {
+        size_t operator()(const LineCol& pos) const noexcept
+        {
+            constexpr auto half_width = sizeof(size_t) * CHAR_BIT / 2;
+            return (static_cast<size_t>(pos.line_) << half_width) + pos.line_;
+        }
+    };
 
     friend bool operator<(const LineCol& loc1, const LineCol& loc2) noexcept
     {
@@ -40,14 +37,9 @@ struct LineCol {
     {
         return loc1.line_ == loc2.line_ && loc1.col_ == loc2.col_;
     }
-};
 
-template <> struct std::hash<LineCol> {
-    size_t operator()(const LineCol& pos) const noexcept
-    {
-        constexpr auto half_width = sizeof(size_t) * CHAR_BIT / 2;
-        return (static_cast<size_t>(pos.line_) << half_width) + pos.line_;
-    }
+    unsigned line_;
+    unsigned col_;
 };
 
 struct Location : LineCol {
@@ -67,8 +59,8 @@ class InputFile final {
     InputDirectory* directory_;
     std::filesystem::path path_;
 
-    std::unordered_set<LineCol> cursors_up_to_this_translation_;
-    std::unordered_set<LineCol> cursors_in_this_translation_;
+    std::unordered_set<LineCol, LineCol::Hash> cursors_up_to_this_translation_;
+    std::unordered_set<LineCol, LineCol::Hash> cursors_in_this_translation_;
 
     std::multiset<FileLevelSymbol*, SymbolComparator> symbols_;
 
@@ -188,5 +180,7 @@ public:
 };
 
 extern Inputs inputs;
+
+} // namespace objcgen
 
 #endif // INPUTFILE_H

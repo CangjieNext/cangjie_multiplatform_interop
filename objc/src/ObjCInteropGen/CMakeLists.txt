@@ -23,6 +23,7 @@ add_executable(ObjCInteropGen
         Config.h
         Diagnostics.cpp
         Diagnostics.h
+        FatalException.h
         InputFile.cpp
         InputFile.h
         Logging.cpp
@@ -42,7 +43,6 @@ add_executable(ObjCInteropGen
         SingleDeclarationSymbolVisitor.cpp
         SingleDeclarationSymbolVisitor.h
         SourceScanner.cpp
-        SourceScanner.h
         SourceScannerConfig.cpp
         SourceScannerConfig.h
         Strings.h

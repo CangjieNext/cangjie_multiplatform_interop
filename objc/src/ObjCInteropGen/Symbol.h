@@ -15,6 +15,8 @@
 
 #include "InputFile.h"
 
+namespace objcgen {
+
 class NonTypeSymbol;
 class Package;
 class PackageFile;
@@ -1251,6 +1253,10 @@ protected:
 };
 
 class NonTypeSymbol final : public FileLevelSymbol {
+    struct Private {
+        explicit Private() = default;
+    };
+
 public:
     enum class Kind : std::uint8_t {
         Field,
@@ -1277,12 +1283,6 @@ public:
         }
     };
 
-private:
-    struct Private {
-        explicit Private() = default;
-    };
-
-public:
     [[nodiscard]] NonTypeSymbol(
         Private, std::string name, const Kind kind, TypeLikeSymbol* return_type, uint16_t modifiers = 0)
         : FileLevelSymbol(std::move(name)), kind_(kind), modifiers_(modifiers), return_type_(return_type)
@@ -1479,6 +1479,10 @@ protected:
     void visit_impl(SymbolVisitor& visitor) override;
 
 private:
+    // Only these classes are allowed to create instances of NonTypeSymbol
+    friend class TypeDeclarationSymbol;
+    friend class TopLevel;
+
     Kind kind_;
     uint16_t modifiers_;
 
@@ -1490,10 +1494,6 @@ private:
     TypeLikeSymbol* return_type_;
     std::vector<ParameterSymbol> parameters_;
     std::string selector_attribute_;
-
-    // Only these classes are allowed to create instances of NonTypeSymbol
-    friend class TypeDeclarationSymbol;
-    friend class TopLevel;
 };
 
 class ParameterSymbol final : public Symbol {
@@ -1524,5 +1524,7 @@ public:
 };
 
 [[nodiscard]] TypeLikeSymbol& pointer(TypeLikeSymbol& pointee);
+
+} // namespace objcgen
 
 #endif // SYMBOL_H

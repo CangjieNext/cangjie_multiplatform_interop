@@ -12,6 +12,8 @@
 #include "Mappings.h"
 #include "Universe.h"
 
+namespace objcgen {
+
 static void resolve_static_instance_clash(Symbol& symbol, bool is_static)
 {
     symbol.rename(std::string(symbol.name()).append(is_static ? "Static" : "Instance"));
@@ -201,9 +203,10 @@ static void remove_duplicates(TypeDeclarationSymbol& type)
     }
 }
 
-void do_rename()
+static void do_rename()
 {
-    auto type_definitions = Universe::type_definitions();
+    auto& universe = Universe::get();
+    auto type_definitions = universe.type_definitions();
 
     for (auto&& type : type_definitions) {
         if (type.is(NamedTypeSymbol::Kind::Protocol)) {
@@ -264,7 +267,7 @@ void do_rename()
     // In Objective-C, a global function can share the same name with a
     // structure/class/protocol.  In Cangjie, it cannot.  Resolve the conflict by
     // adding the `Func` suffix to the name of the global function.
-    for (auto& top_level : Universe::top_level()) {
+    for (auto& top_level : universe.top_level()) {
         if (top_level.is_global_function()) {
             const auto& name = top_level.name();
             const auto* type = universe.type(name);
@@ -275,9 +278,9 @@ void do_rename()
     }
 }
 
-void set_type_mappings()
+static void set_type_mappings()
 {
-    for (auto&& type : Universe::all_declarations()) {
+    for (auto&& type : Universe::get().all_declarations()) {
         for (auto mapping_ptr : mappings) {
             auto& mapping = *mapping_ptr;
             if (mapping.can_map(&type)) {
@@ -303,10 +306,11 @@ static void do_map(NonTypeSymbol& symbol, TypeDeclarationSymbol* decl)
 
 static void do_map()
 {
-    for (auto& top_level : Universe::top_level()) {
+    auto& universe = Universe::get();
+    for (auto& top_level : universe.top_level()) {
         do_map(top_level, nullptr);
     }
-    for (auto&& decl : Universe::all_declarations()) {
+    for (auto&& decl : universe.all_declarations()) {
         if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(&decl)) {
             for (auto&& member : type->members()) {
                 if (!member.is_property()) {
@@ -330,3 +334,5 @@ void apply_transforms()
     set_type_mappings();
     do_map();
 }
+
+} // namespace objcgen

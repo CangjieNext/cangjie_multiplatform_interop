@@ -10,8 +10,11 @@
 
 #include <iostream>
 
+#include "FatalException.h"
 #include "Package.h"
 #include "toml.hpp"
+
+namespace objcgen {
 
 template <typename T, typename Desc>
 std::string get_string_value(
@@ -21,23 +24,16 @@ std::string get_string_value(
         if (auto* package_name_string = package_name_any->as_string()) {
             if (auto package_name_value = package_name_string->value_exact<std::string>()) {
                 if (package_name_value->empty()) {
-                    std::cerr << "`packages` entry " << package_name << " string `" << property_name << "` is empty"
-                              << std::endl;
-                    std::exit(1);
+                    fatal("`packages` entry ", package_name, " string `", property_name, "` is empty");
                 }
 
                 return *package_name_value;
             }
 
-            std::cerr << "`packages` entry " << package_name << " string `" << property_name << "` has no string value"
-                      << std::endl;
-
-            std::exit(1);
+            fatal("`packages` entry ", package_name, " string `", property_name, "` has no string value");
         }
 
-        std::cerr << "`packages` entry " << package_name << " property `" << property_name
-                  << "` should be a TOML string" << std::endl;
-        std::exit(1);
+        fatal("`packages` entry ", package_name, " property `", property_name, "` should be a TOML string");
     }
 
     return fallback(config);
@@ -47,5 +43,7 @@ std::string get_string_value(
 
 std::string compute_output_path(
     const std::string& name, const toml::table& config, std::string_view package_cangjie_name);
+
+} // namespace objcgen
 
 #endif // SCOPECONFIG_H

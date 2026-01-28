@@ -10,12 +10,14 @@
 
 #include "Universe.h"
 
+namespace objcgen {
+
 std::vector<TypeMapping*> mappings;
 
 TypeLikeSymbol* NonGenericMapping::map([[maybe_unused]] NamedTypeSymbol* type)
 {
     assert(can_map(type));
-    auto* result = universe.type(to_);
+    auto* result = Universe::get().type(to_);
     if (!result) {
         std::cerr << "Unknown type " << to_ << " specified in [[mappings]]" << std::endl;
         exit(1);
@@ -35,3 +37,5 @@ NonGenericMapping& add_non_generic_mapping(const std::string_view to)
     mappings.push_back(mapping);
     return *mapping;
 }
+
+} // namespace objcgen

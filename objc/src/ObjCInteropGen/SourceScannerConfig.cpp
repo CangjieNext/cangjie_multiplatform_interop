@@ -4,17 +4,21 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include "SourceScanner.h"
+#include "SourceScannerConfig.h"
 
 #include <cassert>
 #include <iostream>
 #include <regex>
 
+#include "ClangSession.h"
 #include "Config.h"
+#include "FatalException.h"
 #include "Logging.h"
 
-void toml_array_to_vector(const toml::table& table, const std::string& source_name, std::vector<std::string>& results,
-    const std::string_view property_name)
+namespace objcgen {
+
+static void toml_array_to_vector(const toml::table& table, const std::string& source_name,
+    std::vector<std::string>& results, const std::string_view property_name)
 {
     auto* property_any = table.get(property_name);
     if (!property_any) {
@@ -31,25 +35,19 @@ void toml_array_to_vector(const toml::table& table, const std::string& source_na
                 if (auto path = item_string->value_exact<std::string>()) {
                     results.push_back(*path);
                 } else {
-                    std::cerr << "Source `" << source_name << "` array `" << property_name << "` item #" << i
-                              << " has no string value" << std::endl;
-                    std::exit(1);
+                    fatal("Source `", source_name, "` array `", property_name, "` item #", i, " has no string value");
                 }
             } else {
-                std::cerr << "Source `" << source_name << "` array `" << property_name << "` item #" << i
-                          << " is not a TOML string" << std::endl;
-                std::exit(1);
+                fatal("Source `", source_name, "` array `", property_name, "` item #", i, " is not a TOML string");
             }
             i++;
         }
     } else {
-        std::cerr << "Source `" << source_name << "` property `" << property_name << "` should be a TOML array"
-                  << std::endl;
-        std::exit(1);
+        fatal("Source `", source_name, "` property `", property_name, "` should be a TOML array");
     }
 }
 
-bool is_mixin_applicable(
+static bool is_mixin_applicable(
     const toml::key& source_name, const toml::key& mixin_name, const toml::array& mixin_sources_array)
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
@@ -75,27 +73,21 @@ bool is_mixin_applicable(
                         return true;
                     }
                 } catch (std::regex_error& e) {
-                    std::cerr << "`sources-mixins` entry `" << mixin_name << "` array `sources` item #" << i << " (`"
-                              << *mixin_source_string_optional
-                              << "`) has thrown an error: " << describe_regex_error(e.code()) << std::endl;
-                    std::exit(1);
+                    fatal("`sources-mixins` entry `", mixin_name, "` array `sources` item #", i, " (`",
+                        *mixin_source_string_optional, "`) has thrown an error: ", describe_regex_error(e.code()));
                 }
             } else {
-                std::cerr << "`sources-mixins` entry `" << mixin_name << "` array `sources` item #" << i
-                          << " has no string value" << std::endl;
-                std::exit(1);
+                fatal("`sources-mixins` entry `", mixin_name, "` array `sources` item #", i, " has no string value");
             }
         } else {
-            std::cerr << "`sources-mixins` entry `" << mixin_name << "` array `sources` item #" << i
-                      << " is not a TOML string" << std::endl;
-            std::exit(1);
+            fatal("`sources-mixins` entry `", mixin_name, "` array `sources` item #", i, " is not a TOML string");
         }
         i++;
     }
     return false;
 }
 
-void merge_array_property(toml::table& current, const toml::table& mixin, const toml::key& source_name,
+static void merge_array_property(toml::table& current, const toml::table& mixin, const toml::key& source_name,
     const toml::key& mixin_name, const std::string_view property_name)
 {
     if (!current.get(property_name)) {
@@ -114,18 +106,14 @@ void merge_array_property(toml::table& current, const toml::table& mixin, const 
                 current_array->push_back(item_any);
             }
         } else {
-            std::cerr << "`sources-mixins` entry `" << mixin_name << "` property `" << property_name
-                      << "` should be a TOML array" << std::endl;
-            std::exit(1);
+            fatal("`sources-mixins` entry `", mixin_name, "` property `", property_name, "` should be a TOML array");
         }
     } else {
-        std::cerr << "`sources` entry `" << source_name << "` property `" << property_name << "` should be a TOML array"
-                  << std::endl;
-        std::exit(1);
+        fatal("`sources` entry `", source_name, "` property `", property_name, "` should be a TOML array");
     }
 }
 
-void apply_mixin(
+static void apply_mixin(
     const toml::key& source_name, const toml::key& mixin_name, toml::table& table, const toml::table& mixin)
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
@@ -137,7 +125,7 @@ void apply_mixin(
     merge_array_property(table, mixin, source_name, mixin_name, "arguments-append");
 }
 
-void apply_mixins(const toml::node& mixins_any, const toml::key& source_name, toml::table& entry)
+static void apply_mixins(const toml::node& mixins_any, const toml::key& source_name, toml::table& entry)
 {
     if (auto* mixins = mixins_any.as_table()) {
         for (auto&& [mixin_name, mixin_any] : *mixins) {
@@ -148,24 +136,19 @@ void apply_mixins(const toml::node& mixins_any, const toml::key& source_name, to
                             continue;
                         }
                     } else {
-                        std::cerr << "`sources-mixins` entry `" << mixin_name << "` must have TOML array `sources`"
-                                  << std::endl;
-                        std::exit(1);
+                        fatal("`sources-mixins` entry `", mixin_name, "` must have TOML array `sources`");
                     }
                 } else {
-                    std::cerr << "`sources-mixins` entry `" << mixin_name << "` has no `sources` entry" << std::endl;
-                    std::exit(1);
+                    fatal("`sources-mixins` entry `", mixin_name, "` has no `sources` entry");
                 }
 
                 apply_mixin(source_name, mixin_name, entry, *mixin);
             } else {
-                std::cerr << "`sources-mixins` entry `" << mixin_name << "` is not a TOML table" << std::endl;
-                std::exit(1);
+                fatal("`sources-mixins` entry `", mixin_name, "` is not a TOML table");
             }
         }
     } else {
-        std::cerr << "`sources-mixins` should be a TOML table" << std::endl;
-        std::exit(1);
+        fatal("`sources-mixins` should be a TOML table");
     }
 }
 
@@ -179,7 +162,7 @@ static void parse_sources(const toml::table& options, const std::string& source_
     toml_array_to_vector(options, source_name, arguments, "arguments");
     toml_array_to_vector(options, source_name, arguments, "arguments-append");
 
-    parse_sources(files, arguments, session);
+    session.parse_sources(files, arguments);
 }
 
 void parse_sources()
@@ -187,7 +170,7 @@ void parse_sources()
     const auto* mixins_any = config.get("sources-mixins");
 
     if (auto* sources = config.get_as<toml::table>("sources")) {
-        ClangSession session;
+        auto session = ClangSession::create();
 
         for (auto&& [source_name, source_any] : *sources) {
             if (const auto* source = source_any.as_table()) {
@@ -198,14 +181,14 @@ void parse_sources()
                 }
 
                 auto source_name_string = std::string(source_name.str());
-                parse_sources(entry, source_name_string, session);
+                parse_sources(entry, source_name_string, *session);
             } else {
-                std::cerr << "`sources` entry `" << source_name << "` is not a TOML table" << std::endl;
-                std::exit(1);
+                fatal("`sources` entry `", source_name, "` is not a TOML table");
             }
         }
     } else {
-        std::cerr << "`sources` should be a TOML table" << std::endl;
-        std::exit(1);
+        fatal("`sources` should be a TOML table");
     }
 }
+
+} // namespace objcgen

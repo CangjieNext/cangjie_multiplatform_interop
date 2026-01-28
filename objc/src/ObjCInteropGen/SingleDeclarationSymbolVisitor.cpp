@@ -6,7 +6,9 @@
 
 #include "SingleDeclarationSymbolVisitor.h"
 
-bool should_always_collect(const SymbolProperty property)
+namespace objcgen {
+
+static bool should_always_collect(const SymbolProperty property)
 {
     switch (property) {
         case SymbolProperty::None:
@@ -30,7 +32,7 @@ bool should_always_collect(const SymbolProperty property)
     }
 }
 
-bool should_disable_recursion(const SymbolProperty property)
+static bool should_disable_recursion(const SymbolProperty property)
 {
     switch (property) {
         case SymbolProperty::None:
@@ -82,3 +84,5 @@ void SingleDeclarationSymbolVisitor::visit_impl(
         recurse(value);
     }
 }
+
+} // namespace objcgen

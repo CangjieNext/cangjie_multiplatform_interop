@@ -9,6 +9,9 @@
 #include <iostream>
 
 #include "Config.h"
+#include "FatalException.h"
+
+namespace objcgen {
 
 Packages packages;
 
@@ -36,15 +39,14 @@ PackageFilesIterator::reference PackageFilesIterator::get() const
     return *it_->second;
 }
 
-Package* create_package(std::size_t package_index, const toml::table& config)
+static Package* create_package(std::size_t package_index, const toml::table& config)
 {
     std::string name_desc = "#" + std::to_string(package_index);
 
-    auto package_cangjie_name = get_string_value(config, name_desc, "package-name", [&name_desc](const toml::table&) {
-        std::cerr << "`packages` entry " << name_desc << " should define `package-name` property" << std::endl;
-        std::exit(1);
-        return std::string("");
-    });
+    auto package_cangjie_name =
+        get_string_value(config, name_desc, "package-name", [&name_desc](const toml::table&) -> std::string {
+            fatal("`packages` entry ", name_desc, " should define `package-name` property");
+        });
 
     name_desc = "`" + package_cangjie_name + "`";
 
@@ -55,20 +57,16 @@ Package* create_package(std::size_t package_index, const toml::table& config)
         if (auto* filters_table = filters_any->as_table()) {
             filters = filters_table;
         } else {
-            std::cerr << "`packages` entry " << name_desc << " property `filters` should be a TOML table" << std::endl;
-            std::exit(1);
+            fatal("`packages` entry ", name_desc, " property `filters` should be a TOML table");
         }
     } else {
-        std::cerr << "`packages` entry " << name_desc << " should define `filters` property" << std::endl;
-        std::exit(1);
+        fatal("`packages` entry ", name_desc, " should define `filters` property");
     }
 
     assert(filters);
 
     if (packages.by_cangjie_name(package_cangjie_name)) {
-        std::cerr << "There are multiple `packages` entries with the same `package-name` value `"
-                  << package_cangjie_name << "`" << std::endl;
-        std::exit(1);
+        fatal("There are multiple `packages` entries with the same `package-name` value `", package_cangjie_name, "`");
     }
 
     auto* package = new Package(package_cangjie_name, output_path);
@@ -92,13 +90,13 @@ void create_packages()
                 // TODO: consider supporting packages-mixins
                 create_package(i, *package);
             } else {
-                std::cerr << "`packages` entry #" << i << " is not a TOML table" << std::endl;
-                std::exit(1);
+                fatal("`packages` entry #", i, " is not a TOML table");
             }
             i++;
         }
     } else {
-        std::cerr << "`packages` should be a TOML array of tables" << std::endl;
-        std::exit(1);
+        fatal("`packages` should be a TOML array of tables");
     }
 }
+
+} // namespace objcgen

@@ -11,9 +11,11 @@
 #include "InputFile.h"
 #include "Universe.h"
 
+namespace objcgen {
+
 void check_marked_symbols()
 {
-    for (auto&& type : Universe::all_declarations()) {
+    for (auto&& type : Universe::get().all_declarations()) {
         if (type.package()) {
             if (type.is(NamedTypeSymbol::Kind::Union)) {
                 const auto* input_file = type.defining_file();
@@ -34,3 +36,5 @@ void check_marked_symbols()
         }
     }
 }
+
+} // namespace objcgen

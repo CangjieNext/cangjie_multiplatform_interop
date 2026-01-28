@@ -13,6 +13,8 @@
 
 #include "Symbol.h"
 
+namespace objcgen {
+
 struct TypeMapping {
     virtual ~TypeMapping() = default;
 
@@ -55,5 +57,7 @@ void initialize_mappings();
 void read_toml_mappings();
 
 NonGenericMapping& add_non_generic_mapping(std::string_view to);
+
+} // namespace objcgen
 
 #endif // MAPPINGS_H

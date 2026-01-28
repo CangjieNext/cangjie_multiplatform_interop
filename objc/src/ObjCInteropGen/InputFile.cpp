@@ -8,6 +8,8 @@
 
 #include "Symbol.h"
 
+namespace objcgen {
+
 Inputs inputs;
 
 bool InputFile::SymbolComparator::operator()(
@@ -90,3 +92,5 @@ bool Inputs::add_cursor(const Location& location, const std::string& name)
     }
     return (*this)[location.file_].add_cursor(location);
 }
+
+} // namespace objcgen

@@ -14,6 +14,8 @@
 #include "Package.h"
 #include "Universe.h"
 
+namespace objcgen {
+
 std::ostream& operator<<(std::ostream& stream, const KeywordEscaper& op)
 {
     // Do not include keywords common for Cangjie and C/Objective-C
@@ -74,7 +76,7 @@ void NamedTypeSymbol::rename(const std::string_view new_name)
 {
     const auto old_name = name();
     TypeLikeSymbol::rename(new_name);
-    universe.process_rename(this, old_name);
+    Universe::get().process_rename(this, old_name);
 }
 
 template <class UnaryPred>
@@ -207,7 +209,7 @@ NamedTypeSymbol* NamedTypeSymbol::construct(const std::vector<TypeLikeSymbol*>& 
 
 NamedTypeSymbol& EnumDeclarationSymbol::underlying_type() const noexcept
 {
-    return underlying_type_ ? *underlying_type_ : universe.int32();
+    return underlying_type_ ? *underlying_type_ : Universe::get().int32();
 }
 
 void UnexposedTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format) const
@@ -719,3 +721,5 @@ TypeLikeSymbol& pointer(TypeLikeSymbol& pointee)
     }
     return *new PointerTypeSymbol(pointee);
 }
+
+} // namespace objcgen

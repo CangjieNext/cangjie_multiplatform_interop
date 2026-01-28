@@ -8,6 +8,10 @@
 #ifndef TRANSFORM_H
 #define TRANSFORM_H
 
+namespace objcgen {
+
 void apply_transforms();
+
+} // namespace objcgen
 
 #endif // TRANSFORM_H

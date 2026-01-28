@@ -6,6 +6,8 @@
 
 #include "Logging.h"
 
+namespace objcgen {
+
 LogLevel verbosity = LogLevel::WARNING;
 
 std::string_view describe_regex_error(std::regex_constants::error_type type)
@@ -41,3 +43,5 @@ std::string_view describe_regex_error(std::regex_constants::error_type type)
             return "Unknown regular expression error.";
     }
 }
+
+} // namespace objcgen

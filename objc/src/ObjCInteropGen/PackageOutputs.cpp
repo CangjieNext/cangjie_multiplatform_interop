@@ -9,24 +9,24 @@
 #include <iostream>
 
 #include "Config.h"
+#include "FatalException.h"
 #include "Logging.h"
 #include "Strings.h"
 
-std::string compute_output_root(const std::string_view package_name)
+namespace objcgen {
+
+static std::string compute_output_root(const std::string_view package_name)
 {
     if (auto* output_roots_any = config.get("output-roots")) {
         if (const auto* output_roots_table = output_roots_any->as_table()) {
             if (output_roots_table->empty()) {
-                std::cerr << "`packages` entry " << package_name
-                          << " has no `output-path` specified and there are no `output-roots`" << std::endl;
-                std::exit(1);
+                fatal("`packages` entry ", package_name,
+                    " has no `output-path` specified and there are no `output-roots`");
             }
 
             if (output_roots_table->size() != 1) {
-                std::cerr << "`packages` entry " << package_name
-                          << " has no `output-path` or `output-root` specified and there are multiple `output-roots`"
-                          << std::endl;
-                std::exit(1);
+                fatal("`packages` entry ", package_name,
+                    " has no `output-path` or `output-root` specified and there are multiple `output-roots`");
             }
 
             const auto it = output_roots_table->cbegin();
@@ -35,17 +35,13 @@ std::string compute_output_root(const std::string_view package_name)
             return std::string(output_root_name.str());
         }
 
-        std::cerr << "`output-roots` should be a TOML table" << std::endl;
-        std::exit(1);
+        fatal("`output-roots` should be a TOML table");
     }
 
-    std::cerr << "`packages` entry " << package_name
-              << " has no `output-path` specified and there are no `output-roots`" << std::endl;
-    std::exit(1);
-    return "ERROR";
+    fatal("`packages` entry ", package_name, " has no `output-path` specified and there are no `output-roots`");
 }
 
-std::string compute_output_path_by_root_path(const std::string_view package_name,
+static std::string compute_output_path_by_root_path(const std::string_view package_name,
     const std::string_view output_root_name, const std::string_view output_path, std::string_view package_cangjie_name)
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
@@ -79,7 +75,7 @@ std::string compute_output_path_by_root_path(const std::string_view package_name
     return result;
 }
 
-std::string compute_output_path_by_root_name(const std::string_view package_name,
+static std::string compute_output_path_by_root_name(const std::string_view package_name,
     const std::string_view output_root_name, const std::string_view package_cangjie_name)
 {
     if (auto* output_roots_any = config.get("output-roots")) {
@@ -90,36 +86,26 @@ std::string compute_output_path_by_root_name(const std::string_view package_name
                 }
 
                 if (const auto* output_root_table = output_root_any.as_table()) {
-                    const auto output_path =
-                        get_string_value(*output_root_table, package_name, "path", [&output_root_name](auto&) {
-                            std::cerr << "`output-roots` entry `" << output_root_name
-                                      << "` should define a `path` property" << std::endl;
-                            std::exit(1);
-                            return "ERROR";
+                    const auto output_path = get_string_value(
+                        *output_root_table, package_name, "path", [&output_root_name](auto&) -> std::string {
+                            fatal("`output-roots` entry `", output_root_name, "` should define a `path` property");
                         });
 
                     return compute_output_path_by_root_path(
                         package_name, output_root_name, output_path, package_cangjie_name);
                 }
 
-                std::cerr << "`output-roots` entry `" << output_root_name << "` should be a TOML table" << std::endl;
-                std::exit(1);
+                fatal("`output-roots` entry `", output_root_name, "` should be a TOML table");
             }
 
-            std::cerr << "`packages` entry " << package_name << " has no `output-path` specified and `output-root` `"
-                      << output_root_name << "` was not found" << std::endl;
-            std::exit(1);
+            fatal("`packages` entry ", package_name, " has no `output-path` specified and `output-root` `",
+                output_root_name, "` was not found");
         }
 
-        std::cerr << "`output-roots` should be a TOML table" << std::endl;
-        std::exit(1);
+        fatal("`output-roots` should be a TOML table");
     }
 
-    std::cerr << "`packages` entry " << package_name
-              << " has no `output-path` specified and there are no `output-roots`" << std::endl;
-    std::exit(1);
-
-    return "ERROR";
+    fatal("`packages` entry ", package_name, " has no `output-path` specified and there are no `output-roots`");
 }
 
 std::string compute_output_path(
@@ -132,3 +118,5 @@ std::string compute_output_path(
         return compute_output_path_by_root_name(name, output_root, package_cangjie_name);
     });
 }
+
+} // namespace objcgen

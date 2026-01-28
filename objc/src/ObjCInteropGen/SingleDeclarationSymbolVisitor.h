@@ -10,6 +10,8 @@
 
 #include "Symbol.h"
 
+namespace objcgen {
+
 class SingleDeclarationSymbolVisitor : public SymbolVisitor {
     bool initial_allow_recurse_;
     bool allow_recurse_;
@@ -25,5 +27,7 @@ protected:
 
     void visit_impl(FileLevelSymbol* owner, FileLevelSymbol* value, SymbolProperty property) final;
 };
+
+} // namespace objcgen
 
 #endif // SINGLEDECLARATIONSYMBOLVISITOR_H

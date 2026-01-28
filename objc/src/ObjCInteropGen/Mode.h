@@ -8,6 +8,8 @@
 #ifndef MODE_H
 #define MODE_H
 
+namespace objcgen {
+
 extern enum class Mode {
     // Mode that is compatible with the current FE.  The generated mirrors are
     // compilable and can be used in interop. This mode is default.
@@ -35,5 +37,7 @@ inline auto generate_definitions_mode() noexcept
 {
     return mode == Mode::GENERATE_DEFINITIONS;
 }
+
+} // namespace objcgen
 
 #endif // MODE_H

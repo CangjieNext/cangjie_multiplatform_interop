@@ -8,6 +8,10 @@
 #ifndef SOURCESCANNERCONFIG_H
 #define SOURCESCANNERCONFIG_H
 
+namespace objcgen {
+
 void parse_sources();
+
+} // namespace objcgen
 
 #endif // SOURCESCANNERCONFIG_H

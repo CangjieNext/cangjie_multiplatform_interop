@@ -10,32 +10,32 @@
 #include <iostream>
 #include <unordered_set>
 
+#include "FatalException.h"
 #include "Logging.h"
+
+namespace objcgen {
 
 toml::table config;
 
-namespace {
-void append_to_left(toml::array& lhs, const toml::array& rhs)
+static void append_to_left(toml::array& lhs, const toml::array& rhs)
 {
     for (auto&& item : rhs) {
         lhs.push_back(item);
     }
 }
 
-void merge_to_left_array(toml::table& lhs, const toml::table& rhs, const std::string_view property_name)
+static void merge_to_left_array(toml::table& lhs, const toml::table& rhs, const std::string_view property_name)
 {
     auto* lhs_any = lhs.get(property_name);
     auto* rhs_any = rhs.get(property_name);
     auto* lhs_array = lhs_any ? lhs_any->as_array() : nullptr;
     auto* rhs_array = rhs_any ? rhs_any->as_array() : nullptr;
     if (lhs_any && !lhs_array) {
-        std::cerr << "TOML property `" << property_name << "` should be an array" << std::endl;
-        std::exit(1);
+        fatal("TOML property `", property_name, "` should be an array");
     }
 
     if (rhs_any && !rhs_array) {
-        std::cerr << "TOML property `" << property_name << "` should be an array" << std::endl;
-        std::exit(1);
+        fatal("TOML property `", property_name, "` should be an array");
     }
 
     if (lhs_array) {
@@ -50,7 +50,7 @@ void merge_to_left_array(toml::table& lhs, const toml::table& rhs, const std::st
     }
 }
 
-void merge_to_left(toml::table& lhs, const toml::table& rhs)
+static void merge_to_left(toml::table& lhs, const toml::table& rhs)
 {
     // No need to merge:
     // * output-roots
@@ -60,20 +60,18 @@ void merge_to_left(toml::table& lhs, const toml::table& rhs)
     merge_to_left_array(lhs, rhs, "mappings");
 }
 
-toml::table parse_toml_file(const std::string_view path, std::unordered_set<std::string> imported)
+static toml::table parse_toml_file(const std::string_view path, std::unordered_set<std::string> imported)
 {
     if (verbosity >= LogLevel::INFO) {
         std::cerr << "Reading TOML file `" << path << "`" << std::endl;
     }
 
     if (auto [_, new_path] = imported.emplace(path); !new_path) {
-        std::cerr << "TOML file `" << path << "` is recursive" << std::endl;
-        std::exit(1);
+        fatal("TOML file `", "` is recursive");
     }
 
     if (!std::filesystem::exists(path)) {
-        std::cerr << "TOML file `" << path << "` doesn't exist" << std::endl;
-        std::exit(1);
+        fatal("TOML file `", "` doesn't exist");
     }
 
     auto config = toml::parse_file(path);
@@ -84,8 +82,7 @@ toml::table parse_toml_file(const std::string_view path, std::unordered_set<std:
                 if (auto* item_string = item_any.as_string()) {
                     if (auto item_value = item_string->value_exact<std::string>()) {
                         if (item_value->empty()) {
-                            std::cerr << "`imports` in `" << path << "` item #" << i << " is empty" << std::endl;
-                            std::exit(1);
+                            fatal("`imports` in `", path, "` item #", i, " is empty");
                         }
 
                         const auto& import_path = *item_value;
@@ -97,26 +94,24 @@ toml::table parse_toml_file(const std::string_view path, std::unordered_set<std:
 
                         merge_to_left(config, import_config);
                     } else {
-                        std::cerr << "`imports` in `" << path << "` item #" << i << " has no string value" << std::endl;
-                        std::exit(1);
+                        fatal("`imports` in `", path, "` item #", i, " has no string value");
                     }
                 } else {
-                    std::cerr << "`imports` in `" << path << "` item #" << i << " should be a string" << std::endl;
-                    std::exit(1);
+                    fatal("`imports` in `", path, "` item #", i, " should be a string");
                 }
                 i++;
             }
         } else {
-            std::cerr << "`imports` in `" << path << "` should be a TOML array of strings" << std::endl;
-            std::exit(1);
+            fatal("`imports` in `", path, "` should be a TOML array of strings");
         }
     }
 
     return config;
 }
-} // namespace
 
 void parse_toml_config_file(const std::string_view path)
 {
     config = parse_toml_file(path, {});
 }
+
+} // namespace objcgen

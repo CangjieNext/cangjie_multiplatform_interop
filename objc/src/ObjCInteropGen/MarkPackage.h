@@ -8,6 +8,10 @@
 #ifndef MARKSCOPE_H
 #define MARKSCOPE_H
 
+namespace objcgen {
+
 bool mark_package();
+
+} // namespace objcgen
 
 #endif // MARKSCOPE_H

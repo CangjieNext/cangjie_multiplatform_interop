@@ -7,26 +7,27 @@
 #include <iostream>
 
 #include "Config.h"
+#include "FatalException.h"
+#include "Logging.h"
 #include "Mappings.h"
 
-void read_table_mappings(const toml::table& mapping, std::size_t i)
+namespace objcgen {
+
+static void read_table_mappings(const toml::table& mapping, std::size_t i)
 {
     // TODO: consider supporting packages-mixins
     for (auto&& [key, value] : mapping) {
         if (auto* value_string = value.as_string()) {
             if (auto value_value = value_string->value_exact<std::string>()) {
                 if (value_value->empty()) {
-                    std::cerr << "`mappings` entry #" << i << " for key `" << key << "` is empty" << std::endl;
-                    std::exit(1);
+                    fatal("`mappings` entry #", i, " for key `", key, "` is empty");
                 }
                 add_non_generic_mapping(*value_value).add_from(key);
             } else {
-                std::cerr << "`mappings` entry #" << i << " for key `" << key << "` has no string value" << std::endl;
-                std::exit(1);
+                fatal("`mappings` entry #", i, " for key `", key, "` has no string value");
             }
         } else {
-            std::cerr << "`mappings` entry #" << i << " for key `" << key << "` is not a TOML string" << std::endl;
-            std::exit(1);
+            fatal("`mappings` entry #", i, " for key `", key, "` is not a TOML string");
         }
     }
 }
@@ -40,14 +41,14 @@ void read_toml_mappings()
                 if (const auto* mapping = mapping_any.as_table()) {
                     read_table_mappings(*mapping, i);
                 } else {
-                    std::cerr << "`mappings` entry #" << i << " is not a TOML table" << std::endl;
-                    std::exit(1);
+                    fatal("`mappings` entry #", i, " is not a TOML table");
                 }
                 i++;
             }
         } else {
-            std::cerr << "`mappings` should be a TOML array of tables" << std::endl;
-            std::exit(1);
+            fatal("`mappings` should be a TOML array of tables");
         }
     }
 }
+
+} // namespace objcgen

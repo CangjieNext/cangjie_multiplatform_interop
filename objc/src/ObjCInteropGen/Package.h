@@ -17,6 +17,8 @@
 
 #include "Symbol.h"
 
+namespace objcgen {
+
 class Package;
 
 class PackageFilter {
@@ -356,5 +358,7 @@ public:
 extern Packages packages;
 
 void create_packages();
+
+} // namespace objcgen
 
 #endif // SCOPE_H

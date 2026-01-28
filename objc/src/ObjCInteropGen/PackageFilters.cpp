@@ -9,7 +9,10 @@
 #include <iostream>
 #include <regex>
 
+#include "FatalException.h"
 #include "Logging.h"
+
+namespace objcgen {
 
 class RegexFilter final : public PackageFilter {
     std::string pattern_;
@@ -23,9 +26,8 @@ public:
         try {
             regex_ = std::regex(pattern);
         } catch (std::regex_error& e) {
-            std::cerr << "`packages` entry `" << package_name() << "` " << mode_name_ << " filter (`" << pattern
-                      << "`) has thrown an error: " << describe_regex_error(e.code()) << std::endl;
-            std::exit(1);
+            fatal("`packages` entry `", package_name(), "` ", mode_name_, " filter (`", pattern,
+                "`) has thrown an error: ", describe_regex_error(e.code()));
         }
     }
 
@@ -41,10 +43,8 @@ public:
 
             return match;
         } catch (std::regex_error& e) {
-            std::cerr << "`packages` entry `" << package_name() << "` " << mode_name_ << " filter (`" << pattern_
-                      << "`) has thrown an error: " << describe_regex_error(e.code()) << std::endl;
-            std::exit(1);
-            return false;
+            fatal("`packages` entry `", package_name(), "` ", mode_name_, " filter (`", pattern_,
+                "`) has thrown an error: ", describe_regex_error(e.code()));
         }
     }
 };
@@ -124,7 +124,8 @@ public:
     }
 };
 
-PackageFilter* create_regex_filter(const Package* package, const toml::node& node, const std::string_view mode_name)
+static PackageFilter* create_regex_filter(
+    const Package* package, const toml::node& node, const std::string_view mode_name)
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
         std::cerr << "`packages` entry `" << package->cangjie_name() << "` " << mode_name << " filter" << std::endl;
@@ -135,9 +136,7 @@ PackageFilter* create_regex_filter(const Package* package, const toml::node& nod
             return new RegexFilter(package, *node_value, mode_name);
         }
 
-        std::cerr << "`packages` entry `" << package->cangjie_name() << "` " << mode_name
-                  << " filter has no string value" << std::endl;
-        std::exit(1);
+        fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter has no string value");
     }
 
     if (auto* node_array = node.as_array()) {
@@ -149,34 +148,28 @@ PackageFilter* create_regex_filter(const Package* package, const toml::node& nod
                 if (auto item_value = item_string->value_exact<std::string>()) {
                     result->add_argument(new RegexFilter(package, *item_value, mode_name));
                 } else {
-                    std::cerr << "`packages` entry `" << package->cangjie_name() << "` " << mode_name << " filter #"
-                              << i << " has no string value" << std::endl;
-                    std::exit(1);
+                    fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter #", i,
+                        " has no string value");
                 }
             } else {
-                std::cerr << "`packages` entry `" << package->cangjie_name() << "` " << mode_name << " filter #" << i
-                          << " must be a TOML string" << std::endl;
-                std::exit(1);
+                fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter #", i,
+                    " must be a TOML string");
             }
             i++;
         }
 
         if (result->size() == 0) {
-            std::cerr << "`packages` entry `" << package->cangjie_name() << "` " << mode_name
-                      << " filter array has no items" << std::endl;
-            std::exit(1);
+            fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter array has no items");
         }
 
         return result;
     }
 
-    std::cerr << "`packages` entry `" << package->cangjie_name() << "` " << mode_name
-              << " filter must be a TOML string or an array of TOML strings" << std::endl;
-    std::exit(1);
-    return nullptr;
+    fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name,
+        " filter must be a TOML string or an array of TOML strings");
 }
 
-PackageFilter* create_set_filter(const Package* package, const toml::node& node, const SetOperation op)
+static PackageFilter* create_set_filter(const Package* package, const toml::node& node, const SetOperation op)
 {
     const std::string_view mode_name = op == SetOperation::Union ? "union" : "intersect";
 
@@ -193,23 +186,18 @@ PackageFilter* create_set_filter(const Package* package, const toml::node& node,
                 const auto* arg = create_filter(package, *item_table);
                 result->add_argument(arg);
             } else {
-                std::cerr << "`packages` entry `" << package->cangjie_name() << "` " << mode_name << " filter #" << i
-                          << " must be a TOML table" << std::endl;
-                std::exit(1);
+                fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter #", i,
+                    " must be a TOML table");
             }
             i++;
         }
     } else {
-        std::cerr << "`packages` entry `" << package->cangjie_name() << "` " << mode_name
-                  << " filter must be an array of filters" << std::endl;
-        std::exit(1);
+        fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter must be an array of filters");
     }
 
     const auto size = result->size();
     if (size == 0) {
-        std::cerr << "`packages` entry `" << package->cangjie_name() << "` " << mode_name
-                  << " filter array has no items" << std::endl;
-        std::exit(1);
+        fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter array has no items");
     }
 
     return result;
@@ -238,15 +226,13 @@ PackageFilter* create_filter(const Package* package, const toml::table& table)
         non_null++;
 
     if (non_null == 0) {
-        std::cerr << "`packages` entry `" << package->cangjie_name()
-                  << "` filter has no specified operations (like include, union, etc)" << std::endl;
-        std::exit(1);
+        fatal("`packages` entry `", package->cangjie_name(),
+            "` filter has no specified operations (like include, union, etc)");
     }
 
     if (non_null != 1) {
-        std::cerr << "`packages` entry `" << package->cangjie_name() << "` filter has " << non_null
-                  << " operations, but only 1 is allowed simultaneously" << std::endl;
-        std::exit(1);
+        fatal("`packages` entry `", package->cangjie_name(), "` filter has ", non_null,
+            " operations, but only 1 is allowed simultaneously");
     }
 
     auto* result = [package, include, exclude, set_union, set_intersect, set_not]() -> PackageFilter* {
@@ -271,14 +257,10 @@ PackageFilter* create_filter(const Package* package, const toml::table& table)
                 return new NotFilter(package, create_filter(package, *set_not_table));
             }
 
-            std::cerr << "`packages` entry `" << package->cangjie_name() << "` not filter must be a TOML table"
-                      << std::endl;
-            std::exit(1);
+            fatal("`packages` entry `", package->cangjie_name(), "` not filter must be a TOML table");
         }
 
-        std::cerr << "`packages` entry `" << package->cangjie_name() << "` filter is unknown" << std::endl;
-        std::exit(1);
-        return nullptr;
+        fatal("`packages` entry `", package->cangjie_name(), "` filter is unknown");
     }();
 
     if (filter || filter_not) {
@@ -300,3 +282,5 @@ PackageFilter* create_filter(const Package* package, const toml::table& table)
 
     return result;
 }
+
+} // namespace objcgen

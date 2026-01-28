@@ -4,7 +4,7 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include "SourceScanner.h"
+#include "ClangSession.h"
 
 #include <cassert>
 #include <deque>
@@ -17,10 +17,39 @@
 #include <clang/AST/DeclObjC.h>
 #include <clang/Basic/Version.h>
 
+#include "FatalException.h"
 #include "InputFile.h"
 #include "Logging.h"
 #include "Strings.h"
 #include "Universe.h"
+
+static bool operator==(const CXType& lhs, const CXType& rhs) noexcept
+{
+    return !!clang_equalTypes(lhs, rhs);
+}
+
+static bool operator==(const CXCursor& lhs, const CXCursor& rhs) noexcept
+{
+    return !!clang_equalCursors(lhs, rhs);
+}
+
+namespace objcgen {
+
+struct CXTypeHash {
+    size_t operator()(const CXType& x) const noexcept
+    {
+        constexpr unsigned hashBase = 31;
+        // Beware: libclang implementation details
+        return std::hash<void*>()(x.data[0]) * hashBase + std::hash<void*>()(x.data[1]);
+    }
+};
+
+struct CXCursorHash {
+    size_t operator()(const CXCursor& x) const noexcept
+    {
+        return clang_hashCursor(x);
+    }
+};
 
 class ClangVisitor {
     static CXChildVisitResult visit(CXCursor cursor, CXCursor parent, void* data)
@@ -40,32 +69,6 @@ protected:
     virtual CXChildVisitResult visit_impl(CXCursor cursor, CXCursor parent) = 0;
 };
 
-template <> struct std::hash<CXType> {
-    size_t operator()(const CXType& x) const noexcept
-    {
-        constexpr unsigned hashBase = 31;
-        // Beware: libclang implementation details
-        return hash<void*>()(x.data[0]) * hashBase + hash<void*>()(x.data[1]);
-    }
-};
-
-template <> struct std::hash<CXCursor> {
-    size_t operator()(const CXCursor& x) const noexcept
-    {
-        return clang_hashCursor(x);
-    }
-};
-
-bool operator==(const CXType& lhs, const CXType& rhs) noexcept
-{
-    return !!clang_equalTypes(lhs, rhs);
-}
-
-bool operator==(const CXCursor& lhs, const CXCursor& rhs) noexcept
-{
-    return !!clang_equalCursors(lhs, rhs);
-}
-
 class SourceScanner final : public ClangVisitor {
     // See the comment in CXType_ObjCTypeParam case in type_like_symbol.
     TypeDeclarationSymbol* last_objc_type_ = nullptr;
@@ -74,7 +77,7 @@ class SourceScanner final : public ClangVisitor {
     std::deque<Symbol*> current_;
 
     // We have to name the anonymous types, use declaring file name + incrementing index suffix
-    std::unordered_map<CXType, NamedTypeSymbol*> anonymous_;
+    std::unordered_map<CXType, NamedTypeSymbol*, CXTypeHash> anonymous_;
     std::unordered_map<std::string, std::uint64_t> anonymous_count_;
 
     // libclang AST visitor visits some declarations multiple times.
@@ -83,7 +86,7 @@ class SourceScanner final : public ClangVisitor {
     //                      the child that actually defines them.
     // 2. With b as parent: what one would normally expect.
     // It doesn't appear there is a way around it, other than to keep track of what we already visited.
-    std::unordered_set<CXCursor> visited_;
+    std::unordered_set<CXCursor, CXCursorHash> visited_;
 
     // When a function is processed, and the function returns a function pointer
     // defined in-place, then the visitor visits the return type parameters as
@@ -234,7 +237,7 @@ protected:
     CXChildVisitResult visit_impl(CXCursor cursor, CXCursor parent) override;
 };
 
-class ClangSessionImpl final {
+class ClangSessionImpl final : public ClangSession {
     CXIndex index_;
     SourceScanner scanner_;
 
@@ -244,7 +247,7 @@ public:
         index_ = clang_createIndex(0, 1);
     }
 
-    ~ClangSessionImpl() = default;
+    ~ClangSessionImpl() override;
 
     ClangSessionImpl(const ClangSessionImpl& other) = delete;
 
@@ -263,30 +266,29 @@ public:
     {
         return scanner_;
     }
+
+private:
+    void parse_sources(const std::vector<std::string>& files, const std::vector<std::string>& arguments) override;
 };
 
-ClangSession::ClangSession() : impl_(std::make_unique<ClangSessionImpl>())
+std::unique_ptr<ClangSession> ClangSession::create()
 {
+    return std::make_unique<ClangSessionImpl>();
 }
 
-ClangSession::~ClangSession()
+ClangSessionImpl::~ClangSessionImpl()
 {
-    clang_disposeIndex(impl_->index());
+    clang_disposeIndex(index());
 }
 
-ClangSessionImpl& ClangSession::impl() const
-{
-    return *impl_.get();
-}
-
-[[nodiscard]] std::string as_string(CXString string)
+[[nodiscard]] static std::string as_string(CXString string)
 {
     std::string c_string = clang_getCString(string);
     clang_disposeString(string);
     return c_string;
 }
 
-[[nodiscard]] bool is_valid(CXCursor cursor)
+[[nodiscard]] static bool is_valid(CXCursor cursor)
 {
     if (clang_Cursor_isNull(cursor))
         return false;
@@ -295,12 +297,12 @@ ClangSessionImpl& ClangSession::impl() const
     return true;
 }
 
-[[nodiscard]] bool is_valid(CXType type)
+[[nodiscard]] static bool is_valid(CXType type)
 {
     return type.kind != CXType_Invalid;
 }
 
-[[nodiscard]] bool is_builtin(CXType type)
+[[nodiscard]] static bool is_builtin(CXType type)
 {
     assert(is_valid(type));
     const auto kind = type.kind;
@@ -317,13 +319,13 @@ ClangSessionImpl& ClangSession::impl() const
     return false;
 }
 
-[[nodiscard]] bool is_anonymous(CXCursor cursor)
+[[nodiscard]] static bool is_anonymous(CXCursor cursor)
 {
     assert(is_valid(cursor));
     return !!clang_Cursor_isAnonymous(cursor) || !!clang_Cursor_isAnonymousRecordDecl(cursor);
 }
 
-[[nodiscard]] bool is_canonical(CXCursor cursor)
+[[nodiscard]] static bool is_canonical(CXCursor cursor)
 {
     assert(is_valid(cursor));
     const auto canonical = clang_getCanonicalCursor(cursor);
@@ -331,7 +333,7 @@ ClangSessionImpl& ClangSession::impl() const
     return cursor == canonical;
 }
 
-[[nodiscard]] bool is_defining(CXCursor cursor)
+[[nodiscard]] static bool is_defining(CXCursor cursor)
 {
     assert(is_valid(cursor));
     const auto definition = clang_getCursorDefinition(cursor);
@@ -340,7 +342,7 @@ ClangSessionImpl& ClangSession::impl() const
     return cursor == definition;
 }
 
-[[nodiscard]] bool is_defining(CXType type, CXCursor cursor)
+[[nodiscard]] static bool is_defining(CXType type, CXCursor cursor)
 {
     assert(is_valid(type));
     assert(is_valid(cursor));
@@ -403,13 +405,7 @@ template <class Decl>
     return *decl;
 }
 
-[[nodiscard]] CXTranslationUnit cursor_to_translation_unit(const CXCursor& cursor)
-{
-    constexpr unsigned unitIndex = 2;
-    return static_cast<CXTranslationUnit>(const_cast<void*>(cursor.data[unitIndex]));
-}
-
-[[nodiscard]] clang::QualType type_to_qual_type(const CXType& type)
+[[nodiscard]] static clang::QualType type_to_qual_type(const CXType& type)
 {
     return clang::QualType::getFromOpaquePtr(type.data[0]);
 }
@@ -531,7 +527,7 @@ TypeLikeSymbol* SourceScanner::add_type(const NamedTypeSymbol::Kind kind, const 
         }
     }
 
-    universe.register_type(symbol);
+    Universe::get().register_type(symbol);
 
     return symbol;
 }
@@ -543,6 +539,7 @@ static NamedTypeSymbol* protocol_symbol(CXType objc_object_type, unsigned i)
     auto protocol_decl = clang_Type_getObjCProtocolDecl(objc_object_type, i);
     assert(protocol_decl.kind == CXCursor_ObjCProtocolDecl);
     auto protocol_name = as_string(clang_getCursorSpelling(protocol_decl));
+    auto& universe = Universe::get();
     auto* result = universe.type(NamedTypeSymbol::Kind::Protocol, protocol_name);
     if (!result) {
         result = new TypeDeclarationSymbol(NamedTypeSymbol::Kind::Protocol, protocol_name);
@@ -618,7 +615,7 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
             auto baseCXType = clang_Type_getObjCObjectBaseType(type);
             if (baseCXType.kind == CXType_ObjCId) {
                 // This is an `ObjCId` qualified with a list of protocols
-                auto* id_type = &universe.id();
+                auto* id_type = &Universe::get().id();
                 auto num_protocols = clang_Type_getNumObjCProtocolRefs(type);
                 switch (num_protocols) {
                     case 0:
@@ -678,6 +675,7 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
                 return type_like_symbol(modified_type);
             }
             auto type_name = get_type_name(type);
+            auto& universe = Universe::get();
             TypeLikeSymbol* result = universe.type(type_name);
             if (!result) {
                 auto size = clang_Type_getSizeOf(type);
@@ -777,11 +775,11 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
 
     switch (type.kind) {
         case CXType_ObjCId:
-            return &universe.id();
+            return &Universe::get().id();
         case CXType_ObjCClass:
-            return &universe.clazz();
+            return &Universe::get().clazz();
         case CXType_ObjCSel:
-            return &universe.sel();
+            return &Universe::get().sel();
         case CXType_Typedef:
             type_kind = NamedTypeSymbol::Kind::TypeDef;
             type_name = get_type_name(type);
@@ -835,13 +833,13 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
             type_name = get_type_name(type);
             auto size = clang_Type_getSizeOf(type);
             auto* primitive_symbol =
-                universe.primitive_type(get_primitive_category(type), static_cast<size_t>(size < 0 ? 0 : size));
+                Universe::get().primitive_type(get_primitive_category(type), static_cast<size_t>(size < 0 ? 0 : size));
             assert(primitive_symbol);
             return primitive_symbol;
         }
     }
 
-    if (auto* type_symbol = universe.type(type_kind, type_name)) {
+    if (auto* type_symbol = Universe::get().type(type_kind, type_name)) {
         return type_symbol;
     }
 
@@ -983,7 +981,7 @@ Symbol* SourceScanner::push_top_level_function(const CXCursor& cursor, std::stri
     if (clang_getCursorLinkage(cursor) == CXLinkage_Internal) {
         modifiers |= ModifierInternalLinkage;
     }
-    auto& function = universe.register_top_level_function(std::move(name), *result_type, modifiers);
+    auto& function = Universe::get().register_top_level_function(std::move(name), *result_type, modifiers);
     set_definition_location(cursor, &function);
     return push_current(&function);
 }
@@ -1149,6 +1147,7 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
             assert(is_on_top_level());
             assert(!is_valid(type)); // Protocol declarations are funny like that.
             assert(is_defining(cursor));
+            auto& universe = Universe::get();
             auto* decl = universe.type(NamedTypeSymbol::Kind::Protocol, name);
             if (!decl) {
                 decl = new TypeDeclarationSymbol(NamedTypeSymbol::Kind::Protocol, name);
@@ -1162,6 +1161,7 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
             assert(!current_type());
             assert(is_on_top_level());
             assert(is_defining(type, cursor));
+            auto& universe = Universe::get();
             auto* named = universe.type(NamedTypeSymbol::Kind::Interface, name);
             if (!named) {
                 auto* decl = new TypeDeclarationSymbol(NamedTypeSymbol::Kind::Interface, name);
@@ -1266,7 +1266,7 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
                 const auto referenced = clang_getCursorReferenced(cursor);
                 assert(is_valid(referenced));
                 const auto referenced_type = as_string(clang_getCursorSpelling(referenced));
-                auto* protocol = universe.type(Kind::Protocol, referenced_type);
+                auto* protocol = Universe::get().type(Kind::Protocol, referenced_type);
                 assert(dynamic_cast<TypeDeclarationSymbol*>(protocol));
                 type_decl->add_base(static_cast<TypeDeclarationSymbol&>(*protocol));
             }
@@ -1464,8 +1464,7 @@ static bool parse_source(CXIndex index, const std::string& file, std::vector<con
     return true;
 }
 
-void parse_sources(
-    const std::vector<std::string>& files, const std::vector<std::string>& arguments, const ClangSession& session)
+void ClangSessionImpl::parse_sources(const std::vector<std::string>& files, const std::vector<std::string>& arguments)
 {
     std::vector args = {"-xobjective-c", "-fobjc-arc"};
 
@@ -1473,22 +1472,18 @@ void parse_sources(
         args.push_back(argument.c_str());
     }
 
-    auto& session_impl = session.impl();
-    const auto index = session_impl.index();
-    auto& visitor = session_impl.scanner();
-
     auto all_file_names_are_empty = true;
     for (auto&& file : files) {
         if (!file.empty()) {
             all_file_names_are_empty = false;
-            if (!parse_source(index, file, args, visitor)) {
-                std::cerr << "Parsing failed because of compiler errors" << std::endl;
-                std::exit(1);
+            if (!parse_source(index_, file, args, scanner_)) {
+                fatal("Parsing failed because of compiler errors");
             }
         }
     }
     if (all_file_names_are_empty) {
-        std::cerr << "No input files";
-        std::exit(1);
+        fatal("No input files");
     }
 }
+
+} // namespace objcgen

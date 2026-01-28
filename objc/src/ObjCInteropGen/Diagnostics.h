@@ -8,8 +8,12 @@
 #ifndef DIAGNOSTICS_H
 #define DIAGNOSTICS_H
 
+namespace objcgen {
+
 /// Checks symbols that passed through the filters and prints warnings to
 /// `std::cerr`, if any.
 void check_marked_symbols();
+
+} // namespace objcgen
 
 #endif // DIAGNOSTICS_H

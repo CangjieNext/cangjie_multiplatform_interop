@@ -11,6 +11,8 @@
 #include <string>
 #include <string_view>
 
+namespace objcgen {
+
 using namespace std::string_view_literals;
 
 inline bool starts_with(const std::string_view str, const std::string_view prefix)
@@ -46,5 +48,7 @@ inline void remove_suffix_in_place(std::string& str, const std::string_view pref
         str.resize(str.size() - prefix.size());
     }
 }
+
+} // namespace objcgen
 
 #endif // STRINGS_H
