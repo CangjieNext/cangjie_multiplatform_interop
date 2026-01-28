@@ -10,7 +10,7 @@ public import interoplib.objc.*
 
 public struct ObjCPointer<T> { 
     public ObjCPointer(let ptr: CPointer<Unit>) {}
-    public func isNull(): Bool { ptr.isNull() }
-    public func read(): T { unsafe { zeroValue<T>() } }
-    public func write(_: T): Unit {}
+    public unsafe func isNull(): Bool { ptr.isNull() }
+    public unsafe func read(): T { zeroValue<T>() }
+    public unsafe func write(_: T): Unit {}
 }

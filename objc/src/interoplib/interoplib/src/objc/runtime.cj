@@ -61,34 +61,33 @@ public class ObjCUnreachableCodeException <: Exception {}
 /**
  * Gets a Cangjie object of type R from registry by the pointer of its Objective-C counterpart.
  */
-public func getFromRegistryByHandle<R>(id: NativeObjCId): R {
+public unsafe func getFromRegistryByHandle<R>(id: NativeObjCId): R {
     const REGISTRY_ID_IDENT = "$registryId"
 
     getFromRegistryById<R>(
-        unsafe {
-            CFunc<(NativeObjCId, NativeObjCSel) -> RegistryId>(ObjCRuntime.msgSend)(id, registerName(REGISTRY_ID_IDENT))
-        })
+        CFunc<(NativeObjCId, NativeObjCSel) -> RegistryId>(ObjCRuntime.msgSend)(id, registerName(REGISTRY_ID_IDENT))
+    )
 }
 
 @Frozen
 /**
  * Gets a Cangjie object of type R from registry by the id.
  */
-public func getFromRegistryById<R>(registryId: RegistryId): R {
+public unsafe func getFromRegistryById<R>(registryId: RegistryId): R {
     REGISTRY.get<R>(registryId).getOrThrow()
 }
 
 /**
  * Puts a Cangjie object to registry.
  */
-public func putToRegistry(any: Any): RegistryId {
+public unsafe func putToRegistry(any: Any): RegistryId {
     REGISTRY.put(any)
 }
 
 /**
  * Removes a Cangjie object from registry by its id.
  */
-public func removeFromRegistry(registryId: RegistryId): Unit {
+public unsafe func removeFromRegistry(registryId: RegistryId): Unit {
     REGISTRY.remove(registryId)
 }
 
@@ -97,15 +96,13 @@ public func removeFromRegistry(registryId: RegistryId): Unit {
  * Effectively a wrapper arround [cls alloc], but with Cangjie String as a parameter for convenience.
  * Note: MUST be called in a transaction with corresponding init* method of the class and the pointer, returned by this function, MUST NOT be stored anywhere.
  */
-public func alloc(className: String): NativeObjCId {
+public unsafe func alloc(className: String): NativeObjCId {
     const ALLOC_SEL = "alloc"
 
-    unsafe {
-        let cls = getClass(className)
-        let allocSel = registerName(ALLOC_SEL)
+    let cls = getClass(className)
+    let allocSel = registerName(ALLOC_SEL)
 
-        CFunc<(NativeObjCId, NativeObjCSel) -> NativeObjCId>(ObjCRuntime.msgSend)(cls, allocSel)
-    }
+    CFunc<(NativeObjCId, NativeObjCSel) -> NativeObjCId>(ObjCRuntime.msgSend)(cls, allocSel)
 }
 
 /**
@@ -115,8 +112,8 @@ public func alloc(className: String): NativeObjCId {
  * 3. To return an object.
  * Note: the result of this call supposed to be sent to a constructor of a desired return result.
  */
-public func withMethodEnvObj(id: NativeObjCId, action: (NativeObjCSuperPtr) -> NativeObjCId): NativeObjCId {
-    withObjCSuper(id) {objCSuper: NativeObjCSuperPtr => withAutoreleasePoolObj {=> action(objCSuper)}}
+public unsafe func withMethodEnvObj(id: NativeObjCId, action: (NativeObjCSuperPtr) -> NativeObjCId): NativeObjCId {
+      withObjCSuper(id) { objCSuper: NativeObjCSuperPtr => withAutoreleasePoolObj( {=> action(objCSuper)} ) }
 }
 
 @Frozen
@@ -126,16 +123,15 @@ public func withMethodEnvObj(id: NativeObjCId, action: (NativeObjCSuperPtr) -> N
  * 2. To call ObjCRuntime.msgSendSuper with NativeObjCSuperPtr.
  * 3. To return an Objective-C compatible primitive type value.
  */
-public func withMethodEnv<R>(id: NativeObjCId, action: (NativeObjCSuperPtr) -> R): R where R <: CType {
-    withObjCSuper(id) {objCSuper: NativeObjCSuperPtr => withAutoreleasePool {=> action(objCSuper)}}
+public unsafe func withMethodEnv<R>(id: NativeObjCId, action: (NativeObjCSuperPtr) -> R): R where R <: CType {
+    withObjCSuper(id) { objCSuper: NativeObjCSuperPtr => withAutoreleasePool( {=> action(objCSuper)} ) }
 }
 
 @Frozen
 /**
  * A wrapper for a method or a prop's accessor body (action) if it needs to call ObjCRuntime.msgSendSuper with NativeObjCSuperPtr.
  */
-public func withObjCSuper<R>(id: NativeObjCId, action: (NativeObjCSuperPtr) -> R): R where R <: CType {
-    unsafe {
+public unsafe func withObjCSuper<R>(id: NativeObjCId, action: (NativeObjCSuperPtr) -> R): R where R <: CType {
         let instanceClass = object_getClass(id)
         let superClass = class_getSuperclass(instanceClass)
 
@@ -146,7 +142,6 @@ public func withObjCSuper<R>(id: NativeObjCId, action: (NativeObjCSuperPtr) -> R
         } finally {
             LibC.free(objCSuper)
         }
-    }
 }
 
 @Frozen
@@ -154,14 +149,12 @@ public func withObjCSuper<R>(id: NativeObjCId, action: (NativeObjCSuperPtr) -> R
  * Performs an `action` within an @autoreleasepool.
  * Note: This function is intended to be used with action returns primitive types. For instancetype(ObjCId) use `autoreleasePoolObj` (or autorelease manually).
  */
-public func withAutoreleasePool<R>(action: () -> R): R where R <: CType {
-    unsafe {
-        let pool = objc_autoreleasePoolPush()
-        try {
-            action()
-        } finally {
-            objc_autoreleasePoolPop(pool)
-        }
+public unsafe func withAutoreleasePool<R>(action: () -> R): R where R <: CType {
+    let pool = objc_autoreleasePoolPush()
+    try {
+        action()
+    } finally {
+        objc_autoreleasePoolPop(pool)
     }
 }
 
@@ -169,27 +162,21 @@ public func withAutoreleasePool<R>(action: () -> R): R where R <: CType {
  * Performs an `action` within an @autoreleasepool.
  * The overall effect of this function for return value is retain + autorelease.
  */
-public func withAutoreleasePoolObj(action: () -> NativeObjCId): NativeObjCId {
-    withAutoreleasePool<NativeObjCId> {
-        => unsafe {
-            objc_retainAutoreleasedReturnValue(action())
-        }
-    }
+public unsafe func withAutoreleasePoolObj(action: () -> NativeObjCId): NativeObjCId {
+    withAutoreleasePool<NativeObjCId>( {=> objc_retainAutoreleasedReturnValue(action())} )
 }
 
 /**
  * Registers a selector in the Objective-C runtime by its name.
  * Effectively a wrapper arround sel_registerName(sel), but with Cangjie String as a parameter for convenience.
  */
-public func registerName(selName: String): NativeObjCSel {
-    unsafe {
-        let selCName = LibC.mallocCString(selName)
+public unsafe func registerName(selName: String): NativeObjCSel {
+    let selCName = LibC.mallocCString(selName)
 
-        let sel = sel_registerName(selCName)
-        LibC.free(selCName)
+    let sel = sel_registerName(selCName)
+    LibC.free(selCName)
 
-        sel
-    }
+    sel
 }
 
 /**
@@ -198,12 +185,9 @@ public func registerName(selName: String): NativeObjCSel {
  *
  * Note: this method MUST BE used only with instance variables of object types.
  */
-public func getInstanceVariableObj(id: NativeObjCId, name: String): NativeObjCId {
-    unsafe {
-        let ivar = getIvar(id, name)
-
-        object_getIvar(id, ivar)
-    }
+public unsafe func getInstanceVariableObj(id: NativeObjCId, name: String): NativeObjCId {
+    let ivar = getIvar(id, name)
+    object_getIvar(id, ivar)
 }
 
 /**
@@ -212,12 +196,9 @@ public func getInstanceVariableObj(id: NativeObjCId, name: String): NativeObjCId
  *
  * Note: this method MUST BE used only with instance variables of object types.
  */
-public func setInstanceVariableObj(id: NativeObjCId, name: String, value: NativeObjCId): Unit {
-    unsafe {
-        let ivar = getIvar(id, name)
-
-        object_setIvar(id, ivar, value)
-    }
+public unsafe func setInstanceVariableObj(id: NativeObjCId, name: String, value: NativeObjCId): Unit {
+    let ivar = getIvar(id, name)
+    object_setIvar(id, ivar, value)
 }
 
 @Frozen
@@ -226,12 +207,9 @@ public func setInstanceVariableObj(id: NativeObjCId, name: String, value: Native
  *
  * Note: this method MUST BE used only with instance variables of Objective-C compatible primitive types.
  */
-public func getInstanceVariable<R>(id: NativeObjCId, name: String): R where R <: CType {
-    unsafe {
-        let fieldPtr = getFieldPtr<R>(id, name)
-
-        fieldPtr.read()
-    }
+public unsafe func getInstanceVariable<R>(id: NativeObjCId, name: String): R where R <: CType {
+    let fieldPtr = getFieldPtr<R>(id, name)
+    fieldPtr.read()
 }
 
 @Frozen
@@ -240,12 +218,9 @@ public func getInstanceVariable<R>(id: NativeObjCId, name: String): R where R <:
  *
  * Note: this method MUST BE used only with instance variables of Objective-C compatible primitive types.
  */
-public func setInstanceVariable<T>(id: NativeObjCId, name: String, value: T): Unit where T <: CType {
-    unsafe {
-        let fieldPtr = getFieldPtr<T>(id, name)
-
-        fieldPtr.write(value)
-    }
+public unsafe func setInstanceVariable<T>(id: NativeObjCId, name: String, value: T): Unit where T <: CType {
+    let fieldPtr = getFieldPtr<T>(id, name)
+    fieldPtr.write(value)
 }
 
 /**
@@ -254,38 +229,32 @@ public func setInstanceVariable<T>(id: NativeObjCId, name: String, value: T): Un
  *
  * Note: NativeObjCId (not NativeObjCClass) is used as a return type to meet an Objective-C runtime API.
  */
-public func getClass(className: String): NativeObjCId {
-    unsafe {
-        let classCName = LibC.mallocCString(className)
-        let cls = objc_getClass(classCName)
-        LibC.free(classCName)
+public unsafe func getClass(className: String): NativeObjCId {
+    let classCName = LibC.mallocCString(className)
+    let cls = objc_getClass(classCName)
+    LibC.free(classCName)
 
-        cls
-    }
+    cls
 }
 
 @Frozen
-private func getFieldPtr<R>(id: NativeObjCId, name: String): CPointer<R> where R <: CType {
-    unsafe {
-        let ivar = getIvar(id, name)
-        let offset = ivar_getOffset(ivar)
+private unsafe func getFieldPtr<R>(id: NativeObjCId, name: String): CPointer<R> where R <: CType {
+    let ivar = getIvar(id, name)
+    let offset = ivar_getOffset(ivar)
 
-        let idBytes = CPointer<Byte>(id) // cjlint-ignore !FFI.C.7
+    let idBytes = CPointer<Byte>(id) // cjlint-ignore !FFI.C.7
 
-        CPointer<R>(idBytes + Int64(offset)) // cjlint-ignore !FFI.C.7
-    }
+    CPointer<R>(idBytes + Int64(offset)) // cjlint-ignore !FFI.C.7
 }
 
-private func getIvar(id: NativeObjCId, fieldName: String): NativeObjCIvar {
-    unsafe {
-        let cls = object_getClass(id)
+private unsafe func getIvar(id: NativeObjCId, fieldName: String): NativeObjCIvar {
+    let cls = object_getClass(id)
 
-        let fieldCName = LibC.mallocCString(fieldName)
-        let ivar = class_getInstanceVariable(cls, fieldCName)
-        LibC.free(fieldCName)
+    let fieldCName = LibC.mallocCString(fieldName)
+    let ivar = class_getInstanceVariable(cls, fieldCName)
+    LibC.free(fieldCName)
 
-        ivar
-    }
+    ivar
 }
 
 /**
