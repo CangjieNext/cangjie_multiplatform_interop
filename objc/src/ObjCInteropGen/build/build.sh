@@ -5,6 +5,7 @@
 #
 # See https://cangjie-lang.cn/pages/LICENSE for license information.
 
+set -e
 #sudo apt -y install clang libclang-dev
 
 BACK=$(pwd)
