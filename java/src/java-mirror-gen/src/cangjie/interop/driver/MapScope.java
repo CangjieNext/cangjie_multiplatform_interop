@@ -60,9 +60,9 @@ public final class MapScope {
         if (symbol.isConstructor()) {
             final var classSymbol = symbol.owner;
 
-            if (classSymbol.hasOuterInstance() &&
-                    !classSymbol.isStatic() &&
-                    (symbol.flags() & Flags.SYNTHETIC) != 0) {
+            if (classSymbol.hasOuterInstance()
+                    && !classSymbol.isStatic()
+                    && (symbol.flags() & Flags.SYNTHETIC) != 0) {
                 final var outerThisType = types.erasure(classSymbol.type.getEnclosingType());
                 result.add(0, outerThisType);
             }

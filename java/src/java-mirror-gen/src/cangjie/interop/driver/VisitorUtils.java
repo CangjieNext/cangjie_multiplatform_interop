@@ -304,6 +304,12 @@ public final class VisitorUtils {
         return suffix;
     }
 
+    /**
+     * Determines whether the given entity should be generated in the output.
+     *
+     * @param symbol the entity to check
+     * @return true if the entity should be generated, false otherwise
+     */
     public static boolean shouldBeGenerated(Symbol symbol) {
         if (hasAppropriateModifiers(symbol)) {
             return true;
@@ -365,6 +371,13 @@ public final class VisitorUtils {
         return hasAppropriateModifiers(typeSymbol);
     }
 
+    /**
+     * Determines whether the given entity's dependencies are all appropriate.
+     *
+     * @param symbol the entity to check
+     * @param types  the compiler utility
+     * @return true if all dependencies are appropriate, false otherwise
+     */
     public static boolean hasOnlyAppropriateDeps(Symbol symbol, Types types) {
         if (symbol instanceof Symbol.MethodSymbol methodSymbol) {
             for (var param : methodSymbol.params()) {
@@ -374,10 +387,9 @@ public final class VisitorUtils {
                 }
             }
             final var returnTypeSymbol = erasureType(methodSymbol.getReturnType(), types);
-            if (!isAppropriateType(returnTypeSymbol)) {
-                return false;
-            }
-        } else if (symbol instanceof Symbol.VarSymbol varSymbol) {
+            return isAppropriateType(returnTypeSymbol);
+        }
+        if (symbol instanceof Symbol.VarSymbol varSymbol) {
             return isAppropriateType(erasureType(varSymbol.type, types));
         }
         return true;
@@ -415,8 +427,8 @@ public final class VisitorUtils {
     }
 
     private static boolean isAnnotatedSymbol(Attribute.Compound attribute) {
-        return (attribute != null && attribute.type.tsym instanceof Symbol.ClassSymbol classSymbol) &&
-                NOT_NULL_ANNOTATIONS.contains(classSymbol.flatname.toString());
+        return (attribute != null && attribute.type.tsym instanceof Symbol.ClassSymbol classSymbol)
+                && NOT_NULL_ANNOTATIONS.contains(classSymbol.flatname.toString());
     }
 
     public static boolean hasNotNullAnnotation(Symbol symbol) {

@@ -61,8 +61,8 @@ public final class DefaultMethods {
             }
 
             for (var methodSymbol : getAllDefaultMethods((Symbol.ClassSymbol) superType.tsym)) {
-                if (result.stream().anyMatch(s -> overrideChains.overridesWithFilter(methodSymbol, s) &&
-                        shouldBeGenerated(s.owner))) {
+                if (result.stream().anyMatch(s -> overrideChains.overridesWithFilter(methodSymbol, s)
+                        && shouldBeGenerated(s.owner))) {
                     continue;
                 }
 
@@ -79,8 +79,8 @@ public final class DefaultMethods {
                 continue;
             }
 
-            if (result.stream().anyMatch(s -> overrideChains.overridesWithFilter(methodSymbol, s) &&
-                    shouldBeGenerated(s.owner))) {
+            if (result.stream().anyMatch(s -> overrideChains.overridesWithFilter(methodSymbol, s)
+                    && shouldBeGenerated(s.owner))) {
                 continue;
             }
 

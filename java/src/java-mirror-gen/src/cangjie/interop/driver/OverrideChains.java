@@ -57,8 +57,8 @@ public final class OverrideChains {
     }
 
     public boolean overridesWithFilter(Symbol childMethod, Symbol superMethod) {
-        if (!hasOnlyAppropriateDeps(childMethod, types) ||
-                !hasOnlyAppropriateDeps(superMethod, types)) {
+        if (!hasOnlyAppropriateDeps(childMethod, types)
+                || !hasOnlyAppropriateDeps(superMethod, types)) {
             return false;
         }
         return overrides(childMethod, superMethod);
@@ -109,8 +109,8 @@ public final class OverrideChains {
                     }
 
                     // N.B.: Modifiers also take default modifier into account, unlike flags.
-                    if (!symbol.getModifiers().contains(Modifier.ABSTRACT) &&
-                            shouldBeGenerated(symbol.owner)) {
+                    if (!symbol.getModifiers().contains(Modifier.ABSTRACT)
+                            && shouldBeGenerated(symbol.owner)) {
                         return true;
                     }
                 }
@@ -223,8 +223,8 @@ public final class OverrideChains {
         for (var chain : chains) {
             List<Symbol.MethodSymbol> last = chain.getLast();
             Symbol.MethodSymbol superMethod = last.stream().filter(sym ->
-                    hasOnlyAppropriateDeps(sym, types) &&
-                            shouldBeGenerated(sym.owner)).findFirst().orElse(null);
+                    hasOnlyAppropriateDeps(sym, types)
+                            && shouldBeGenerated(sym.owner)).findFirst().orElse(null);
             if (superMethod != null) {
                 return superMethod;
             }
@@ -278,9 +278,9 @@ public final class OverrideChains {
 
         for (final var rootMethod : chain.getLast()) {
             // All methods at the end of each override chain are root.
-            if (rootMethod == methodSymbol &&
-                    shouldBeGenerated(rootMethod.owner) &&
-                    hasOnlyAppropriateDeps(rootMethod, types)) {
+            if (rootMethod == methodSymbol
+                    && shouldBeGenerated(rootMethod.owner)
+                    && hasOnlyAppropriateDeps(rootMethod, types)) {
                 return true;
             }
         }
