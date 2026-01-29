@@ -956,24 +956,22 @@ public enum Java_CFFI_JavaEntityKind <: ToString {
     }
 }
 
-private func ptrFromInt(value: UInt64): CPointer<Unit> {
-    unsafe { CPointer<Unit>(CPointer<UInt8>() + Int64(value)) }
+private unsafe func ptrFromInt(value: UInt64): CPointer<Unit> {
+    CPointer<Unit>(CPointer<UInt8>() + Int64(value))
 }
 
 // TODO: implement without heap memory allocation (alloca? intrinsic?)
-private func reinterpret_cast<A, B>(value: B): A where A <: CType, B <: CType {
-    unsafe {
-        var newValue = zeroValue<A>()
+private unsafe func reinterpretCast<A, B>(value: B): A where A <: CType, B <: CType {
+    var newValue = zeroValue<A>()
 
-        try (fBox = LibC.malloc<B>(count: 1).asResource()) {
-            fBox.value.write(value)
+    try (fBox = LibC.malloc<B>(count: 1).asResource()) {
+        fBox.value.write(value)
 
-            let iBox = CPointer<A>(fBox.value)
-            newValue = iBox.read()
-        }
-
-        newValue
+        let iBox = CPointer<A>(fBox.value)
+        newValue = iBox.read()
     }
+
+    newValue
 }
 
 public struct Java_CFFI_JavaEntity {
@@ -984,7 +982,7 @@ public struct Java_CFFI_JavaEntity {
         this.kind = JVOID
         this.value = 0
     }
-    
+
     public init(kind: Java_CFFI_JavaEntityKind, value: CPointer<Unit>) {
         this.kind = kind
         this.value = UInt64(value.toUIntNative())
@@ -1027,12 +1025,12 @@ public struct Java_CFFI_JavaEntity {
 
     public init(kind: Java_CFFI_JavaEntityKind, value: Float32) {
         this.kind = kind
-        this.value = UInt64(reinterpret_cast<UInt32, Float32>(value))
+        this.value = unsafe { UInt64(reinterpretCast<UInt32, Float32>(value)) }
     }
 
     public init(kind: Java_CFFI_JavaEntityKind, value: Float64) {
         this.kind = kind
-        this.value = reinterpret_cast<UInt64, Float64>(value)
+        this.value = unsafe { reinterpretCast<UInt64, Float64>(value) }
     }
 
     public init(value: Int64) {
@@ -1067,14 +1065,14 @@ public struct Java_CFFI_JavaEntity {
         this(JDOUBLE, value)
     }
 
-    public func asUnit(): Unit {
+    public unsafe func asUnit(): Unit {
         match (kind) {
             case JVOID => ()
             case _ => throw InteropLibException("Cannot get void from ${kind.toString()}")
         }
     }
 
-    public func asJObject(): jobject {
+    public unsafe func asJObject(): jobject {
         match (kind) {
             case JVALUE => jobject(ptrFromInt(value))
             case JOBJECT => jobject(ptrFromInt(value))
@@ -1085,21 +1083,21 @@ public struct Java_CFFI_JavaEntity {
         }
     }
 
-    public func asJWeak(): jobject {
+    public unsafe func asJWeak(): jobject {
         match (kind) {
             case JWEAK => jobject(ptrFromInt(value))
             case _ => throw InteropLibException("Cannot get jweak from ${kind.toString()}")
         }
     }
 
-    public func asJStrong(): jobject {
+    public unsafe func asJStrong(): jobject {
         match (kind) {
             case JSTRONG => jobject(ptrFromInt(value))
             case _ => throw InteropLibException("Cannot get jstrong from ${kind.toString()}")
         }
     }
 
-    public func asJLong(): jlong { 
+    public unsafe func asJLong(): jlong { 
         match (kind) {
             case JVALUE => Int64(value)
             case JLONG => Int64(value)
@@ -1107,7 +1105,7 @@ public struct Java_CFFI_JavaEntity {
         }
     }
 
-    public func asJInt(): jint {
+    public unsafe func asJInt(): jint {
         match (kind) {
             case JVALUE => Int32(value)
             case JINT => Int32(value)
@@ -1115,17 +1113,16 @@ public struct Java_CFFI_JavaEntity {
         }
     }
 
-    public func asJString(): jstring {
+    public unsafe func asJString(): jstring {
         match (kind) {
             case JVALUE => jstring(ptrFromInt(value))
             case JOBJECT => jstring(ptrFromInt(value))
             case JSTRING => jstring(ptrFromInt(value))
-            case JOBJECT => jstring(ptrFromInt(value))
             case _ => throw InteropLibException("Cannot get jstring from ${kind.toString()}")
         }
     }
 
-    public func asJBoolean(): jboolean {
+    public unsafe func asJBoolean(): jboolean {
         match (kind) {
             case JVALUE => UInt8(value)
             case JBOOLEAN => UInt8(value)
@@ -1133,15 +1130,15 @@ public struct Java_CFFI_JavaEntity {
         }
     }
 
-    public func asJShort(): jshort {
+    public unsafe func asJShort(): jshort {
         match (kind) {
             case JVALUE => Int16(value)
             case JSHORT => Int16(value)
-            case _ => throw InteropLibException("Cannot get jboolean from ${kind.toString()}")
+            case _ => throw InteropLibException("Cannot get jshort from ${kind.toString()}")
         }
     }
 
-    public func asJChar(): jchar {
+    public unsafe func asJChar(): jchar {
         match (kind) {
             case JVALUE => UInt16(value)
             case JCHAR => UInt16(value)
@@ -1149,7 +1146,7 @@ public struct Java_CFFI_JavaEntity {
         }
     }
 
-    public func asJByte(): jbyte {
+    public unsafe func asJByte(): jbyte {
         match (kind) {
             case JVALUE => Int8(value)
             case JBYTE => Int8(value)
@@ -1157,23 +1154,23 @@ public struct Java_CFFI_JavaEntity {
         }
     }
 
-    public func asJFloat(): jfloat {
+    public unsafe func asJFloat(): jfloat {
         match (kind) {
-            case JVALUE => reinterpret_cast<Float32, UInt32>(UInt32(value))
-            case JFLOAT => reinterpret_cast<Float32, UInt32>(UInt32(value))
+            case JVALUE => reinterpretCast<Float32, UInt32>(UInt32(value))
+            case JFLOAT => reinterpretCast<Float32, UInt32>(UInt32(value))
             case _ => throw InteropLibException("Cannot get jfloat from ${kind.toString()}")
         }
     }
 
-    public func asJDouble(): jdouble {
+    public unsafe func asJDouble(): jdouble {
         match (kind) {
-            case JVALUE => reinterpret_cast<Float64, UInt64>(value)
-            case JDOUBLE => reinterpret_cast<Float64, UInt64>(value)
+            case JVALUE => reinterpretCast<Float64, UInt64>(value)
+            case JDOUBLE => reinterpretCast<Float64, UInt64>(value)
             case _ => throw InteropLibException("Cannot get jdouble from ${kind.toString()}")
         }
     }
 
-    /* public */ func asJValue(): jvalue {
+    /* public */ unsafe func asJValue(): jvalue {
         value
     }
 
@@ -1845,7 +1842,7 @@ public func Java_CFFI_getStaticField(env: JNIEnv_ptr, clazz: Java_CFFI_Class, fi
 }
 
 private func Java_CFFI_setField(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, fieldName: String, fieldSignature: String, value: Java_CFFI_JavaEntity): Unit {
-    let clazz = Java_CFFI_Class(obj.asJObject(), "<UNNAMED>")
+    let clazz = Java_CFFI_Class(unsafe { obj.asJObject() }, "<UNNAMED>")
     let signature = Java_CFFI_parseComponentSignature(fieldSignature)
     let id = Java_CFFI_FieldID.constr(env, clazz, fieldName, signature)
 
@@ -1993,8 +1990,8 @@ public abstract class Java_CFFI_SafeInteropPreparationMixin {
 }
 
 public func Java_CFFI_JavaStringToCangjie(env: JNIEnv_ptr, str: Java_CFFI_JavaEntity): String {
-    let jStr = str.asJString()
     unsafe {
+        let jStr = str.asJString()
         let envCJ = env.read().read()
         let length = Int64(envCJ.GetStringUTFLength(env, jStr))
 
@@ -2053,7 +2050,7 @@ public func Java_CFFI_newJavaObject(env: JNIEnv_ptr, clazz: Java_CFFI_Class, con
         }
     } else {
         for (i in 0..args.size) {
-            argsCallNest.array[i] = args[i].asJValue()
+            argsCallNest.array[i] = unsafe { args[i].asJValue() }
         }
         let result = Box(Java_CFFI_JavaEntity())
         withPinnedArray(argsCallNest.array) { argsPtr: CPointer<jvalue> => 
@@ -2085,7 +2082,8 @@ public func Java_CFFI_newJavaProxyObjectForCJMapping(env: JNIEnv_ptr, entity: Ob
     signStr += ")V"
     let signature = Java_CFFI_parseMethodSignature(signStr)
     let methodId = Java_CFFI_MethodID.constr(env, clazz, "<init>", signature)
-    Java_CFFI_newJavaObject(env, clazz, methodId, args.toArray(), Java_CFFI_JavaCallNest(args.size)).asJObject()
+    let result = Java_CFFI_newJavaObject(env, clazz, methodId, args.toArray(), Java_CFFI_JavaCallNest(args.size))
+    unsafe { result.asJObject() }
 }
 
 public func Java_CFFI_newGlobalReference(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, weak: Bool): Java_CFFI_JavaEntity {
@@ -2335,19 +2333,21 @@ public func Java_CFFI_deleteCJObjectOneWay<T>(env: JNIEnv_ptr, self: jlong): Uni
 }
 
 public func Java_CFFI_unwrapJavaEntityAsValue<T>(entity: Java_CFFI_JavaEntity): T {
-    match (entity.kind) {
-        case JVOID where entity.asUnit() is T => (entity.asUnit() as T).getOrThrow()
-        case JVALUE | JOBJECT | JWEAK | JSTRONG where entity.asJObject() is T => (entity.asJObject() as T).getOrThrow()
-        case JVALUE | JLONG where entity.asJLong() is T => (entity.asJLong() as T).getOrThrow()
-        case JVALUE | JINT where entity.asJInt() is T => (entity.asJInt() as T).getOrThrow()
-        case JVALUE | JSTRING where entity.asJString() is T => (entity.asJString() as T).getOrThrow()
-        case JVALUE | JBOOLEAN where entity.asJBoolean().asBool() is T => (entity.asJBoolean().asBool() as T).getOrThrow()
-        case JVALUE | JSHORT where entity.asJShort() is T => (entity.asJShort() as T).getOrThrow()
-        case JVALUE | JCHAR where entity.asJChar() is T => (entity.asJChar() as T).getOrThrow()
-        case JVALUE | JBYTE where entity.asJByte() is T => (entity.asJByte() as T).getOrThrow()
-        case JVALUE | JFLOAT where entity.asJFloat() is T => (entity.asJFloat() as T).getOrThrow()
-        case JVALUE | JDOUBLE where entity.asJDouble() is T => (entity.asJDouble() as T).getOrThrow()
-        case _ => throw InteropLibException("Cannot get value of expected type from ${entity.kind.toString()}")
+    unsafe {
+        match (entity.kind) {
+            case JVOID where entity.asUnit() is T => (entity.asUnit() as T).getOrThrow()
+            case JVALUE | JOBJECT | JWEAK | JSTRONG where entity.asJObject() is T => (entity.asJObject() as T).getOrThrow()
+            case JVALUE | JLONG where entity.asJLong() is T => (entity.asJLong() as T).getOrThrow()
+            case JVALUE | JINT where entity.asJInt() is T => (entity.asJInt() as T).getOrThrow()
+            case JVALUE | JSTRING where entity.asJString() is T => (entity.asJString() as T).getOrThrow()
+            case JVALUE | JBOOLEAN where entity.asJBoolean().asBool() is T => (entity.asJBoolean().asBool() as T).getOrThrow()
+            case JVALUE | JSHORT where entity.asJShort() is T => (entity.asJShort() as T).getOrThrow()
+            case JVALUE | JCHAR where entity.asJChar() is T => (entity.asJChar() as T).getOrThrow()
+            case JVALUE | JBYTE where entity.asJByte() is T => (entity.asJByte() as T).getOrThrow()
+            case JVALUE | JFLOAT where entity.asJFloat() is T => (entity.asJFloat() as T).getOrThrow()
+            case JVALUE | JDOUBLE where entity.asJDouble() is T => (entity.asJDouble() as T).getOrThrow()
+            case _ => throw InteropLibException("Cannot get value of expected type from ${entity.kind.toString()}")
+        }
     }
 }
 

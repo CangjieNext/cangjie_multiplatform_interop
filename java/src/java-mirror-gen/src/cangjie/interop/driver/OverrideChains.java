@@ -109,8 +109,8 @@ public final class OverrideChains {
                     }
 
                     // N.B.: Modifiers also take default modifier into account, unlike flags.
-                    if (!symbol.getModifiers().contains(Modifier.ABSTRACT) &&
-                            shouldBeGenerated(symbol.owner)) {
+                    if (!symbol.getModifiers().contains(Modifier.ABSTRACT)
+                            && shouldBeGenerated(symbol.owner)) {
                         return true;
                     }
                 }
