@@ -250,9 +250,9 @@ public final class EmitMirrorVisitor {
             } else {
                 Symbol.VarSymbol jParamSymbol = symbol.params().get(i);
                 var erasureType = types.erasure(jParamSymbol.type);
-                final var hasNotNullAttribute = considerNotNullAnnotations &&
-                        (hasNotNullAnnotation(jParamSymbol) ||
-                                hasNotNullSigParamAnnotation(symbol, TargetType.METHOD_FORMAL_PARAMETER, i));
+                final var hasNotNullAttribute = considerNotNullAnnotations
+                        && (hasNotNullAnnotation(jParamSymbol)
+                            || hasNotNullSigParamAnnotation(symbol, TargetType.METHOD_FORMAL_PARAMETER, i));
                 decl.setType(name(erasureType, hasNotNullAttribute));
                 i++;
             }
@@ -303,9 +303,9 @@ public final class EmitMirrorVisitor {
                 }
             }
             var erasureType = types.erasure(symbol.getReturnType());
-            final var hasNotNullAttribute = considerNotNullAnnotations &&
-                    (hasNotNullAnnotation(symbol) ||
-                            hasNotNullTypeAnnotation(symbol, TargetType.METHOD_RETURN));
+            final var hasNotNullAttribute = considerNotNullAnnotations
+                    && (hasNotNullAnnotation(symbol)
+                        || hasNotNullTypeAnnotation(symbol, TargetType.METHOD_RETURN));
             methodDecl.setReturnType(name(erasureType, hasNotNullAttribute));
             if (isToString &&
                     methodDecl.getReturnType() instanceof
@@ -364,9 +364,9 @@ public final class EmitMirrorVisitor {
                 continue;
             }
 
-            if (depth != null && depth == maxPathLength &&
-                    superType.tsym != symtab.objectType.tsym &&
-                    !traversalPathMap.containsKey(superType.tsym)) {
+            if (depth != null && depth == maxPathLength
+                    && superType.tsym != symtab.objectType.tsym
+                    && !traversalPathMap.containsKey(superType.tsym)) {
                 continue;
             }
 
@@ -429,9 +429,9 @@ public final class EmitMirrorVisitor {
 
         decl.setLet(isVarFinal(varSymbol));
         var erasureType = types.erasure(varSymbol.type);
-        final var hasNotNullAttribute = !generateDefinition &&
-                (hasNotNullAnnotation(varSymbol) ||
-                        hasNotNullTypeAnnotation(varSymbol, TargetType.FIELD));
+        final var hasNotNullAttribute = !generateDefinition
+                && (hasNotNullAnnotation(varSymbol)
+                    || hasNotNullTypeAnnotation(varSymbol, TargetType.FIELD));
         decl.setType(name(erasureType, hasNotNullAttribute));
         if (generateDefinition) {
             decl.setInitializer(defaultValueForType(erasureType));
@@ -479,8 +479,8 @@ public final class EmitMirrorVisitor {
                     if (!classSymbol.isAbstract() && !classSymbol.isInterface()) {
                         final var closure = types.closure(classSymbol.type);
                         for (Type type : closure) {
-                            if (type.tsym.equals(methodSymbol.owner) &&
-                                    !overrideChains.isMethodOverriddenInClass(classSymbol, methodSymbol)) {
+                            if (type.tsym.equals(methodSymbol.owner)
+                                    && !overrideChains.isMethodOverriddenInClass(classSymbol, methodSymbol)) {
                                 return true;
                             }
                         }
@@ -498,10 +498,9 @@ public final class EmitMirrorVisitor {
                     }
                 }
                 final var returnTypeSymbol = erasureType(methodSymbol.getReturnType(), types);
-                if (exceedMaxDepth(returnTypeSymbol)) {
-                    return true;
-                }
-            } else if (symbol instanceof Symbol.VarSymbol varSymbol) {
+                return exceedMaxDepth(returnTypeSymbol);
+            }
+            if (symbol instanceof Symbol.VarSymbol varSymbol) {
                 return exceedMaxDepth(erasureType(varSymbol.type, types));
             }
         }
@@ -615,10 +614,10 @@ public final class EmitMirrorVisitor {
                     tree.annotations.add(foreignNameAnnotationGen(originalName));
                 }
 
-                if (generateAnnotationMode &&
-                        currentClass.isInterface() &&
-                        (methodSymbol.isDefault() && !methodSymbol.isStatic() ||
-                                methodSymbol.isAbstract() && overrideChains.overridesNonAbstractMethod(methodSymbol))) {
+                if (generateAnnotationMode
+                        && currentClass.isInterface()
+                        && (methodSymbol.isDefault() && !methodSymbol.isStatic()
+                            || methodSymbol.isAbstract() && overrideChains.overridesNonAbstractMethod(methodSymbol))) {
                     tree.annotations.add(defaultMethodAnnotationGen());
                 }
             } else if (element instanceof Symbol.VarSymbol varSymbol) {
@@ -944,8 +943,8 @@ public final class EmitMirrorVisitor {
     public void traverseDependenciesClosure(Symbol.ClassSymbol classSymbol) {
         if (classSymbol != null) {
             if (!shouldBeGenerated(classSymbol)) {
-                String message = "Class " + classSymbol.flatname +
-                        "has inappropriate access modifier so it is skipped for mirrors generation.";
+                String message = "Class " + classSymbol.flatname
+                        + "has inappropriate access modifier so it is skipped for mirrors generation.";
                 System.out.println(message);
                 return;
             }

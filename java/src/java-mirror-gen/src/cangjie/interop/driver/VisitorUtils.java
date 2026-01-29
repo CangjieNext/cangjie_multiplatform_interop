@@ -427,8 +427,8 @@ public final class VisitorUtils {
     }
 
     private static boolean isAnnotatedSymbol(Attribute.Compound attribute) {
-        return (attribute != null && attribute.type.tsym instanceof Symbol.ClassSymbol classSymbol) &&
-                NOT_NULL_ANNOTATIONS.contains(classSymbol.flatname.toString());
+        return (attribute != null && attribute.type.tsym instanceof Symbol.ClassSymbol classSymbol)
+                && NOT_NULL_ANNOTATIONS.contains(classSymbol.flatname.toString());
     }
 
     public static boolean hasNotNullAnnotation(Symbol symbol) {

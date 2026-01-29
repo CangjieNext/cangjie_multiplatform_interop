@@ -276,16 +276,19 @@ private func getFieldPtr<R>(id: NativeObjCId, name: String): CPointer<R> where R
     }
 }
 
-private func getIvar(id: NativeObjCId, fieldName: String): NativeObjCIvar {
-    unsafe {
-        let cls = object_getClass(id)
+private unsafe func getIvar(id: NativeObjCId, fieldName: String): NativeObjCIvar {
+    let cls = object_getClass(id)
+    var ivar = zeroValue<NativeObjCIvar>()
 
-        let fieldCName = LibC.mallocCString(fieldName)
-        let ivar = class_getInstanceVariable(cls, fieldCName)
-        LibC.free(fieldCName)
-
-        ivar
+    try (fieldCName = LibC.mallocCString(fieldName).asResource()) {
+        ivar = class_getInstanceVariable(cls, fieldCName.value)
     }
+
+    if (ivar.isNull()) {
+        throw Exception("No instance variable with name '${fieldName}' found in class '${class_getName(cls)}'")
+    }
+
+    ivar
 }
 
 /**
