@@ -20,8 +20,13 @@ class FileLevelSymbol;
 class InputDirectory;
 
 struct LineCol {
-    unsigned line_;
-    unsigned col_;
+    struct Hash {
+        size_t operator()(const LineCol& pos) const noexcept
+        {
+            constexpr auto half_width = sizeof(size_t) * CHAR_BIT / 2;
+            return (static_cast<size_t>(pos.line_) << half_width) + pos.line_;
+        }
+    };
 
     friend bool operator<(const LineCol& loc1, const LineCol& loc2) noexcept
     {
@@ -32,19 +37,10 @@ struct LineCol {
     {
         return loc1.line_ == loc2.line_ && loc1.col_ == loc2.col_;
     }
+
+    unsigned line_;
+    unsigned col_;
 };
-
-} // namespace objcgen
-
-template <> struct std::hash<objcgen::LineCol> {
-    size_t operator()(const objcgen::LineCol& pos) const noexcept
-    {
-        constexpr auto half_width = sizeof(size_t) * CHAR_BIT / 2;
-        return (static_cast<size_t>(pos.line_) << half_width) + pos.line_;
-    }
-};
-
-namespace objcgen {
 
 struct Location : LineCol {
     std::filesystem::path file_;
@@ -63,8 +59,8 @@ class InputFile final {
     InputDirectory* directory_;
     std::filesystem::path path_;
 
-    std::unordered_set<LineCol> cursors_up_to_this_translation_;
-    std::unordered_set<LineCol> cursors_in_this_translation_;
+    std::unordered_set<LineCol, LineCol::Hash> cursors_up_to_this_translation_;
+    std::unordered_set<LineCol, LineCol::Hash> cursors_in_this_translation_;
 
     std::multiset<FileLevelSymbol*, SymbolComparator> symbols_;
 

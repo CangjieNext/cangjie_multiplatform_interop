@@ -554,13 +554,13 @@ static bool is_overloading_constructor(TypeDeclarationSymbol& type, const NonTyp
 {
     assert(constructor.is_constructor());
     auto parameter_count = constructor.parameter_count();
-    for (const auto& member : type.members()) {
-        if (&member == &constructor || !member.is_constructor() || member.parameter_count() != parameter_count) {
+    for (const auto& field : type.members()) {
+        if (&field == &constructor || !field.is_constructor() || field.parameter_count() != parameter_count) {
             continue;
         }
         auto overloading = true;
         for (size_t i = 0; i < parameter_count; ++i) {
-            if (&erased_type(*member.parameter(i).type()) != &erased_type(*constructor.parameter(i).type())) {
+            if (&erased_type(*field.parameter(i).type()) != &erased_type(*constructor.parameter(i).type())) {
                 overloading = false;
                 break;
             }
@@ -579,9 +579,9 @@ static NonTypeSymbol* get_overridden_method(TypeDeclarationSymbol& decl, const N
     for (auto& base_decl : decl.bases()) {
         auto* base_type_decl = dynamic_cast<TypeDeclarationSymbol*>(&base_decl);
         if (base_type_decl) {
-            for (auto& member : base_type_decl->members()) {
-                if (member.is_member_method() && member.is_static() == is_static && member.selector() == selector) {
-                    return &member;
+            for (auto& field : base_type_decl->members()) {
+                if (field.is_member_method() && field.is_static() == is_static && field.selector() == selector) {
+                    return &field;
                 }
             }
             auto* overridden_method = get_overridden_method(*base_type_decl, prop);
@@ -597,10 +597,10 @@ static NonTypeSymbol* get_property(TypeDeclarationSymbol& decl, const NonTypeSym
 {
     const auto& selector = getter_or_setter.selector();
     auto is_static = getter_or_setter.is_static();
-    for (auto& member : decl.members()) {
-        if (member.is_property() && member.is_static() == is_static &&
-            (member.getter() == selector || member.setter() == selector)) {
-            return &member;
+    for (auto& field : decl.members()) {
+        if (field.is_property() && field.is_static() == is_static &&
+            (field.getter() == selector || field.setter() == selector)) {
+            return &field;
         }
     }
     return nullptr;
@@ -608,9 +608,9 @@ static NonTypeSymbol* get_property(TypeDeclarationSymbol& decl, const NonTypeSym
 
 static NonTypeSymbol* get_method_by_selector(TypeDeclarationSymbol& decl, const std::string& selector, bool is_static)
 {
-    for (auto& member : decl.members()) {
-        if (member.is_member_method() && member.is_static() == is_static && member.selector() == selector) {
-            return &member;
+    for (auto& field : decl.members()) {
+        if (field.is_member_method() && field.is_static() == is_static && field.selector() == selector) {
+            return &field;
         }
     }
     return nullptr;
@@ -621,9 +621,9 @@ static NonTypeSymbol* get_overridden_property(TypeDeclarationSymbol& decl, const
     for (auto& base_decl : decl.bases()) {
         auto* base_type_decl = dynamic_cast<TypeDeclarationSymbol*>(&base_decl);
         if (base_type_decl) {
-            for (auto& member : base_type_decl->members()) {
-                if (member.is_property() && member.is_static() == is_static && member.getter() == getter) {
-                    return &member;
+            for (auto& field : base_type_decl->members()) {
+                if (field.is_property() && field.is_static() == is_static && field.getter() == getter) {
+                    return &field;
                 }
             }
             auto* overridden_prop = get_overridden_property(*base_type_decl, getter, is_static);
@@ -635,7 +635,46 @@ static NonTypeSymbol* get_overridden_property(TypeDeclarationSymbol& decl, const
     return nullptr;
 }
 
-static void write_method(IndentingStringStream& output, bool is_interface, NonTypeSymbol& method)
+class TypeDeclarationWriter {
+public:
+    TypeDeclarationWriter(IndentingStringStream& output, TypeDeclarationSymbol& type);
+
+    void write();
+
+private:
+    IndentingStringStream& output_;
+    TypeDeclarationSymbol& type_;
+    bool is_interface_;
+    bool any_constructor_exists_;
+    bool default_constructor_exists_;
+    const bool is_struct_or_union_;
+    const bool is_enum_;
+
+    void write_property(const NonTypeSymbol& prop);
+
+    void write_constructor(NonTypeSymbol& constructor);
+
+    void write_method(NonTypeSymbol& method);
+
+    void write_instance_variable(const NonTypeSymbol& ivar);
+
+    void write_field(const NonTypeSymbol& field);
+
+    void write_enum_constant(const NonTypeSymbol& enum_const);
+};
+
+TypeDeclarationWriter::TypeDeclarationWriter(IndentingStringStream& output, TypeDeclarationSymbol& type)
+    : output_(output),
+      type_(type),
+      is_interface_(type.is(NamedTypeSymbol::Kind::Protocol)),
+      any_constructor_exists_(false),
+      default_constructor_exists_(false),
+      is_struct_or_union_(type.is(NamedTypeSymbol::Kind::Struct) || type.is(NamedTypeSymbol::Kind::Union)),
+      is_enum_(type_.is(NamedTypeSymbol::Kind::Enum))
+{
+}
+
+void TypeDeclarationWriter::write_method(NonTypeSymbol& method)
 {
     auto name = escape_keyword(method.name());
     auto* return_type = method.return_type();
@@ -643,33 +682,33 @@ static void write_method(IndentingStringStream& output, bool is_interface, NonTy
     auto hidden =
         normal_mode() && (!is_objc_compatible_parameter_type(*return_type) || !is_objc_compatible_parameters(method));
     if (hidden) {
-        output.set_comment();
+        output_.set_comment();
     }
-    write_foreign_name(output, method);
-    if (!is_interface) {
-        output << "public ";
+    write_foreign_name(output_, method);
+    if (!is_interface_) {
+        output_ << "public ";
     }
     if (method.is_static()) {
-        output << "static ";
-    } else if (!is_interface) {
-        output << "open ";
+        output_ << "static ";
+    } else if (!is_interface_) {
+        output_ << "open ";
     }
-    output << "func " << name;
-    write_method_parameters(output, method);
-    write_result_type(output, method, *return_type);
+    output_ << "func " << name;
+    write_method_parameters(output_, method);
+    write_result_type(output_, method, *return_type);
     if (generate_definitions_mode()) {
         if (return_type->is_unit()) {
-            output << " { }";
+            output_ << " { }";
         } else {
-            output << " { " << default_value(*return_type) << " }";
+            output_ << " { " << default_value(*return_type) << " }";
         }
     }
     if (hidden) {
-        output.reset_comment();
+        output_.reset_comment();
     } else {
         collect_import(*return_type);
     }
-    output << '\n';
+    output_ << '\n';
 }
 
 static bool is_hidden(const TypeDeclarationSymbol& decl, TypeLikeSymbol& type, const std::string& name)
@@ -719,237 +758,262 @@ static bool is_hidden(const TypeDeclarationSymbol& decl, TypeLikeSymbol& type, c
     }
 }
 
-static void write_type_declaration(IndentingStringStream& output, TypeDeclarationSymbol* type)
+void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
 {
-    auto is_interface = type->is(NamedTypeSymbol::Kind::Protocol);
-    const auto is_enum = type->is(NamedTypeSymbol::Kind::Enum);
-    const auto is_struct_or_union = type->is(NamedTypeSymbol::Kind::Struct) || type->is(NamedTypeSymbol::Kind::Union);
-    if (!is_enum) {
-        if (type->is_ctype()) {
-            output << "@C";
+    assert(prop.is_property());
+    auto is_static = prop.is_static();
+    auto* getter = get_method_by_selector(type_, prop.getter(), is_static);
+    assert(getter);
+    if (!get_overridden_method(type_, prop) && !get_overridden_property(type_, prop.getter(), is_static)) {
+        auto* return_type = getter->return_type();
+        assert(return_type);
+        assert(!return_type->is_unit());
+        const auto& name = getter->name();
+        auto hidden = is_hidden(type_, *return_type, name);
+        if (hidden) {
+            output_.set_comment();
+        }
+        if (!is_interface_) {
+            output_ << "public ";
+        }
+        if (is_static) {
+            output_ << "static ";
+        } else if (!is_interface_) {
+            output_ << "open ";
+        }
+        if (!prop.is_readonly()) {
+            output_ << "mut ";
+        }
+        output_ << "prop " << escape_keyword(name);
+        write_result_type(output_, *getter, *return_type);
+        if (generate_definitions_mode()) {
+            output_ << " {\n";
+            output_.indent();
+            output_ << "get() { " << default_value(*return_type) << " }\n";
+            if (!prop.is_readonly()) {
+                output_ << "set(v) { }\n";
+            }
+            output_.dedent();
+            output_ << '}';
+        }
+        if (hidden) {
+            output_.reset_comment();
+        } else {
+            collect_import(*return_type);
+        }
+        output_ << '\n';
+    }
+}
+
+void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
+{
+    assert(constructor.is_constructor());
+    auto hidden = is_interface_ || (normal_mode() && !is_objc_compatible_parameters(constructor)) ||
+        is_overloading_constructor(type_, constructor);
+    if (hidden) {
+        output_.set_comment();
+    } else {
+        any_constructor_exists_ = true;
+        if (!default_constructor_exists_) {
+            default_constructor_exists_ = constructor.parameter_count() == 0;
+        }
+    }
+    write_foreign_name(output_, constructor);
+    if (!is_interface_) {
+        output_ << "public ";
+    }
+    output_ << "init";
+    write_method_parameters(output_, constructor);
+    if (generate_definitions_mode() && !is_interface_) {
+        output_ << " { }";
+    }
+    if (hidden) {
+        output_.reset_comment();
+    }
+    output_ << '\n';
+}
+
+void TypeDeclarationWriter::write_instance_variable(const NonTypeSymbol& ivar)
+{
+    assert(ivar.is_instance_variable());
+    assert(ivar.is_instance());
+    auto* return_type = ivar.return_type();
+    assert(return_type);
+    assert(!return_type->is_unit());
+    assert(ivar.is_public() || ivar.is_protected());
+    const auto& name = ivar.name();
+    auto hidden = is_hidden(type_, *return_type, name);
+    if (hidden) {
+        output_.set_comment();
+    }
+    output_ << (ivar.is_public() ? "public" : "protected") << " var " << escape_keyword(name);
+    write_result_type(output_, ivar, *return_type);
+    if (generate_definitions_mode()) {
+        output_ << " = " << default_value(*return_type);
+    }
+    if (hidden) {
+        output_.reset_comment();
+    } else {
+        collect_import(*return_type);
+    }
+    output_ << '\n';
+}
+
+void TypeDeclarationWriter::write_field(const NonTypeSymbol& field)
+{
+    assert(field.is_field());
+    assert(field.is_instance());
+    assert(is_struct_or_union_ || is_enum_);
+    auto* return_type = field.return_type();
+    assert(return_type);
+    assert(!return_type->is_unit());
+    const auto& name = field.name();
+    auto hidden = is_hidden(type_, *return_type, name);
+    if (hidden) {
+        output_.set_comment();
+    }
+    output_ << "public var " << escape_keyword(name);
+    write_result_type(output_, field, *return_type);
+    output_ << " = " << default_value(*return_type);
+    if (hidden) {
+        output_.reset_comment();
+    } else {
+        collect_import(*return_type);
+    }
+    output_ << '\n';
+}
+
+void TypeDeclarationWriter::write_enum_constant(const NonTypeSymbol& enum_const)
+{
+    assert(enum_const.is_enum_constant());
+    assert(is_enum_);
+    auto* return_type = enum_const.return_type();
+    assert(return_type);
+    assert(!return_type->is_unit());
+    output_ << "public static const " << escape_keyword(enum_const.name());
+    write_result_type(output_, enum_const, *return_type);
+    output_ << " = ";
+    collect_import(*return_type);
+    print_enum_constant_value(output_, enum_const);
+    output_ << '\n';
+}
+
+void TypeDeclarationWriter::write()
+{
+    if (!is_enum_) {
+        if (type_.is_ctype()) {
+            output_ << "@C";
         } else {
             // The current FE allows applying `@ObjCMirror` to classes only, not to
             // structures/unions. In the `EXPERIMENTAL` mode, we mark structures/unions as
             // `@ObjCMirror` if they contain non-CType fields.  And in the
             // `GENERATE_DEFINITIONS` mode, we remove `@ObjCMirror` from both classes and
             // structures/unions.
-            auto hide_objcmirror_attribute = (normal_mode() && is_struct_or_union) || generate_definitions_mode();
+            auto hide_objcmirror_attribute = (normal_mode() && is_struct_or_union_) || generate_definitions_mode();
             if (hide_objcmirror_attribute) {
-                output << "/* ";
+                output_ << "/* ";
             }
-            output << "@ObjCMirror";
+            output_ << "@ObjCMirror";
             if (hide_objcmirror_attribute) {
-                output << " */";
+                output_ << " */";
             }
         }
-        output << '\n';
+        output_ << '\n';
     }
-    output << "public ";
-    if (is_interface) {
+    output_ << "public ";
+    if (is_interface_) {
         // The current FE does not support interfaces at all.
         if (normal_mode()) {
-            is_interface = false;
-            output << "open class /*interface*/";
+            is_interface_ = false;
+            output_ << "open class /*interface*/";
         } else {
-            output << "interface";
+            output_ << "interface";
         }
-    } else if (is_struct_or_union) {
-        output << "struct";
-    } else if (is_enum) {
-        output << "abstract sealed class";
+    } else if (is_struct_or_union_) {
+        output_ << "struct";
+    } else if (is_enum_) {
+        output_ << "abstract sealed class";
     } else {
-        output << "open class";
+        output_ << "open class";
     }
-    output << " " << escape_keyword(type->name());
-    if (const auto parameter_count = type->parameter_count()) {
-        output << "/*<";
+    output_ << " " << escape_keyword(type_.name());
+    if (const auto parameter_count = type_.parameter_count()) {
+        output_ << "/*<";
         for (std::size_t i = 0; i < parameter_count; ++i) {
             if (i != 0) {
-                output << ", ";
+                output_ << ", ";
             }
 
-            auto* parameter = type->parameter(i);
+            auto* parameter = type_.parameter(i);
             assert(parameter);
-            output << parameter->name();
+            output_ << parameter->name();
         }
-        output << ">*/";
+        output_ << ">*/";
     }
-    const auto base_count = type->base_count();
+    const auto base_count = type_.base_count();
     if (base_count) {
         auto hide_additional_bases = normal_mode();
-        output << " <: ";
-        auto* base = type->base(0);
+        output_ << " <: ";
+        auto* base = type_.base(0);
         assert(base);
-        output << emit_cangjie(base);
+        output_ << emit_cangjie(base);
         collect_import(*base);
         if (base_count > 1) {
             if (hide_additional_bases) {
-                output << " //";
+                output_ << " //";
             }
             for (std::size_t i = 1; i < base_count; ++i) {
-                output << " & ";
-                auto* base = type->base(i);
+                output_ << " & ";
+                auto* base = type_.base(i);
                 assert(base);
-                output << emit_cangjie(base);
+                output_ << emit_cangjie(base);
                 if (!hide_additional_bases) {
                     collect_import(*base);
                 }
             }
-            output << (hide_additional_bases ? "\n{\n" : " {\n");
+            output_ << (hide_additional_bases ? "\n{\n" : " {\n");
         } else {
-            output << " {\n";
+            output_ << " {\n";
         }
     } else {
         // TODO: Can @ObjCMirror classes and interfaces implement `id` implicitly?
         //  Discuss with FE developers.
         auto hidden = normal_mode();
-        switch (type->kind()) {
+        switch (type_.kind()) {
             case NamedTypeSymbol::Kind::Interface:
             case NamedTypeSymbol::Kind::Protocol:
                 // All @ObjCMirror classes and interfaces implement `id` (`ObjcId`) (unless in
                 // normal mode, where interfaces are not supported yet)
                 if (hidden) {
-                    output << " /*";
+                    output_ << " /*";
                 }
-                output << " <: id";
+                output_ << " <: id";
                 if (hidden) {
-                    output << " */";
+                    output_ << " */";
                 }
                 break;
             default:
                 break;
         }
-        output << " {\n";
+        output_ << " {\n";
     }
-    output.indent();
-    auto any_constructor_exists = false;
-    auto default_constructor_exists = false;
-    for (auto&& member : type->members()) {
+    output_.indent();
+    for (auto&& member : type_.members()) {
         if (member.is_property()) {
-            auto is_static = member.is_static();
-            auto* getter = get_method_by_selector(*type, member.getter(), is_static);
-            assert(getter);
-            if (!get_overridden_method(*type, member) && !get_overridden_property(*type, member.getter(), is_static)) {
-                auto* return_type = getter->return_type();
-                assert(return_type);
-                assert(!return_type->is_unit());
-                const auto& name = getter->name();
-                auto hidden = is_hidden(*type, *return_type, name);
-                if (hidden) {
-                    output.set_comment();
-                }
-                if (!is_interface) {
-                    output << "public ";
-                }
-                if (is_static) {
-                    output << "static ";
-                } else if (!is_interface) {
-                    output << "open ";
-                }
-                if (!member.is_readonly()) {
-                    output << "mut ";
-                }
-                output << "prop " << escape_keyword(name);
-                write_result_type(output, *getter, *return_type);
-                if (generate_definitions_mode()) {
-                    output << " {\n";
-                    output.indent();
-                    output << "get() { " << default_value(*return_type) << " }\n";
-                    if (!member.is_readonly()) {
-                        output << "set(v) { }\n";
-                    }
-                    output.dedent();
-                    output << '}';
-                }
-                if (hidden) {
-                    output.reset_comment();
-                } else {
-                    collect_import(*return_type);
-                }
-                output << '\n';
-            }
+            write_property(member);
         } else if (member.is_constructor()) {
-            auto hidden = is_interface || (normal_mode() && !is_objc_compatible_parameters(member)) ||
-                is_overloading_constructor(*type, member);
-            if (hidden) {
-                output.set_comment();
-            } else {
-                any_constructor_exists = true;
-                if (!default_constructor_exists) {
-                    default_constructor_exists = member.parameter_count() == 0;
-                }
-            }
-            write_foreign_name(output, member);
-            if (!is_interface) {
-                output << "public ";
-            }
-            output << "init";
-            write_method_parameters(output, member);
-            if (generate_definitions_mode() && !is_interface) {
-                output << " { }";
-            }
-            if (hidden) {
-                output.reset_comment();
-            }
-            output << '\n';
+            write_constructor(member);
         } else if (member.is_member_method()) {
-            if (!get_property(*type, member) &&
-                !get_overridden_property(*type, member.selector(), member.is_static())) {
-                write_method(output, is_interface, member);
+            if (!get_property(type_, member) &&
+                !get_overridden_property(type_, member.selector(), member.is_static())) {
+                write_method(member);
             }
         } else if (member.is_instance_variable()) {
-            assert(member.is_instance());
-            auto* return_type = member.return_type();
-            assert(return_type);
-            assert(!return_type->is_unit());
-            assert(member.is_public() || member.is_protected());
-            const auto& name = member.name();
-            auto hidden = is_hidden(*type, *return_type, name);
-            if (hidden) {
-                output.set_comment();
-            }
-            output << (member.is_public() ? "public" : "protected") << " var " << escape_keyword(name);
-            write_result_type(output, member, *return_type);
-            if (generate_definitions_mode()) {
-                output << " = " << default_value(*return_type);
-            }
-            if (hidden) {
-                output.reset_comment();
-            } else {
-                collect_import(*return_type);
-            }
-            output << '\n';
+            write_instance_variable(member);
         } else if (member.is_field()) {
-            assert(member.is_instance());
-            assert(is_struct_or_union || is_enum);
-            auto* return_type = member.return_type();
-            assert(return_type);
-            assert(!return_type->is_unit());
-            const auto& name = member.name();
-            auto hidden = is_hidden(*type, *return_type, name);
-            if (hidden) {
-                output.set_comment();
-            }
-            output << "public var " << escape_keyword(name);
-            write_result_type(output, member, *return_type);
-            output << " = " << default_value(*return_type);
-            if (hidden) {
-                output.reset_comment();
-            } else {
-                collect_import(*return_type);
-            }
-            output << '\n';
+            write_field(member);
         } else if (member.is_enum_constant()) {
-            assert(is_enum);
-            auto* return_type = member.return_type();
-            assert(return_type);
-            assert(!return_type->is_unit());
-            output << "public static const " << escape_keyword(member.name());
-            write_result_type(output, member, *return_type);
-            output << " = ";
-            collect_import(*return_type);
-            print_enum_constant_value(output, member);
-            output << '\n';
+          write_enum_constant(member);
         } else {
             assert(false);
         }
@@ -959,12 +1023,12 @@ static void write_type_declaration(IndentingStringStream& output, TypeDeclaratio
     // Otherwise, the following error can happen:
     // error: there is no non-parameter constructor in super class, please invoke
     // super call explicitly
-    if (generate_definitions_mode() && any_constructor_exists && !default_constructor_exists) {
-        output << "public init() { }";
+    if (generate_definitions_mode() && any_constructor_exists_ && !default_constructor_exists_) {
+        output_ << "public init() { }";
     }
 
-    output.dedent();
-    output << "}" << std::endl;
+    output_.dedent();
+    output_ << "}" << std::endl;
 }
 
 void write_cangjie()
@@ -986,7 +1050,7 @@ void write_cangjie()
                         continue;
                     }
                 } else if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(symbol)) {
-                    write_type_declaration(output, type);
+                    TypeDeclarationWriter(output, *type).write();
                 } else {
                     assert(false);
                 }

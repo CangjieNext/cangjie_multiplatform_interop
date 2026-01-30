@@ -199,6 +199,91 @@ public:
     }
 };
 
+static void symbol_references_to_packages_pass(ScopeBuilderStatus& status,
+    std::unordered_map<Package*, std::uint64_t>& package_counts, const InputDirectory& input_directory,
+    const InputFile& input_file, FileLevelSymbol& symbol, bool aggressive)
+{
+    assert(check_symbol(&symbol));
+
+    if (symbol.package_file() || symbol.no_output_file()) {
+        return;
+    }
+
+    package_counts.clear();
+    std::uint64_t no_package_count = 0;
+
+    for (const auto* reference : symbol.references_symbols()) {
+        if (auto* package = reference->package()) {
+            if (auto it = package_counts.find(package); it != package_counts.end()) {
+                it->second++;
+            } else {
+                package_counts.emplace(package, 1);
+            }
+        } else if (!reference->no_output_file()) {
+            no_package_count++;
+        }
+    }
+
+    if (package_counts.empty() && (no_package_count == 0 || aggressive)) {
+        if (verbosity >= LogLevel::DEBUG) {
+            std::cerr << "Entity `" << symbol.name() << "` from `" << input_file.path().u8string() << "` is not used"
+                      << std::endl;
+        }
+        symbol.mark_no_output_file();
+        status.mark_changed();
+        return;
+    }
+
+    if (package_counts.size() == 1 && (no_package_count == 0 || aggressive)) {
+        auto* package = package_counts.begin()->first;
+        assert(package);
+        auto* package_file = input_to_output(package, &input_file);
+        assert(package_file);
+        if (verbosity >= LogLevel::TRACE) {
+            std::cerr << "Entity `" << symbol.name() << "` from `" << input_file.path().u8string()
+                      << "` is only used from `" << package->cangjie_name() << "` package, assigning `"
+                      << package_file->output_path().u8string() << "`" << std::endl;
+        }
+        symbol.set_package_file(package_file);
+        status.mark_changed();
+        return;
+    }
+
+    if (package_counts.size() > 1) {
+        // TODO: build graph of dependencies between packages and resolve the most common cases
+        //       by selecting the closest common dependency package
+        std::cerr << "Entity `" << symbol.name() << "` from `" << input_file.path().u8string()
+                  << "` is ambiguous between " << package_counts.size() << " packages";
+        if (verbosity == LogLevel::WARNING) {
+            std::cerr << ". Specify -v for more detailed information" << std::endl;
+        } else {
+            std::cerr << ":" << std::endl;
+            for (const auto [package, _] : package_counts) {
+                std::cerr << "* " << package->cangjie_name() << std::endl;
+            }
+        }
+        status.mark_error();
+        return;
+    }
+
+    assert(no_package_count != 0);
+    status.mark_has_undecided();
+    if (verbosity >= LogLevel::TRACE) {
+        std::cerr << "Entity `" << symbol.name() << "` is undecided:" << std::endl;
+        for (const auto* reference : symbol.references_symbols()) {
+            std::cerr << "* " << reference->name();
+            if (const auto* package = reference->package()) {
+                std::cerr << " from package `" << package->cangjie_name() << "`";
+            } else if (reference->no_output_file()) {
+                std::cerr << " (no output file)";
+            } else {
+                std::cerr << " (no package)";
+            }
+            std::cerr << std::endl;
+        }
+    }
+}
+
 static ScopeBuilderStatus symbol_references_to_packages_pass(bool aggressive)
 {
     ScopeBuilderStatus status;
@@ -208,85 +293,8 @@ static ScopeBuilderStatus symbol_references_to_packages_pass(bool aggressive)
     for (const auto* input_directory : inputs) {
         for (const auto* input_file : *input_directory) {
             for (auto* symbol : *input_file) {
-                assert(check_symbol(symbol));
-
-                if (symbol->package_file() || symbol->no_output_file()) {
-                    continue;
-                }
-
-                package_counts.clear();
-                std::uint64_t no_package_count = 0;
-
-                for (const auto* reference : symbol->references_symbols()) {
-                    if (auto* package = reference->package()) {
-                        if (auto it = package_counts.find(package); it != package_counts.end()) {
-                            it->second++;
-                        } else {
-                            package_counts.emplace(package, 1);
-                        }
-                    } else if (!reference->no_output_file()) {
-                        no_package_count++;
-                    }
-                }
-
-                if (package_counts.empty() && (no_package_count == 0 || aggressive)) {
-                    if (verbosity >= LogLevel::DEBUG) {
-                        std::cerr << "Entity `" << symbol->name() << "` from `" << input_file->path().u8string()
-                                  << "` is not used" << std::endl;
-                    }
-                    symbol->mark_no_output_file();
-                    status.mark_changed();
-                    continue;
-                }
-
-                if (package_counts.size() == 1 && (no_package_count == 0 || aggressive)) {
-                    auto* package = package_counts.begin()->first;
-                    assert(package);
-                    auto* package_file = input_to_output(package, input_file);
-                    assert(package_file);
-                    if (verbosity >= LogLevel::TRACE) {
-                        std::cerr << "Entity `" << symbol->name() << "` from `" << input_file->path().u8string()
-                                  << "` is only used from `" << package->cangjie_name() << "` package, assigning `"
-                                  << package_file->output_path().u8string() << "`" << std::endl;
-                    }
-                    symbol->set_package_file(package_file);
-                    status.mark_changed();
-                    continue;
-                }
-
-                if (package_counts.size() > 1) {
-                    // TODO: build graph of dependencies between packages and resolve the most common cases
-                    //       by selecting the closest common dependency package
-                    std::cerr << "Entity `" << symbol->name() << "` from `" << input_file->path().u8string()
-                              << "` is ambiguous between " << package_counts.size() << " packages";
-                    if (verbosity == LogLevel::WARNING) {
-                        std::cerr << ". Specify -v for more detailed information" << std::endl;
-                    } else {
-                        std::cerr << ":" << std::endl;
-                        for (const auto [package, _] : package_counts) {
-                            std::cerr << "* " << package->cangjie_name() << std::endl;
-                        }
-                    }
-                    status.mark_error();
-                    continue;
-                }
-
-                assert(no_package_count != 0);
-                status.mark_has_undecided();
-                if (verbosity >= LogLevel::TRACE) {
-                    std::cerr << "Entity `" << symbol->name() << "` is undecided:" << std::endl;
-                    for (const auto* reference : symbol->references_symbols()) {
-                        std::cerr << "* " << reference->name();
-                        if (const auto* package = reference->package()) {
-                            std::cerr << " from package `" << package->cangjie_name() << "`";
-                        } else if (reference->no_output_file()) {
-                            std::cerr << " (no output file)";
-                        } else {
-                            std::cerr << " (no package)";
-                        }
-                        std::cerr << std::endl;
-                    }
-                }
+                symbol_references_to_packages_pass(
+                    status, package_counts, *input_directory, *input_file, *symbol, aggressive);
             }
         }
     }

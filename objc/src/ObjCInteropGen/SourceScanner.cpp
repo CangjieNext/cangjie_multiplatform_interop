@@ -22,22 +22,6 @@
 #include "Strings.h"
 #include "Universe.h"
 
-template <> struct std::hash<CXType> {
-    size_t operator()(const CXType& x) const noexcept
-    {
-        constexpr unsigned hashBase = 31;
-        // Beware: libclang implementation details
-        return hash<void*>()(x.data[0]) * hashBase + hash<void*>()(x.data[1]);
-    }
-};
-
-template <> struct std::hash<CXCursor> {
-    size_t operator()(const CXCursor& x) const noexcept
-    {
-        return clang_hashCursor(x);
-    }
-};
-
 static bool operator==(const CXType& lhs, const CXType& rhs) noexcept
 {
     return !!clang_equalTypes(lhs, rhs);
@@ -49,6 +33,22 @@ static bool operator==(const CXCursor& lhs, const CXCursor& rhs) noexcept
 }
 
 namespace objcgen {
+
+struct CXTypeHash {
+    size_t operator()(const CXType& x) const noexcept
+    {
+        constexpr unsigned hashBase = 31;
+        // Beware: libclang implementation details
+        return std::hash<void*>()(x.data[0]) * hashBase + std::hash<void*>()(x.data[1]);
+    }
+};
+
+struct CXCursorHash {
+    size_t operator()(const CXCursor& x) const noexcept
+    {
+        return clang_hashCursor(x);
+    }
+};
 
 class ClangVisitor {
     static CXChildVisitResult visit(CXCursor cursor, CXCursor parent, void* data)
@@ -76,7 +76,7 @@ class SourceScanner final : public ClangVisitor {
     std::deque<Symbol*> current_;
 
     // We have to name the anonymous types, use declaring file name + incrementing index suffix
-    std::unordered_map<CXType, NamedTypeSymbol*> anonymous_;
+    std::unordered_map<CXType, NamedTypeSymbol*, CXTypeHash> anonymous_;
     std::unordered_map<std::string, std::uint64_t> anonymous_count_;
 
     // libclang AST visitor visits some declarations multiple times.
@@ -85,7 +85,7 @@ class SourceScanner final : public ClangVisitor {
     //                      the child that actually defines them.
     // 2. With b as parent: what one would normally expect.
     // It doesn't appear there is a way around it, other than to keep track of what we already visited.
-    std::unordered_set<CXCursor> visited_;
+    std::unordered_set<CXCursor, CXCursorHash> visited_;
 
     [[nodiscard]] NamedTypeSymbol* current_type() const
     {
