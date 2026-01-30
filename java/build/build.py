@@ -103,6 +103,7 @@ def fatal(message):
 def fixedEnv(env=None):
     if env is None:
         env = os.environ.copy()
+    env["SOURCE_DATE_EPOCH"] = "0"
     env["ZERO_AR_DATE"] = "1"
     return env
 
