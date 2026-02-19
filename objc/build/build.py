@@ -265,7 +265,7 @@ def clean(args):
 
 def prepare_dir(base_path, *relative_path):
     """
-    Insure that the directory specified by the arguments exists (create it if it
+    Ensure that the directory specified by the arguments exists (create it if it
     does not) and return its path.
     """
     path = os.path.join(base_path, *relative_path)

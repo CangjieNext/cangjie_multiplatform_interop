@@ -369,6 +369,26 @@ def clean(args):
         shutil.rmtree(DIST_DIR, ignore_errors=True)
     LOG.info("end clean interoplib\n")
 
+def prepare_dir(base_path, *relative_path):
+    """
+    Ensure that the directory specified by the arguments exists (create it if it
+    does not) and return its path.
+    """
+    path = os.path.join(base_path, *relative_path)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
+
+def install_file(install_dir, file):
+    if os.path.isfile(file):
+        shutil.copy2(file, install_dir)
+    else:
+        fatal("Cannot find \"" + file + "\" for installing to \"" + install_dir + "\"")
+
+def install_files(install_dir, *files):
+    for file in files:
+        install_file(install_dir, file)
+
 def runtime_name(target):
     return target + "_cjnative"
 
@@ -386,29 +406,18 @@ def install(args):
         OUT_INTEROPLIB_SO = os.path.join(DIST_DIR, f"{DYLIB_PREF}interoplib.interop.{DYLIB_EXT}")
         OUT_JAVA_LANG_SO = os.path.join(DIST_DIR, f"{DYLIB_PREF}java.lang.{DYLIB_EXT}")
 
-        DEST_DYLIB = os.path.join(install_path, "runtime", "lib", runtime)
-        DEST_CJO = os.path.join(install_path, "modules", runtime)
-        if not os.path.exists(DEST_DYLIB):
-            os.makedirs(DEST_DYLIB)
-        if not os.path.exists(DEST_CJO):
-            os.makedirs(DEST_CJO)
-        if os.path.isfile(OUT_CINTEROPLIB_SO):
-            shutil.copy2(OUT_CINTEROPLIB_SO, DEST_DYLIB)
-        if os.path.isfile(OUT_INTEROPLIB_SO):
-            shutil.copy2(OUT_INTEROPLIB_SO, DEST_DYLIB)
-        if os.path.isfile(OUT_JAVA_LANG_SO):
-            shutil.copy2(OUT_JAVA_LANG_SO, DEST_DYLIB)
-        if os.path.isfile(OUT_INTEROPLIB_CJO):
-            shutil.copy2(OUT_INTEROPLIB_CJO, DEST_CJO)
-        if os.path.isfile(OUT_JAVA_LANG_CJO):
-            shutil.copy2(OUT_JAVA_LANG_CJO, DEST_CJO)
+        DEST_DYLIB = prepare_dir(install_path, "runtime", "lib", runtime)
+        install_files(DEST_DYLIB,
+                      OUT_CINTEROPLIB_SO,
+                      OUT_INTEROPLIB_SO,
+                      OUT_JAVA_LANG_SO)
 
-        lib_loader_dst = os.path.join(install_path, 'lib')
+        DEST_CJO = prepare_dir(install_path, "modules", runtime)
+        install_files(DEST_CJO, OUT_INTEROPLIB_CJO, OUT_JAVA_LANG_CJO)
+
+        lib_loader_dst = prepare_dir(install_path, 'lib')
         lib_loader_jar = os.path.join(DIST_DIR, LIBRARY_LOADER_JAR)
-        if os.path.isfile(lib_loader_jar):
-            if not os.path.exists(lib_loader_dst):
-                os.makedirs(lib_loader_dst)
-            shutil.copy2(lib_loader_jar, lib_loader_dst)
+        install_file(lib_loader_dst, lib_loader_jar)
 
         LOG.info("end install interoplib for " + args.target + "\n")
     else:
