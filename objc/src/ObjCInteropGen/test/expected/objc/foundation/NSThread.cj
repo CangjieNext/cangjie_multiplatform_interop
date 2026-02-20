@@ -11,7 +11,7 @@ public open class NSThread <: NSObject {
     @ForeignName["detachNewThreadWithBlock:"] public static func detachNewThreadWithBlock(block: ObjCBlock<() -> Unit>): Unit
     @ForeignName["detachNewThreadSelector:toTarget:withObject:"] public static func detachNewThreadSelectorToTargetWithObject(selector: SEL, target: ObjCId, argument: ?ObjCId): Unit
     public static func isMultiThreaded(): Bool
-    public open prop threadDictionary: NSMutableDictionary/*<KeyType, ObjectType>*/
+    public open prop threadDictionary: NSMutableDictionary
     @ForeignName["sleepUntilDate:"] public static func sleepUntilDate(date: NSDate): Unit
     @ForeignName["sleepForTimeInterval:"] public static func sleepForTimeInterval(ti: NSTimeInterval): Unit
     public static func exit(): Unit

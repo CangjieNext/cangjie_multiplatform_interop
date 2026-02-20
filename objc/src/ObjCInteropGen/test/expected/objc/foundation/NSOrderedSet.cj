@@ -77,7 +77,7 @@ public open class NSOrderedSet/*<ObjectType>*/ <: NSObject & NSCopying & NSMutab
 }
 
 @ObjCMirror
-public open class NSMutableOrderedSet/*<ObjectType>*/ <: NSOrderedSet/*<ObjectType>*/ {
+public open class NSMutableOrderedSet/*<ObjectType>*/ <: NSOrderedSet {
     @ForeignName["insertObject:atIndex:"] public open func insertObjectAtIndex(object: ObjCId /*ObjectType*/, idx: NSUInteger): Unit
     @ForeignName["removeObjectAtIndex:"] public open func removeObjectAtIndex(idx: NSUInteger): Unit
     @ForeignName["replaceObjectAtIndex:withObject:"] public open func replaceObjectAtIndexWithObject(idx: NSUInteger, object: ObjCId /*ObjectType*/): Unit

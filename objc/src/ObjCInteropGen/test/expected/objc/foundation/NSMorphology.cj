@@ -95,7 +95,7 @@ public open class NSMorphology <: NSObject & NSCopying & NSSecureCoding {
     public open mut prop pronounType: NSInteger /*NSGrammaticalPronounType*/
     public open mut prop definiteness: NSInteger /*NSGrammaticalDefiniteness*/
     @ForeignName["customPronounForLanguage:"] public open func customPronounForLanguage(language: NSString): ?NSMorphologyCustomPronoun
-    @ForeignName["setCustomPronoun:forLanguage:error:"] public open func setCustomPronounForLanguageError(features: ?NSMorphologyCustomPronoun, language: NSString, error: ObjCPointer<NSError>): Bool
+    @ForeignName["setCustomPronoun:forLanguage:error:"] public open func setCustomPronounForLanguageError(features: ?NSMorphologyCustomPronoun, language: NSString, error: ObjCPointer<?NSError>): Bool
     @ForeignGetterName["isUnspecified"] public open prop unspecified: Bool
     public static prop userMorphology: NSMorphology
 }

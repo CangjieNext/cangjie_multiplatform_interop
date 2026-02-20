@@ -22,7 +22,7 @@ public open class NSDictionary/*<KeyType, ObjectType>*/ <: NSObject & NSCopying 
     @ForeignName["isEqualToDictionary:"] public open func isEqualToDictionary(otherDictionary: NSDictionary/*<KeyType, ObjectType>*/): Bool
     public open func objectEnumerator(): NSEnumerator/*<ObjectType>*/
     @ForeignName["objectsForKeys:notFoundMarker:"] public open func objectsForKeysNotFoundMarker(keys: NSArray/*<KeyType>*/, marker: ObjCId /*ObjectType*/): NSArray/*<ObjectType>*/
-    @ForeignName["writeToURL:error:"] public open func writeToURLError(url: NSURL, error: ObjCPointer<NSError>): Bool
+    @ForeignName["writeToURL:error:"] public open func writeToURLError(url: NSURL, error: ObjCPointer<?NSError>): Bool
     @ForeignName["keysSortedByValueUsingSelector:"] public open func keysSortedByValueUsingSelector(comparator: SEL): NSArray/*<KeyType>*/
     @ForeignName["getObjects:andKeys:count:"] public open func getObjectsAndKeysCount(objects: ObjCPointer<ObjCId /*ObjectType*/>, keys: ObjCPointer<ObjCId /*KeyType*/>, count: NSUInteger): Unit
     @ForeignName["objectForKeyedSubscript:"] public open func objectForKeyedSubscript(key: ObjCId /*KeyType*/): ?ObjCId /*ObjectType*/
@@ -49,10 +49,10 @@ public open class NSDictionary/*<KeyType, ObjectType>*/ <: NSObject & NSCopying 
     @ForeignName["initWithDictionary:"] public init(otherDictionary: NSDictionary/*<KeyType, ObjectType>*/)
     @ForeignName["initWithDictionary:copyItems:"] public init(otherDictionary: NSDictionary/*<KeyType, ObjectType>*/, flag: Bool)
     @ForeignName["initWithObjects:forKeys:"] public init(objects: NSArray/*<ObjectType>*/, keys: NSArray/*<KeyType<NSCopying>>*/)
-    @ForeignName["initWithContentsOfURL:error:"] public init(url: NSURL, error: ObjCPointer<NSError>)
-    @ForeignName["dictionaryWithContentsOfURL:error:"] public static func dictionaryWithContentsOfURLError(url: NSURL, error: ObjCPointer<NSError>): ?NSDictionary/*<NSString, ObjectType>*/
+    @ForeignName["initWithContentsOfURL:error:"] public init(url: NSURL, error: ObjCPointer<?NSError>)
+    @ForeignName["dictionaryWithContentsOfURL:error:"] public static func dictionaryWithContentsOfURLError(url: NSURL, error: ObjCPointer<?NSError>): ?NSDictionary/*<NSString, ObjectType>*/
     @ForeignName["sharedKeySetForKeys:"] public static func sharedKeySetForKeys(keys: NSArray/*<KeyType<NSCopying>>*/): ObjCId
-    public open func countByEnumeratingWithStateObjectsCount(state: ObjCPointer<NSFastEnumerationState>, buffer: ObjCPointer<ObjCId /*KeyType*/>, len: NSUInteger): NSUInteger
+    public open func countByEnumeratingWithStateObjectsCount(state: ObjCPointer<NSFastEnumerationState>, buffer: ObjCPointer<?ObjCId /*KeyType*/>, len: NSUInteger): NSUInteger
     public open func fileSize(): UInt64
     public open func fileModificationDate(): ?NSDate
     public open func fileType(): ?NSString
@@ -73,7 +73,7 @@ public open class NSDictionary/*<KeyType, ObjectType>*/ <: NSObject & NSCopying 
 }
 
 @ObjCMirror
-public open class NSMutableDictionary/*<KeyType, ObjectType>*/ <: NSDictionary/*<KeyType, ObjectType>*/ {
+public open class NSMutableDictionary/*<KeyType, ObjectType>*/ <: NSDictionary {
     @ForeignName["removeObjectForKey:"] public open func removeObjectForKey(aKey: ObjCId /*KeyType*/): Unit
     @ForeignName["setObject:forKey:"] public open func setObjectForKey(anObject: ObjCId /*ObjectType*/, aKey: NSCopying /*KeyType<NSCopying>*/): Unit
     public init()

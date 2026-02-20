@@ -21,8 +21,8 @@ public open class NSMetadataQuery <: NSObject {
     public open mut prop valueListAttributes: NSArray/*<NSString>*/
     public open mut prop groupingAttributes: ?NSArray/*<NSString>*/
     public open mut prop notificationBatchingInterval: NSTimeInterval
-    public open mut prop searchScopes: NSArray/*<ObjectType>*/
-    public open mut prop searchItems: ?NSArray/*<ObjectType>*/
+    public open mut prop searchScopes: NSArray
+    public open mut prop searchItems: ?NSArray
     public open mut prop operationQueue: ?NSOperationQueue
     public open func startQuery(): Bool
     public open func stopQuery(): Unit
@@ -35,7 +35,7 @@ public open class NSMetadataQuery <: NSObject {
     @ForeignName["resultAtIndex:"] public open func resultAtIndex(idx: NSUInteger): ObjCId
     @ForeignName["enumerateResultsUsingBlock:"] public open func enumerateResultsUsingBlock(block: ObjCBlock<(ObjCId, NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
     @ForeignName["enumerateResultsWithOptions:usingBlock:"] public open func enumerateResultsWithOptionsUsingBlock(opts: NSUInteger /*NSEnumerationOptions*/, block: ObjCBlock<(ObjCId, NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
-    public open prop results: NSArray/*<ObjectType>*/
+    public open prop results: NSArray
     @ForeignName["indexOfResult:"] public open func indexOfResult(result: ObjCId): NSUInteger
     public open prop valueLists: NSDictionary/*<NSString, NSArray<NSMetadataQueryAttributeValueTuple>>*/
     public open prop groupedResults: NSArray/*<NSMetadataQueryResultGroup>*/
@@ -64,6 +64,6 @@ public open class NSMetadataQueryResultGroup <: NSObject {
     public open prop subgroups: ?NSArray/*<NSMetadataQueryResultGroup>*/
     public open prop resultCount: NSUInteger
     @ForeignName["resultAtIndex:"] public open func resultAtIndex(idx: NSUInteger): ObjCId
-    public open prop results: NSArray/*<ObjectType>*/
+    public open prop results: NSArray
 }
 

@@ -10,13 +10,13 @@ public open class NSUserDefaults <: NSObject {
     public static prop standardUserDefaults: NSUserDefaults
     public static func resetStandardUserDefaults(): Unit
     public init()
-    @ObjCInit @ForeignName["initWithSuiteName:"] public static func initWithSuiteName(suitename: ?NSString): NSUserDefaults
-    @ObjCInit @ForeignName["initWithUser:"] public static func initWithUser(username: NSString): ObjCId
+    @ForeignName["initWithSuiteName:"] public init(suitename: ?NSString)
+    @ForeignName["initWithUser:"] public init(username: NSString)
     @ForeignName["objectForKey:"] public open func objectForKey(defaultName: NSString): ?ObjCId
     @ForeignName["setObject:forKey:"] public open func setObjectForKey(value: ?ObjCId, defaultName: NSString): Unit
     @ForeignName["removeObjectForKey:"] public open func removeObjectForKey(defaultName: NSString): Unit
     @ForeignName["stringForKey:"] public open func stringForKey(defaultName: NSString): ?NSString
-    @ForeignName["arrayForKey:"] public open func arrayForKey(defaultName: NSString): ?NSArray/*<ObjectType>*/
+    @ForeignName["arrayForKey:"] public open func arrayForKey(defaultName: NSString): ?NSArray
     @ForeignName["dictionaryForKey:"] public open func dictionaryForKey(defaultName: NSString): ?NSDictionary/*<NSString, ObjCId>*/
     @ForeignName["dataForKey:"] public open func dataForKey(defaultName: NSString): ?NSData
     @ForeignName["stringArrayForKey:"] public open func stringArrayForKey(defaultName: NSString): ?NSArray/*<NSString>*/
@@ -38,7 +38,7 @@ public open class NSUserDefaults <: NSObject {
     @ForeignName["volatileDomainForName:"] public open func volatileDomainForName(domainName: NSString): NSDictionary/*<NSString, ObjCId>*/
     @ForeignName["setVolatileDomain:forName:"] public open func setVolatileDomainForName(domain: NSDictionary/*<NSString, ObjCId>*/, domainName: NSString): Unit
     @ForeignName["removeVolatileDomainForName:"] public open func removeVolatileDomainForName(domainName: NSString): Unit
-    public open func persistentDomainNames(): NSArray/*<ObjectType>*/
+    public open func persistentDomainNames(): NSArray
     @ForeignName["persistentDomainForName:"] public open func persistentDomainForName(domainName: NSString): ?NSDictionary/*<NSString, ObjCId>*/
     @ForeignName["setPersistentDomain:forName:"] public open func setPersistentDomainForName(domain: NSDictionary/*<NSString, ObjCId>*/, domainName: NSString): Unit
     @ForeignName["removePersistentDomainForName:"] public open func removePersistentDomainForName(domainName: NSString): Unit

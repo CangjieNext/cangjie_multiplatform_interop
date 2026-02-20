@@ -10,7 +10,7 @@ public interface NSURLSessionDelegate <: NSObjectProtocol {
     @ObjCOptional
     @ForeignName["URLSession:didBecomeInvalidWithError:"] func URLSessionDidBecomeInvalidWithError(session: NSURLSession, error: ?NSError): Unit
     @ObjCOptional
-    @ForeignName["URLSession:didReceiveChallenge:completionHandler:"] func URLSessionDidReceiveChallengeCompletionHandler(session: NSURLSession, challenge: NSURLAuthenticationChallenge, completionHandler: ObjCBlock<(NSInteger /*NSURLSessionAuthChallengeDisposition*/, NSURLCredential) -> Unit>): Unit
+    @ForeignName["URLSession:didReceiveChallenge:completionHandler:"] func URLSessionDidReceiveChallengeCompletionHandler(session: NSURLSession, challenge: NSURLAuthenticationChallenge, completionHandler: ObjCBlock<(NSInteger /*NSURLSessionAuthChallengeDisposition*/, ?NSURLCredential) -> Unit>): Unit
     @ObjCOptional
     @ForeignName["URLSessionDidFinishEventsForBackgroundURLSession:"] func URLSessionDidFinishEventsForBackgroundURLSession(session: NSURLSession): Unit
 }
@@ -20,17 +20,17 @@ public interface NSURLSessionTaskDelegate <: NSURLSessionDelegate {
     @ObjCOptional
     @ForeignName["URLSession:didCreateTask:"] func URLSessionDidCreateTask(session: NSURLSession, task: NSURLSessionTask): Unit
     @ObjCOptional
-    @ForeignName["URLSession:task:willBeginDelayedRequest:completionHandler:"] func URLSessionTaskWillBeginDelayedRequestCompletionHandler(session: NSURLSession, task: NSURLSessionTask, request: NSURLRequest, completionHandler: ObjCBlock<(NSInteger /*NSURLSessionDelayedRequestDisposition*/, NSURLRequest) -> Unit>): Unit
+    @ForeignName["URLSession:task:willBeginDelayedRequest:completionHandler:"] func URLSessionTaskWillBeginDelayedRequestCompletionHandler(session: NSURLSession, task: NSURLSessionTask, request: NSURLRequest, completionHandler: ObjCBlock<(NSInteger /*NSURLSessionDelayedRequestDisposition*/, ?NSURLRequest) -> Unit>): Unit
     @ObjCOptional
     @ForeignName["URLSession:taskIsWaitingForConnectivity:"] func URLSessionTaskIsWaitingForConnectivity(session: NSURLSession, task: NSURLSessionTask): Unit
     @ObjCOptional
-    @ForeignName["URLSession:task:willPerformHTTPRedirection:newRequest:completionHandler:"] func URLSessionTaskWillPerformHTTPRedirectionNewRequestCompletionHandler(session: NSURLSession, task: NSURLSessionTask, response: NSHTTPURLResponse, request: NSURLRequest, completionHandler: ObjCBlock<(NSURLRequest) -> Unit>): Unit
+    @ForeignName["URLSession:task:willPerformHTTPRedirection:newRequest:completionHandler:"] func URLSessionTaskWillPerformHTTPRedirectionNewRequestCompletionHandler(session: NSURLSession, task: NSURLSessionTask, response: NSHTTPURLResponse, request: NSURLRequest, completionHandler: ObjCBlock<(?NSURLRequest) -> Unit>): Unit
     @ObjCOptional
-    @ForeignName["URLSession:task:didReceiveChallenge:completionHandler:"] func URLSessionTaskDidReceiveChallengeCompletionHandler(session: NSURLSession, task: NSURLSessionTask, challenge: NSURLAuthenticationChallenge, completionHandler: ObjCBlock<(NSInteger /*NSURLSessionAuthChallengeDisposition*/, NSURLCredential) -> Unit>): Unit
+    @ForeignName["URLSession:task:didReceiveChallenge:completionHandler:"] func URLSessionTaskDidReceiveChallengeCompletionHandler(session: NSURLSession, task: NSURLSessionTask, challenge: NSURLAuthenticationChallenge, completionHandler: ObjCBlock<(NSInteger /*NSURLSessionAuthChallengeDisposition*/, ?NSURLCredential) -> Unit>): Unit
     @ObjCOptional
-    @ForeignName["URLSession:task:needNewBodyStream:"] func URLSessionTaskNeedNewBodyStream(session: NSURLSession, task: NSURLSessionTask, completionHandler: ObjCBlock<(NSInputStream) -> Unit>): Unit
+    @ForeignName["URLSession:task:needNewBodyStream:"] func URLSessionTaskNeedNewBodyStream(session: NSURLSession, task: NSURLSessionTask, completionHandler: ObjCBlock<(?NSInputStream) -> Unit>): Unit
     @ObjCOptional
-    @ForeignName["URLSession:task:needNewBodyStreamFromOffset:completionHandler:"] func URLSessionTaskNeedNewBodyStreamFromOffsetCompletionHandler(session: NSURLSession, task: NSURLSessionTask, offset: int64_t, completionHandler: ObjCBlock<(NSInputStream) -> Unit>): Unit
+    @ForeignName["URLSession:task:needNewBodyStreamFromOffset:completionHandler:"] func URLSessionTaskNeedNewBodyStreamFromOffsetCompletionHandler(session: NSURLSession, task: NSURLSessionTask, offset: int64_t, completionHandler: ObjCBlock<(?NSInputStream) -> Unit>): Unit
     @ObjCOptional
     @ForeignName["URLSession:task:didSendBodyData:totalBytesSent:totalBytesExpectedToSend:"] func URLSessionTaskDidSendBodyDataTotalBytesSentTotalBytesExpectedToSend(session: NSURLSession, task: NSURLSessionTask, bytesSent: int64_t, totalBytesSent: int64_t, totalBytesExpectedToSend: int64_t): Unit
     @ObjCOptional
@@ -71,15 +71,15 @@ public open class NSURLSession <: NSObject {
     @ForeignName["webSocketTaskWithURL:protocols:"] public open func webSocketTaskWithURLProtocols(url: NSURL, protocols: NSArray/*<NSString>*/): NSURLSessionWebSocketTask
     @ForeignName["webSocketTaskWithRequest:"] public open func webSocketTaskWithRequest(request: NSURLRequest): NSURLSessionWebSocketTask
     public init()
-    public static func new(): NSURLSession
-    @ForeignName["dataTaskWithRequest:completionHandler:"] public open func dataTaskWithRequestCompletionHandler(request: NSURLRequest, completionHandler: ObjCBlock<(NSData, NSURLResponse, NSError) -> Unit>): NSURLSessionDataTask
-    @ForeignName["dataTaskWithURL:completionHandler:"] public open func dataTaskWithURLCompletionHandler(url: NSURL, completionHandler: ObjCBlock<(NSData, NSURLResponse, NSError) -> Unit>): NSURLSessionDataTask
-    @ForeignName["uploadTaskWithRequest:fromFile:completionHandler:"] public open func uploadTaskWithRequestFromFileCompletionHandler(request: NSURLRequest, fileURL: NSURL, completionHandler: ObjCBlock<(NSData, NSURLResponse, NSError) -> Unit>): NSURLSessionUploadTask
-    @ForeignName["uploadTaskWithRequest:fromData:completionHandler:"] public open func uploadTaskWithRequestFromDataCompletionHandler(request: NSURLRequest, bodyData: ?NSData, completionHandler: ObjCBlock<(NSData, NSURLResponse, NSError) -> Unit>): NSURLSessionUploadTask
-    @ForeignName["uploadTaskWithResumeData:completionHandler:"] public open func uploadTaskWithResumeDataCompletionHandler(resumeData: NSData, completionHandler: ObjCBlock<(NSData, NSURLResponse, NSError) -> Unit>): NSURLSessionUploadTask
-    @ForeignName["downloadTaskWithRequest:completionHandler:"] public open func downloadTaskWithRequestCompletionHandler(request: NSURLRequest, completionHandler: ObjCBlock<(NSURL, NSURLResponse, NSError) -> Unit>): NSURLSessionDownloadTask
-    @ForeignName["downloadTaskWithURL:completionHandler:"] public open func downloadTaskWithURLCompletionHandler(url: NSURL, completionHandler: ObjCBlock<(NSURL, NSURLResponse, NSError) -> Unit>): NSURLSessionDownloadTask
-    @ForeignName["downloadTaskWithResumeData:completionHandler:"] public open func downloadTaskWithResumeDataCompletionHandler(resumeData: NSData, completionHandler: ObjCBlock<(NSURL, NSURLResponse, NSError) -> Unit>): NSURLSessionDownloadTask
+    public static func new(): ?NSObject
+    @ForeignName["dataTaskWithRequest:completionHandler:"] public open func dataTaskWithRequestCompletionHandler(request: NSURLRequest, completionHandler: ObjCBlock<(?NSData, ?NSURLResponse, ?NSError) -> Unit>): NSURLSessionDataTask
+    @ForeignName["dataTaskWithURL:completionHandler:"] public open func dataTaskWithURLCompletionHandler(url: NSURL, completionHandler: ObjCBlock<(?NSData, ?NSURLResponse, ?NSError) -> Unit>): NSURLSessionDataTask
+    @ForeignName["uploadTaskWithRequest:fromFile:completionHandler:"] public open func uploadTaskWithRequestFromFileCompletionHandler(request: NSURLRequest, fileURL: NSURL, completionHandler: ObjCBlock<(?NSData, ?NSURLResponse, ?NSError) -> Unit>): NSURLSessionUploadTask
+    @ForeignName["uploadTaskWithRequest:fromData:completionHandler:"] public open func uploadTaskWithRequestFromDataCompletionHandler(request: NSURLRequest, bodyData: ?NSData, completionHandler: ObjCBlock<(?NSData, ?NSURLResponse, ?NSError) -> Unit>): NSURLSessionUploadTask
+    @ForeignName["uploadTaskWithResumeData:completionHandler:"] public open func uploadTaskWithResumeDataCompletionHandler(resumeData: NSData, completionHandler: ObjCBlock<(?NSData, ?NSURLResponse, ?NSError) -> Unit>): NSURLSessionUploadTask
+    @ForeignName["downloadTaskWithRequest:completionHandler:"] public open func downloadTaskWithRequestCompletionHandler(request: NSURLRequest, completionHandler: ObjCBlock<(?NSURL, ?NSURLResponse, ?NSError) -> Unit>): NSURLSessionDownloadTask
+    @ForeignName["downloadTaskWithURL:completionHandler:"] public open func downloadTaskWithURLCompletionHandler(url: NSURL, completionHandler: ObjCBlock<(?NSURL, ?NSURLResponse, ?NSError) -> Unit>): NSURLSessionDownloadTask
+    @ForeignName["downloadTaskWithResumeData:completionHandler:"] public open func downloadTaskWithResumeDataCompletionHandler(resumeData: NSData, completionHandler: ObjCBlock<(?NSURL, ?NSURLResponse, ?NSError) -> Unit>): NSURLSessionDownloadTask
 }
 
 public abstract sealed class NSURLSessionTaskState {
@@ -112,40 +112,40 @@ public open class NSURLSessionTask <: NSObject & NSCopying & NSProgressReporting
     public open mut prop priority: Float32
     public open mut prop prefersIncrementalDelivery: Bool
     public init()
-    public static func new(): NSURLSessionTask
+    public static func new(): ?NSObject
 }
 
 @ObjCMirror
 public open class NSURLSessionDataTask <: NSURLSessionTask {
     public init()
-    public static func new(): NSURLSessionDataTask
+    public static func new(): ?NSObject
 }
 
 @ObjCMirror
 public open class NSURLSessionUploadTask <: NSURLSessionDataTask {
     public init()
-    public static func new(): NSURLSessionUploadTask
-    @ForeignName["cancelByProducingResumeData:"] public open func cancelByProducingResumeData(completionHandler: ObjCBlock<(NSData) -> Unit>): Unit
+    public static func new(): ?NSObject
+    @ForeignName["cancelByProducingResumeData:"] public open func cancelByProducingResumeData(completionHandler: ObjCBlock<(?NSData) -> Unit>): Unit
 }
 
 @ObjCMirror
 public open class NSURLSessionDownloadTask <: NSURLSessionTask {
-    @ForeignName["cancelByProducingResumeData:"] public open func cancelByProducingResumeData(completionHandler: ObjCBlock<(NSData) -> Unit>): Unit
+    @ForeignName["cancelByProducingResumeData:"] public open func cancelByProducingResumeData(completionHandler: ObjCBlock<(?NSData) -> Unit>): Unit
     public init()
-    public static func new(): NSURLSessionDownloadTask
+    public static func new(): ?NSObject
 }
 
 @ObjCMirror
 public open class NSURLSessionStreamTask <: NSURLSessionTask {
-    @ForeignName["readDataOfMinLength:maxLength:timeout:completionHandler:"] public open func readDataOfMinLengthMaxLengthTimeoutCompletionHandler(minBytes: NSUInteger, maxBytes: NSUInteger, timeout: NSTimeInterval, completionHandler: ObjCBlock<(NSData, Bool, NSError) -> Unit>): Unit
-    @ForeignName["writeData:timeout:completionHandler:"] public open func writeDataTimeoutCompletionHandler(data: NSData, timeout: NSTimeInterval, completionHandler: ObjCBlock<(NSError) -> Unit>): Unit
+    @ForeignName["readDataOfMinLength:maxLength:timeout:completionHandler:"] public open func readDataOfMinLengthMaxLengthTimeoutCompletionHandler(minBytes: NSUInteger, maxBytes: NSUInteger, timeout: NSTimeInterval, completionHandler: ObjCBlock<(?NSData, Bool, ?NSError) -> Unit>): Unit
+    @ForeignName["writeData:timeout:completionHandler:"] public open func writeDataTimeoutCompletionHandler(data: NSData, timeout: NSTimeInterval, completionHandler: ObjCBlock<(?NSError) -> Unit>): Unit
     public open func captureStreams(): Unit
     public open func closeWrite(): Unit
     public open func closeRead(): Unit
     public open func startSecureConnection(): Unit
     public open func stopSecureConnection(): Unit
     public init()
-    public static func new(): NSURLSessionStreamTask
+    public static func new(): ?NSObject
 }
 
 public abstract sealed class NSURLSessionWebSocketMessageType {
@@ -180,9 +180,9 @@ public abstract sealed class NSURLSessionWebSocketCloseCode {
 
 @ObjCMirror
 public open class NSURLSessionWebSocketTask <: NSURLSessionTask {
-    @ForeignName["sendMessage:completionHandler:"] public open func sendMessageCompletionHandler(message: NSURLSessionWebSocketMessage, completionHandler: ObjCBlock<(NSError) -> Unit>): Unit
-    @ForeignName["receiveMessageWithCompletionHandler:"] public open func receiveMessageWithCompletionHandler(completionHandler: ObjCBlock<(NSURLSessionWebSocketMessage, NSError) -> Unit>): Unit
-    @ForeignName["sendPingWithPongReceiveHandler:"] public open func sendPingWithPongReceiveHandler(pongReceiveHandler: ObjCBlock<(NSError) -> Unit>): Unit
+    @ForeignName["sendMessage:completionHandler:"] public open func sendMessageCompletionHandler(message: NSURLSessionWebSocketMessage, completionHandler: ObjCBlock<(?NSError) -> Unit>): Unit
+    @ForeignName["receiveMessageWithCompletionHandler:"] public open func receiveMessageWithCompletionHandler(completionHandler: ObjCBlock<(?NSURLSessionWebSocketMessage, ?NSError) -> Unit>): Unit
+    @ForeignName["sendPingWithPongReceiveHandler:"] public open func sendPingWithPongReceiveHandler(pongReceiveHandler: ObjCBlock<(?NSError) -> Unit>): Unit
     @ForeignName["cancelWithCloseCode:reason:"] public open func cancelWithCloseCodeReason(closeCode: NSInteger /*NSURLSessionWebSocketCloseCode*/, reason: ?NSData): Unit
     public open mut prop maximumMessageSize: NSInteger
     public open prop closeCode: NSInteger /*NSURLSessionWebSocketCloseCode*/
@@ -214,7 +214,7 @@ public open class NSURLSessionConfiguration <: NSObject & NSCopying {
     @ForeignGetterName["isDiscretionary"] public open mut prop discretionary: Bool
     public open mut prop sharedContainerIdentifier: ?NSString
     public open mut prop sessionSendsLaunchEvents: Bool
-    public open mut prop connectionProxyDictionary: ?NSDictionary/*<KeyType, ObjectType>*/
+    public open mut prop connectionProxyDictionary: ?NSDictionary
     public open mut prop TLSMinimumSupportedProtocol: Int32 /*SSLProtocol*/
     public open mut prop TLSMaximumSupportedProtocol: Int32 /*SSLProtocol*/
     public open mut prop TLSMinimumSupportedProtocolVersion: uint16_t /*tls_protocol_version_t*/
@@ -222,7 +222,7 @@ public open class NSURLSessionConfiguration <: NSObject & NSCopying {
     public open mut prop HTTPShouldUsePipelining: Bool
     public open mut prop HTTPShouldSetCookies: Bool
     public open mut prop HTTPCookieAcceptPolicy: NSUInteger /*NSHTTPCookieAcceptPolicy*/
-    public open mut prop HTTPAdditionalHeaders: ?NSDictionary/*<KeyType, ObjectType>*/
+    public open mut prop HTTPAdditionalHeaders: ?NSDictionary
     public open mut prop HTTPMaximumConnectionsPerHost: NSInteger
     public open mut prop HTTPCookieStorage: ?NSHTTPCookieStorage
     public open mut prop URLCredentialStorage: ?NSURLCredentialStorage
@@ -231,7 +231,7 @@ public open class NSURLSessionConfiguration <: NSObject & NSCopying {
     public open mut prop protocolClasses: ?NSArray/*<ObjCClass>*/
     public open mut prop multipathServiceType: NSInteger /*NSURLSessionMultipathServiceType*/
     public init()
-    public static func new(): NSURLSessionConfiguration
+    public static func new(): ?NSObject
     @ForeignName["backgroundSessionConfiguration:"] public static func backgroundSessionConfiguration(identifier: NSString): NSURLSessionConfiguration
 }
 
@@ -266,7 +266,7 @@ public interface NSURLSessionDataDelegate <: NSURLSessionTaskDelegate {
     @ObjCOptional
     @ForeignName["URLSession:dataTask:didReceiveData:"] func URLSessionDataTaskDidReceiveData(session: NSURLSession, dataTask: NSURLSessionDataTask, data: NSData): Unit
     @ObjCOptional
-    @ForeignName["URLSession:dataTask:willCacheResponse:completionHandler:"] func URLSessionDataTaskWillCacheResponseCompletionHandler(session: NSURLSession, dataTask: NSURLSessionDataTask, proposedResponse: NSCachedURLResponse, completionHandler: ObjCBlock<(NSCachedURLResponse) -> Unit>): Unit
+    @ForeignName["URLSession:dataTask:willCacheResponse:completionHandler:"] func URLSessionDataTaskWillCacheResponseCompletionHandler(session: NSURLSession, dataTask: NSURLSessionDataTask, proposedResponse: NSCachedURLResponse, completionHandler: ObjCBlock<(?NSCachedURLResponse) -> Unit>): Unit
 }
 
 @ObjCMirror
@@ -350,7 +350,7 @@ public open class NSURLSessionTaskTransactionMetrics <: NSObject {
     @ForeignGetterName["isMultipath"] public open prop multipath: Bool
     public open prop domainResolutionProtocol: NSInteger /*NSURLSessionTaskMetricsDomainResolutionProtocol*/
     public init()
-    public static func new(): NSURLSessionTaskTransactionMetrics
+    public static func new(): ?NSObject
 }
 
 @ObjCMirror
@@ -359,6 +359,6 @@ public open class NSURLSessionTaskMetrics <: NSObject {
     public open prop taskInterval: NSDateInterval
     public open prop redirectCount: NSUInteger
     public init()
-    public static func new(): NSURLSessionTaskMetrics
+    public static func new(): ?NSObject
 }
 

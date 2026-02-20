@@ -60,7 +60,7 @@ public open class NSOperationQueue <: NSObject & NSProgressReporting {
     @ForeignGetterName["isSuspended"] public open mut prop suspended: Bool
     public open mut prop name: ?NSString
     public open mut prop qualityOfService: NSInteger /*NSQualityOfService*/
-    public open mut prop underlyingQueue: dispatch_queue_t
+    public open mut prop underlyingQueue: ?dispatch_queue_t
     public open func cancelAllOperations(): Unit
     public open func waitUntilAllOperationsAreFinished(): Unit
     public static prop currentQueue: ?NSOperationQueue

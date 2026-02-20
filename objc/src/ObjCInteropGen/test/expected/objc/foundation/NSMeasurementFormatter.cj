@@ -17,7 +17,7 @@ public open class NSMeasurementFormatter <: NSFormatter & NSSecureCoding {
     public open mut prop unitStyle: NSInteger /*NSFormattingUnitStyle*/
     public open mut prop locale: NSLocale
     public open mut prop numberFormatter: NSNumberFormatter
-    @ForeignName["stringFromMeasurement:"] public open func stringFromMeasurement(measurement: NSMeasurement/*<UnitType>*/): NSString
+    @ForeignName["stringFromMeasurement:"] public open func stringFromMeasurement(measurement: NSMeasurement): NSString
     @ForeignName["stringFromUnit:"] public open func stringFromUnit(unit: NSUnit): NSString
 }
 

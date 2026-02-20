@@ -41,10 +41,10 @@ public open class NSProgress <: NSObject {
     public open func pause(): Unit
     public open func `resume`(): Unit
     public open prop userInfo: NSDictionary/*<NSProgressUserInfoKey, ObjCId>*/
-    public open mut prop kind: NSProgressKind
+    public open mut prop kind: ?NSProgressKind
     public open mut prop estimatedTimeRemaining: ?NSNumber
     public open mut prop throughput: ?NSNumber
-    public open mut prop fileOperationKind: NSProgressFileOperationKind
+    public open mut prop fileOperationKind: ?NSProgressFileOperationKind
     public open mut prop fileURL: ?NSURL
     public open mut prop fileTotalCount: ?NSNumber
     public open mut prop fileCompletedCount: ?NSNumber

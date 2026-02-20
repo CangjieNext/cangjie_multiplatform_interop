@@ -12,7 +12,7 @@ public open class NSMeasurement/*<UnitType>*/ <: NSObject & NSCopying & NSSecure
     public init()
     @ForeignName["initWithDoubleValue:unit:"] public init(doubleValue: Float64, unit: ObjCId /*UnitType*/)
     @ForeignName["canBeConvertedToUnit:"] public open func canBeConvertedToUnit(unit: NSUnit): Bool
-    @ForeignName["measurementByConvertingToUnit:"] public open func measurementByConvertingToUnit(unit: NSUnit): NSMeasurement/*<UnitType>*/
+    @ForeignName["measurementByConvertingToUnit:"] public open func measurementByConvertingToUnit(unit: NSUnit): NSMeasurement
     @ForeignName["measurementByAddingMeasurement:"] public open func measurementByAddingMeasurement(measurement: NSMeasurement/*<UnitType>*/): NSMeasurement/*<UnitType>*/
     @ForeignName["measurementBySubtractingMeasurement:"] public open func measurementBySubtractingMeasurement(measurement: NSMeasurement/*<UnitType>*/): NSMeasurement/*<UnitType>*/
 }

@@ -14,10 +14,10 @@ public abstract sealed class NSURLCacheStoragePolicy {
 @ObjCMirror
 public open class NSCachedURLResponse <: NSObject & NSSecureCoding & NSCopying {
     @ForeignName["initWithResponse:data:"] public init(response: NSURLResponse, data: NSData)
-    @ForeignName["initWithResponse:data:userInfo:storagePolicy:"] public init(response: NSURLResponse, data: NSData, userInfo: ?NSDictionary/*<KeyType, ObjectType>*/, storagePolicy: NSUInteger /*NSURLCacheStoragePolicy*/)
+    @ForeignName["initWithResponse:data:userInfo:storagePolicy:"] public init(response: NSURLResponse, data: NSData, userInfo: ?NSDictionary, storagePolicy: NSUInteger /*NSURLCacheStoragePolicy*/)
     public open prop response: NSURLResponse
     public open prop data: NSData
-    public open prop userInfo: ?NSDictionary/*<KeyType, ObjectType>*/
+    public open prop userInfo: ?NSDictionary
     public open prop storagePolicy: NSUInteger /*NSURLCacheStoragePolicy*/
 }
 
@@ -36,7 +36,7 @@ public open class NSURLCache <: NSObject {
     public open prop currentMemoryUsage: NSUInteger
     public open prop currentDiskUsage: NSUInteger
     @ForeignName["storeCachedResponse:forDataTask:"] public open func storeCachedResponseForDataTask(cachedResponse: NSCachedURLResponse, dataTask: NSURLSessionDataTask): Unit
-    @ForeignName["getCachedResponseForDataTask:completionHandler:"] public open func getCachedResponseForDataTaskCompletionHandler(dataTask: NSURLSessionDataTask, completionHandler: ObjCBlock<(NSCachedURLResponse) -> Unit>): Unit
+    @ForeignName["getCachedResponseForDataTask:completionHandler:"] public open func getCachedResponseForDataTaskCompletionHandler(dataTask: NSURLSessionDataTask, completionHandler: ObjCBlock<(?NSCachedURLResponse) -> Unit>): Unit
     @ForeignName["removeCachedResponseForDataTask:"] public open func removeCachedResponseForDataTask(dataTask: NSURLSessionDataTask): Unit
 }
 

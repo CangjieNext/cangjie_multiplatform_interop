@@ -19,7 +19,7 @@ public open class NSURLResponse <: NSObject & NSSecureCoding & NSCopying {
 public open class NSHTTPURLResponse <: NSURLResponse {
     @ForeignName["initWithURL:statusCode:HTTPVersion:headerFields:"] public init(url: NSURL, statusCode: NSInteger, HTTPVersion: ?NSString, headerFields: ?NSDictionary/*<NSString, NSString>*/)
     public open prop statusCode: NSInteger
-    public open prop allHeaderFields: NSDictionary/*<KeyType, ObjectType>*/
+    public open prop allHeaderFields: NSDictionary
     @ForeignName["valueForHTTPHeaderField:"] public open func valueForHTTPHeaderField(field: NSString): ?NSString
     @ForeignName["localizedStringForStatusCode:"] public static func localizedStringForStatusCode(statusCode: NSInteger): NSString
 }

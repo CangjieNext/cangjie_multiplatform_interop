@@ -34,7 +34,7 @@ public open class NSArray/*<ObjectType>*/ <: NSObject & NSCopying & NSMutableCop
     @ForeignName["sortedArrayUsingFunction:context:hint:"] public open func sortedArrayUsingFunctionContextHint(comparator: ObjCFunc<(ObjCId /*ObjectType*/, ObjCId /*ObjectType*/, ObjCPointer<Unit>) -> NSInteger>, context: ObjCPointer<Unit>, hint: ?NSData): NSArray/*<ObjectType>*/
     @ForeignName["sortedArrayUsingSelector:"] public open func sortedArrayUsingSelector(comparator: SEL): NSArray/*<ObjectType>*/
     @ForeignName["subarrayWithRange:"] public open func subarrayWithRange(range: NSRange): NSArray/*<ObjectType>*/
-    @ForeignName["writeToURL:error:"] public open func writeToURLError(url: NSURL, error: ObjCPointer<NSError>): Bool
+    @ForeignName["writeToURL:error:"] public open func writeToURLError(url: NSURL, error: ObjCPointer<?NSError>): Bool
     @ForeignName["makeObjectsPerformSelector:"] public open func makeObjectsPerformSelector(aSelector: SEL): Unit
     @ForeignName["makeObjectsPerformSelector:withObject:"] public open func makeObjectsPerformSelectorWithObject(aSelector: SEL, argument: ?ObjCId): Unit
     @ForeignName["objectsAtIndexes:"] public open func objectsAtIndexes(indexes: NSIndexSet): NSArray/*<ObjectType>*/
@@ -59,8 +59,8 @@ public open class NSArray/*<ObjectType>*/ <: NSObject & NSCopying & NSMutableCop
     @ForeignName["initWithObjects:"] public init(firstObj: ObjCId /*ObjectType*/)
     @ForeignName["initWithArray:"] public init(array: NSArray/*<ObjectType>*/)
     @ForeignName["initWithArray:copyItems:"] public init(array: NSArray/*<ObjectType>*/, flag: Bool)
-    @ForeignName["initWithContentsOfURL:error:"] public init(url: NSURL, error: ObjCPointer<NSError>)
-    @ForeignName["arrayWithContentsOfURL:error:"] public static func arrayWithContentsOfURLError(url: NSURL, error: ObjCPointer<NSError>): ?NSArray/*<ObjectType>*/
+    @ForeignName["initWithContentsOfURL:error:"] public init(url: NSURL, error: ObjCPointer<?NSError>)
+    @ForeignName["arrayWithContentsOfURL:error:"] public static func arrayWithContentsOfURLError(url: NSURL, error: ObjCPointer<?NSError>): ?NSArray/*<ObjectType>*/
     @ForeignName["differenceFromArray:withOptions:usingEquivalenceTest:"] public open func differenceFromArrayWithOptionsUsingEquivalenceTest(other: NSArray/*<ObjectType>*/, options: NSUInteger /*NSOrderedCollectionDifferenceCalculationOptions*/, block: ObjCBlock<(ObjCId /*ObjectType*/, ObjCId /*ObjectType*/) -> Bool>): NSOrderedCollectionDifference/*<ObjectType>*/
     @ForeignName["differenceFromArray:withOptions:"] public open func differenceFromArrayWithOptions(other: NSArray/*<ObjectType>*/, options: NSUInteger /*NSOrderedCollectionDifferenceCalculationOptions*/): NSOrderedCollectionDifference/*<ObjectType>*/
     @ForeignName["differenceFromArray:"] public open func differenceFromArray(other: NSArray/*<ObjectType>*/): NSOrderedCollectionDifference/*<ObjectType>*/
@@ -92,7 +92,7 @@ public abstract sealed class NSBinarySearchingOptions {
 }
 
 @ObjCMirror
-public open class NSMutableArray/*<ObjectType>*/ <: NSArray/*<ObjectType>*/ {
+public open class NSMutableArray/*<ObjectType>*/ <: NSArray {
     @ForeignName["addObject:"] public open func addObject(anObject: ObjCId /*ObjectType*/): Unit
     @ForeignName["insertObject:atIndex:"] public open func insertObjectAtIndex(anObject: ObjCId /*ObjectType*/, index: NSUInteger): Unit
     public open func removeLastObject(): Unit

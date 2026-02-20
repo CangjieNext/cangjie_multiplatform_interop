@@ -83,7 +83,7 @@ public open class NSXPCListenerEndpoint <: NSObject & NSSecureCoding {
 @ObjCMirror
 public open class NSXPCCoder <: NSCoder {
     @ForeignName["encodeXPCObject:forKey:"] public open func encodeXPCObjectForKey(xpcObject: xpc_object_t, key: NSString): Unit
-    @ForeignName["decodeXPCObjectOfType:forKey:"] public open func decodeXPCObjectOfTypeForKey(`type`: xpc_type_t, key: NSString): xpc_object_t
+    @ForeignName["decodeXPCObjectOfType:forKey:"] public open func decodeXPCObjectOfTypeForKey(`type`: xpc_type_t, key: NSString): ?xpc_object_t
     public open mut prop userInfo: ?NSObjectProtocol
     public open prop connection: ?NSXPCConnection
 }

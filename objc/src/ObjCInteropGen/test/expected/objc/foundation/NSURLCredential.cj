@@ -20,10 +20,10 @@ public open class NSURLCredential <: NSObject & NSSecureCoding & NSCopying {
     public open prop user: ?NSString
     public open prop password: ?NSString
     public open prop hasPassword: Bool
-    @ForeignName["initWithIdentity:certificates:persistence:"] public init(identity: SecIdentityRef, certArray: ?NSArray/*<ObjectType>*/, persistence: NSUInteger /*NSURLCredentialPersistence*/)
-    @ForeignName["credentialWithIdentity:certificates:persistence:"] public static func credentialWithIdentityCertificatesPersistence(identity: SecIdentityRef, certArray: ?NSArray/*<ObjectType>*/, persistence: NSUInteger /*NSURLCredentialPersistence*/): NSURLCredential
+    @ForeignName["initWithIdentity:certificates:persistence:"] public init(identity: SecIdentityRef, certArray: ?NSArray, persistence: NSUInteger /*NSURLCredentialPersistence*/)
+    @ForeignName["credentialWithIdentity:certificates:persistence:"] public static func credentialWithIdentityCertificatesPersistence(identity: SecIdentityRef, certArray: ?NSArray, persistence: NSUInteger /*NSURLCredentialPersistence*/): NSURLCredential
     public open prop identity: SecIdentityRef
-    public open prop certificates: NSArray/*<ObjectType>*/
+    public open prop certificates: NSArray
     @ForeignName["initWithTrust:"] public init(trust: SecTrustRef)
     @ForeignName["credentialForTrust:"] public static func credentialForTrust(trust: SecTrustRef): NSURLCredential
 }

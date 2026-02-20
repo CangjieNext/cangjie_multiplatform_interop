@@ -49,7 +49,7 @@ public open class NSSet/*<ObjectType>*/ <: NSObject & NSCopying & NSMutableCopyi
 }
 
 @ObjCMirror
-public open class NSMutableSet/*<ObjectType>*/ <: NSSet/*<ObjectType>*/ {
+public open class NSMutableSet/*<ObjectType>*/ <: NSSet {
     @ForeignName["addObject:"] public open func addObject(object: ObjCId /*ObjectType*/): Unit
     @ForeignName["removeObject:"] public open func removeObject(object: ObjCId /*ObjectType*/): Unit
     @ForeignName["initWithCoder:"] public init(coder: NSCoder)
@@ -66,7 +66,7 @@ public open class NSMutableSet/*<ObjectType>*/ <: NSSet/*<ObjectType>*/ {
 }
 
 @ObjCMirror
-public open class NSCountedSet/*<ObjectType>*/ <: NSMutableSet/*<ObjectType>*/ {
+public open class NSCountedSet/*<ObjectType>*/ <: NSMutableSet {
     @ForeignName["initWithCapacity:"] public init(numItems: NSUInteger)
     @ForeignName["initWithArray:"] public init(array: NSArray/*<ObjectType>*/)
     @ForeignName["initWithSet:"] public init(set: NSSet/*<ObjectType>*/)

@@ -18,8 +18,8 @@ public open class NSURLConnection <: NSObject {
     @ForeignName["unscheduleFromRunLoop:forMode:"] public open func unscheduleFromRunLoopForMode(aRunLoop: NSRunLoop, mode: NSRunLoopMode): Unit
     @ForeignName["setDelegateQueue:"] public open func setDelegateQueue(queue: ?NSOperationQueue): Unit
     @ForeignName["canHandleRequest:"] public static func canHandleRequest(request: NSURLRequest): Bool
-    @ForeignName["sendSynchronousRequest:returningResponse:error:"] public static func sendSynchronousRequestReturningResponseError(request: NSURLRequest, response: ObjCPointer<NSURLResponse>, error: ObjCPointer<NSError>): ?NSData
-    @ForeignName["sendAsynchronousRequest:queue:completionHandler:"] public static func sendAsynchronousRequestQueueCompletionHandler(request: NSURLRequest, queue: NSOperationQueue, handler: ObjCBlock<(NSURLResponse, NSData, NSError) -> Unit>): Unit
+    @ForeignName["sendSynchronousRequest:returningResponse:error:"] public static func sendSynchronousRequestReturningResponseError(request: NSURLRequest, response: ObjCPointer<?NSURLResponse>, error: ObjCPointer<?NSError>): ?NSData
+    @ForeignName["sendAsynchronousRequest:queue:completionHandler:"] public static func sendAsynchronousRequestQueueCompletionHandler(request: NSURLRequest, queue: NSOperationQueue, handler: ObjCBlock<(?NSURLResponse, ?NSData, ?NSError) -> Unit>): Unit
 }
 
 @ObjCMirror

@@ -83,7 +83,7 @@ public open class NSNetService <: NSObject {
     @ForeignName["dictionaryFromTXTRecordData:"] public static func dictionaryFromTXTRecordData(txtData: NSData): NSDictionary/*<NSString, NSData>*/
     @ForeignName["dataFromTXTRecordDictionary:"] public static func dataFromTXTRecordDictionary(txtDictionary: NSDictionary/*<NSString, NSData>*/): NSData
     @ForeignName["resolveWithTimeout:"] public open func resolveWithTimeout(timeout: NSTimeInterval): Unit
-    @ForeignName["getInputStream:outputStream:"] public open func getInputStreamOutputStream(inputStream: ObjCPointer<NSInputStream>, outputStream: ObjCPointer<NSOutputStream>): Bool
+    @ForeignName["getInputStream:outputStream:"] public open func getInputStreamOutputStream(inputStream: ObjCPointer<?NSInputStream>, outputStream: ObjCPointer<?NSOutputStream>): Bool
     @ForeignName["setTXTRecordData:"] public open func setTXTRecordData(recordData: ?NSData): Bool
     public open func TXTRecordData(): ?NSData
     public open func startMonitoring(): Unit

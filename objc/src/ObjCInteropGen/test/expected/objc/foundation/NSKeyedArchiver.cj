@@ -36,7 +36,7 @@ public interface NSKeyedUnarchiverDelegate <: NSObjectProtocol {
 @ObjCMirror
 public open class NSKeyedArchiver <: NSCoder {
     @ForeignName["initRequiringSecureCoding:"] public init(requiresSecureCoding: Bool)
-    @ForeignName["archivedDataWithRootObject:requiringSecureCoding:error:"] public static func archivedDataWithRootObjectRequiringSecureCodingError(object: ObjCId, requiresSecureCoding: Bool, error: ObjCPointer<NSError>): ?NSData
+    @ForeignName["archivedDataWithRootObject:requiringSecureCoding:error:"] public static func archivedDataWithRootObjectRequiringSecureCodingError(object: ObjCId, requiresSecureCoding: Bool, error: ObjCPointer<?NSError>): ?NSData
     public init()
     @ForeignName["initForWritingWithMutableData:"] public init(data: NSMutableData)
     @ForeignName["archivedDataWithRootObject:"] public static func archivedDataWithRootObject(rootObject: ObjCId): NSData
@@ -62,17 +62,17 @@ public open class NSKeyedArchiver <: NSCoder {
 
 @ObjCMirror
 public open class NSKeyedUnarchiver <: NSCoder {
-    @ForeignName["initForReadingFromData:error:"] public init(data: NSData, error: ObjCPointer<NSError>)
-    @ForeignName["unarchivedObjectOfClass:fromData:error:"] public static func unarchivedObjectOfClassFromDataError(cls: ObjCClass, data: NSData, error: ObjCPointer<NSError>): ?ObjCId
-    @ForeignName["unarchivedArrayOfObjectsOfClass:fromData:error:"] public static func unarchivedArrayOfObjectsOfClassFromDataError(cls: ObjCClass, data: NSData, error: ObjCPointer<NSError>): ?NSArray/*<ObjectType>*/
-    @ForeignName["unarchivedDictionaryWithKeysOfClass:objectsOfClass:fromData:error:"] public static func unarchivedDictionaryWithKeysOfClassObjectsOfClassFromDataError(keyCls: ObjCClass, valueCls: ObjCClass, data: NSData, error: ObjCPointer<NSError>): ?NSDictionary/*<KeyType, ObjectType>*/
-    @ForeignName["unarchivedObjectOfClasses:fromData:error:"] public static func unarchivedObjectOfClassesFromDataError(classes: NSSet/*<ObjCClass>*/, data: NSData, error: ObjCPointer<NSError>): ?ObjCId
-    @ForeignName["unarchivedArrayOfObjectsOfClasses:fromData:error:"] public static func unarchivedArrayOfObjectsOfClassesFromDataError(classes: NSSet/*<ObjCClass>*/, data: NSData, error: ObjCPointer<NSError>): ?NSArray/*<ObjectType>*/
-    @ForeignName["unarchivedDictionaryWithKeysOfClasses:objectsOfClasses:fromData:error:"] public static func unarchivedDictionaryWithKeysOfClassesObjectsOfClassesFromDataError(keyClasses: NSSet/*<ObjCClass>*/, valueClasses: NSSet/*<ObjCClass>*/, data: NSData, error: ObjCPointer<NSError>): ?NSDictionary/*<KeyType, ObjectType>*/
+    @ForeignName["initForReadingFromData:error:"] public init(data: NSData, error: ObjCPointer<?NSError>)
+    @ForeignName["unarchivedObjectOfClass:fromData:error:"] public static func unarchivedObjectOfClassFromDataError(cls: ObjCClass, data: NSData, error: ObjCPointer<?NSError>): ?ObjCId
+    @ForeignName["unarchivedArrayOfObjectsOfClass:fromData:error:"] public static func unarchivedArrayOfObjectsOfClassFromDataError(cls: ObjCClass, data: NSData, error: ObjCPointer<?NSError>): ?NSArray
+    @ForeignName["unarchivedDictionaryWithKeysOfClass:objectsOfClass:fromData:error:"] public static func unarchivedDictionaryWithKeysOfClassObjectsOfClassFromDataError(keyCls: ObjCClass, valueCls: ObjCClass, data: NSData, error: ObjCPointer<?NSError>): ?NSDictionary
+    @ForeignName["unarchivedObjectOfClasses:fromData:error:"] public static func unarchivedObjectOfClassesFromDataError(classes: NSSet/*<ObjCClass>*/, data: NSData, error: ObjCPointer<?NSError>): ?ObjCId
+    @ForeignName["unarchivedArrayOfObjectsOfClasses:fromData:error:"] public static func unarchivedArrayOfObjectsOfClassesFromDataError(classes: NSSet/*<ObjCClass>*/, data: NSData, error: ObjCPointer<?NSError>): ?NSArray
+    @ForeignName["unarchivedDictionaryWithKeysOfClasses:objectsOfClasses:fromData:error:"] public static func unarchivedDictionaryWithKeysOfClassesObjectsOfClassesFromDataError(keyClasses: NSSet/*<ObjCClass>*/, valueClasses: NSSet/*<ObjCClass>*/, data: NSData, error: ObjCPointer<?NSError>): ?NSDictionary
     public init()
     @ForeignName["initForReadingWithData:"] public init(data: NSData)
     @ForeignName["unarchiveObjectWithData:"] public static func unarchiveObjectWithData(data: NSData): ?ObjCId
-    @ForeignName["unarchiveTopLevelObjectWithData:error:"] public static func unarchiveTopLevelObjectWithDataError(data: NSData, error: ObjCPointer<NSError>): ?ObjCId
+    @ForeignName["unarchiveTopLevelObjectWithData:error:"] public static func unarchiveTopLevelObjectWithDataError(data: NSData, error: ObjCPointer<?NSError>): ?ObjCId
     @ForeignName["unarchiveObjectWithFile:"] public static func unarchiveObjectWithFile(path: NSString): ?ObjCId
     public open mut prop delegate: ?NSKeyedUnarchiverDelegate
     public open func finishDecoding(): Unit

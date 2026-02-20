@@ -23,10 +23,10 @@ public open class NSScanner <: NSObject & NSCopying {
     @ForeignName["scanHexLongLong:"] public open func scanHexLongLong(result: ObjCPointer<UInt64>): Bool
     @ForeignName["scanHexFloat:"] public open func scanHexFloat(result: ObjCPointer<Float32>): Bool
     @ForeignName["scanHexDouble:"] public open func scanHexDouble(result: ObjCPointer<Float64>): Bool
-    @ForeignName["scanString:intoString:"] public open func scanStringIntoString(string: NSString, result: ObjCPointer<NSString>): Bool
-    @ForeignName["scanCharactersFromSet:intoString:"] public open func scanCharactersFromSetIntoString(set: NSCharacterSet, result: ObjCPointer<NSString>): Bool
-    @ForeignName["scanUpToString:intoString:"] public open func scanUpToStringIntoString(string: NSString, result: ObjCPointer<NSString>): Bool
-    @ForeignName["scanUpToCharactersFromSet:intoString:"] public open func scanUpToCharactersFromSetIntoString(set: NSCharacterSet, result: ObjCPointer<NSString>): Bool
+    @ForeignName["scanString:intoString:"] public open func scanStringIntoString(string: NSString, result: ObjCPointer<?NSString>): Bool
+    @ForeignName["scanCharactersFromSet:intoString:"] public open func scanCharactersFromSetIntoString(set: NSCharacterSet, result: ObjCPointer<?NSString>): Bool
+    @ForeignName["scanUpToString:intoString:"] public open func scanUpToStringIntoString(string: NSString, result: ObjCPointer<?NSString>): Bool
+    @ForeignName["scanUpToCharactersFromSet:intoString:"] public open func scanUpToCharactersFromSetIntoString(set: NSCharacterSet, result: ObjCPointer<?NSString>): Bool
     @ForeignGetterName["isAtEnd"] public open prop atEnd: Bool
     @ForeignName["scannerWithString:"] public static func scannerWithString(string: NSString): NSScanner
     @ForeignName["localizedScannerWithString:"] public static func localizedScannerWithString(string: NSString): ObjCId

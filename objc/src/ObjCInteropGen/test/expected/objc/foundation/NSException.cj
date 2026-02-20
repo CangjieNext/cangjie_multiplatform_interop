@@ -7,11 +7,11 @@ import objc.lang.*
 
 @ObjCMirror
 public open class NSException <: NSObject & NSCopying & NSSecureCoding {
-    @ForeignName["exceptionWithName:reason:userInfo:"] public static func exceptionWithNameReasonUserInfo(name: NSExceptionName, reason: ?NSString, userInfo: ?NSDictionary/*<KeyType, ObjectType>*/): NSException
-    @ForeignName["initWithName:reason:userInfo:"] public init(aName: NSExceptionName, aReason: ?NSString, aUserInfo: ?NSDictionary/*<KeyType, ObjectType>*/)
+    @ForeignName["exceptionWithName:reason:userInfo:"] public static func exceptionWithNameReasonUserInfo(name: NSExceptionName, reason: ?NSString, userInfo: ?NSDictionary): NSException
+    @ForeignName["initWithName:reason:userInfo:"] public init(aName: NSExceptionName, aReason: ?NSString, aUserInfo: ?NSDictionary)
     public open prop name: NSExceptionName
     public open prop reason: ?NSString
-    public open prop userInfo: ?NSDictionary/*<KeyType, ObjectType>*/
+    public open prop userInfo: ?NSDictionary
     public open prop callStackReturnAddresses: NSArray/*<NSNumber>*/
     public open prop callStackSymbols: NSArray/*<NSString>*/
     public open func raise(): Unit

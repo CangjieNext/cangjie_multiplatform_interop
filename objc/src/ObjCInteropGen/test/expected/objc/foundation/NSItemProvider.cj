@@ -25,43 +25,43 @@ public interface NSItemProviderWriting <: NSObjectProtocol {
     @ForeignName["itemProviderVisibilityForRepresentationWithTypeIdentifier:"] static func itemProviderVisibilityForRepresentationWithTypeIdentifierStatic(typeIdentifier: NSString): NSInteger /*NSItemProviderRepresentationVisibility*/
     @ObjCOptional
     @ForeignName["itemProviderVisibilityForRepresentationWithTypeIdentifier:"] func itemProviderVisibilityForRepresentationWithTypeIdentifier(typeIdentifier: NSString): NSInteger /*NSItemProviderRepresentationVisibility*/
-    @ForeignName["loadDataWithTypeIdentifier:forItemProviderCompletionHandler:"] func loadDataWithTypeIdentifierForItemProviderCompletionHandler(typeIdentifier: NSString, completionHandler: ObjCBlock<(NSData, NSError) -> Unit>): ?NSProgress
+    @ForeignName["loadDataWithTypeIdentifier:forItemProviderCompletionHandler:"] func loadDataWithTypeIdentifierForItemProviderCompletionHandler(typeIdentifier: NSString, completionHandler: ObjCBlock<(?NSData, ?NSError) -> Unit>): ?NSProgress
 }
 
 @ObjCMirror
 public interface NSItemProviderReading <: NSObjectProtocol {
     static prop readableTypeIdentifiersForItemProvider: NSArray/*<NSString>*/
-    @ForeignName["objectWithItemProviderData:typeIdentifier:error:"] static func objectWithItemProviderDataTypeIdentifierError(data: NSData, typeIdentifier: NSString, outError: ObjCPointer<NSError>): NSItemProviderReading
+    @ForeignName["objectWithItemProviderData:typeIdentifier:error:"] static func objectWithItemProviderDataTypeIdentifierError(data: NSData, typeIdentifier: NSString, outError: ObjCPointer<?NSError>): ?NSItemProviderReading
 }
 
-public type NSItemProviderCompletionHandler = ObjCBlock<(NSSecureCoding, NSError) -> Unit>
+public type NSItemProviderCompletionHandler = ObjCBlock<(?NSSecureCoding, ?NSError) -> Unit>
 
-public type NSItemProviderLoadHandler = ObjCBlock<(NSItemProviderCompletionHandler, ObjCClass, NSDictionary/*<KeyType, ObjectType>*/) -> Unit>
+public type NSItemProviderLoadHandler = ObjCBlock<(NSItemProviderCompletionHandler, ?ObjCClass, ?NSDictionary) -> Unit>
 
 @ObjCMirror
 public open class NSItemProvider <: NSObject & NSCopying {
     public init()
-    @ForeignName["registerDataRepresentationForTypeIdentifier:visibility:loadHandler:"] public open func registerDataRepresentationForTypeIdentifierVisibilityLoadHandler(typeIdentifier: NSString, visibility: NSInteger /*NSItemProviderRepresentationVisibility*/, loadHandler: ObjCBlock<(ObjCBlock<(NSData, NSError) -> Unit>) -> NSProgress>): Unit
-    @ForeignName["registerFileRepresentationForTypeIdentifier:fileOptions:visibility:loadHandler:"] public open func registerFileRepresentationForTypeIdentifierFileOptionsVisibilityLoadHandler(typeIdentifier: NSString, fileOptions: NSInteger /*NSItemProviderFileOptions*/, visibility: NSInteger /*NSItemProviderRepresentationVisibility*/, loadHandler: ObjCBlock<(ObjCBlock<(NSURL, Bool, NSError) -> Unit>) -> NSProgress>): Unit
+    @ForeignName["registerDataRepresentationForTypeIdentifier:visibility:loadHandler:"] public open func registerDataRepresentationForTypeIdentifierVisibilityLoadHandler(typeIdentifier: NSString, visibility: NSInteger /*NSItemProviderRepresentationVisibility*/, loadHandler: ObjCBlock<(ObjCBlock<(?NSData, ?NSError) -> Unit>) -> ?NSProgress>): Unit
+    @ForeignName["registerFileRepresentationForTypeIdentifier:fileOptions:visibility:loadHandler:"] public open func registerFileRepresentationForTypeIdentifierFileOptionsVisibilityLoadHandler(typeIdentifier: NSString, fileOptions: NSInteger /*NSItemProviderFileOptions*/, visibility: NSInteger /*NSItemProviderRepresentationVisibility*/, loadHandler: ObjCBlock<(ObjCBlock<(?NSURL, Bool, ?NSError) -> Unit>) -> ?NSProgress>): Unit
     public open prop registeredTypeIdentifiers: NSArray/*<NSString>*/
     @ForeignName["registeredTypeIdentifiersWithFileOptions:"] public open func registeredTypeIdentifiersWithFileOptions(fileOptions: NSInteger /*NSItemProviderFileOptions*/): NSArray/*<NSString>*/
     @ForeignName["hasItemConformingToTypeIdentifier:"] public open func hasItemConformingToTypeIdentifier(typeIdentifier: NSString): Bool
     @ForeignName["hasRepresentationConformingToTypeIdentifier:fileOptions:"] public open func hasRepresentationConformingToTypeIdentifierFileOptions(typeIdentifier: NSString, fileOptions: NSInteger /*NSItemProviderFileOptions*/): Bool
-    @ForeignName["loadDataRepresentationForTypeIdentifier:completionHandler:"] public open func loadDataRepresentationForTypeIdentifierCompletionHandler(typeIdentifier: NSString, completionHandler: ObjCBlock<(NSData, NSError) -> Unit>): NSProgress
-    @ForeignName["loadFileRepresentationForTypeIdentifier:completionHandler:"] public open func loadFileRepresentationForTypeIdentifierCompletionHandler(typeIdentifier: NSString, completionHandler: ObjCBlock<(NSURL, NSError) -> Unit>): NSProgress
-    @ForeignName["loadInPlaceFileRepresentationForTypeIdentifier:completionHandler:"] public open func loadInPlaceFileRepresentationForTypeIdentifierCompletionHandler(typeIdentifier: NSString, completionHandler: ObjCBlock<(NSURL, Bool, NSError) -> Unit>): NSProgress
+    @ForeignName["loadDataRepresentationForTypeIdentifier:completionHandler:"] public open func loadDataRepresentationForTypeIdentifierCompletionHandler(typeIdentifier: NSString, completionHandler: ObjCBlock<(?NSData, ?NSError) -> Unit>): NSProgress
+    @ForeignName["loadFileRepresentationForTypeIdentifier:completionHandler:"] public open func loadFileRepresentationForTypeIdentifierCompletionHandler(typeIdentifier: NSString, completionHandler: ObjCBlock<(?NSURL, ?NSError) -> Unit>): NSProgress
+    @ForeignName["loadInPlaceFileRepresentationForTypeIdentifier:completionHandler:"] public open func loadInPlaceFileRepresentationForTypeIdentifierCompletionHandler(typeIdentifier: NSString, completionHandler: ObjCBlock<(?NSURL, Bool, ?NSError) -> Unit>): NSProgress
     public open mut prop suggestedName: ?NSString
     @ForeignName["initWithObject:"] public init(object: NSItemProviderWriting)
     @ForeignName["registerObject:visibility:"] public open func registerObjectVisibility(object: NSItemProviderWriting, visibility: NSInteger /*NSItemProviderRepresentationVisibility*/): Unit
-    @ForeignName["registerObjectOfClass:visibility:loadHandler:"] public open func registerObjectOfClassVisibilityLoadHandler(aClass: ObjCClass, visibility: NSInteger /*NSItemProviderRepresentationVisibility*/, loadHandler: ObjCBlock<(ObjCBlock<(NSItemProviderWriting, NSError) -> Unit>) -> NSProgress>): Unit
+    @ForeignName["registerObjectOfClass:visibility:loadHandler:"] public open func registerObjectOfClassVisibilityLoadHandler(aClass: ObjCClass, visibility: NSInteger /*NSItemProviderRepresentationVisibility*/, loadHandler: ObjCBlock<(ObjCBlock<(?NSItemProviderWriting, ?NSError) -> Unit>) -> ?NSProgress>): Unit
     @ForeignName["canLoadObjectOfClass:"] public open func canLoadObjectOfClass(aClass: ObjCClass): Bool
-    @ForeignName["loadObjectOfClass:completionHandler:"] public open func loadObjectOfClassCompletionHandler(aClass: ObjCClass, completionHandler: ObjCBlock<(NSItemProviderReading, NSError) -> Unit>): NSProgress
+    @ForeignName["loadObjectOfClass:completionHandler:"] public open func loadObjectOfClassCompletionHandler(aClass: ObjCClass, completionHandler: ObjCBlock<(?NSItemProviderReading, ?NSError) -> Unit>): NSProgress
     @ForeignName["initWithItem:typeIdentifier:"] public init(item: ?NSSecureCoding, typeIdentifier: ?NSString)
     @ForeignName["initWithContentsOfURL:"] public init(fileURL: ?NSURL)
     @ForeignName["registerItemForTypeIdentifier:loadHandler:"] public open func registerItemForTypeIdentifierLoadHandler(typeIdentifier: NSString, loadHandler: NSItemProviderLoadHandler): Unit
-    @ForeignName["loadItemForTypeIdentifier:options:completionHandler:"] public open func loadItemForTypeIdentifierOptionsCompletionHandler(typeIdentifier: NSString, options: ?NSDictionary/*<KeyType, ObjectType>*/, completionHandler: NSItemProviderCompletionHandler): Unit
+    @ForeignName["loadItemForTypeIdentifier:options:completionHandler:"] public open func loadItemForTypeIdentifierOptionsCompletionHandler(typeIdentifier: NSString, options: ?NSDictionary, completionHandler: NSItemProviderCompletionHandler): Unit
     public open mut prop previewImageHandler: NSItemProviderLoadHandler
-    @ForeignName["loadPreviewImageWithOptions:completionHandler:"] public open func loadPreviewImageWithOptionsCompletionHandler(options: ?NSDictionary/*<KeyType, ObjectType>*/, completionHandler: NSItemProviderCompletionHandler): Unit
+    @ForeignName["loadPreviewImageWithOptions:completionHandler:"] public open func loadPreviewImageWithOptionsCompletionHandler(options: ?NSDictionary, completionHandler: NSItemProviderCompletionHandler): Unit
 }
 
 public abstract sealed class NSItemProviderErrorCode {

@@ -41,60 +41,60 @@ public struct NSHashEnumerator {
 }
 
 @ObjCMirror
-public func NSFreeHashTable(table: NSHashTable/*<ObjectType>*/): Unit
+public func NSFreeHashTable(table: NSHashTable): Unit
 
 @ObjCMirror
-public func NSResetHashTable(table: NSHashTable/*<ObjectType>*/): Unit
+public func NSResetHashTable(table: NSHashTable): Unit
 
 @ObjCMirror
-public func NSCompareHashTables(table1: NSHashTable/*<ObjectType>*/, table2: NSHashTable/*<ObjectType>*/): Bool
+public func NSCompareHashTables(table1: NSHashTable, table2: NSHashTable): Bool
 
 @ObjCMirror
-public func NSCopyHashTableWithZone(table: NSHashTable/*<ObjectType>*/, zone: ObjCPointer<NSZone>): NSHashTable/*<ObjectType>*/
+public func NSCopyHashTableWithZone(table: NSHashTable, zone: ObjCPointer<NSZone>): NSHashTable
 
 @ObjCMirror
-public func NSHashGet(table: NSHashTable/*<ObjectType>*/, pointer: ObjCPointer<Unit>): ObjCPointer<Unit>
+public func NSHashGet(table: NSHashTable, pointer: ObjCPointer<Unit>): ObjCPointer<Unit>
 
 @ObjCMirror
-public func NSHashInsert(table: NSHashTable/*<ObjectType>*/, pointer: ObjCPointer<Unit>): Unit
+public func NSHashInsert(table: NSHashTable, pointer: ObjCPointer<Unit>): Unit
 
 @ObjCMirror
-public func NSHashInsertKnownAbsent(table: NSHashTable/*<ObjectType>*/, pointer: ObjCPointer<Unit>): Unit
+public func NSHashInsertKnownAbsent(table: NSHashTable, pointer: ObjCPointer<Unit>): Unit
 
 @ObjCMirror
-public func NSHashInsertIfAbsent(table: NSHashTable/*<ObjectType>*/, pointer: ObjCPointer<Unit>): ObjCPointer<Unit>
+public func NSHashInsertIfAbsent(table: NSHashTable, pointer: ObjCPointer<Unit>): ObjCPointer<Unit>
 
 @ObjCMirror
-public func NSHashRemove(table: NSHashTable/*<ObjectType>*/, pointer: ObjCPointer<Unit>): Unit
+public func NSHashRemove(table: NSHashTable, pointer: ObjCPointer<Unit>): Unit
 
 @ObjCMirror
-public func NSEnumerateHashTable(table: NSHashTable/*<ObjectType>*/): NSHashEnumerator
+public func NSEnumerateHashTable(table: NSHashTable): NSHashEnumerator
 
 foreign func NSNextHashEnumeratorItem(enumerator: CPointer<NSHashEnumerator>): CPointer<Unit>
 
 foreign func NSEndHashTableEnumeration(enumerator: CPointer<NSHashEnumerator>): Unit
 
 @ObjCMirror
-public func NSCountHashTable(table: NSHashTable/*<ObjectType>*/): NSUInteger
+public func NSCountHashTable(table: NSHashTable): NSUInteger
 
 @ObjCMirror
-public func NSStringFromHashTable(table: NSHashTable/*<ObjectType>*/): NSString
+public func NSStringFromHashTable(table: NSHashTable): NSString
 
 @ObjCMirror
-public func NSAllHashTableObjects(table: NSHashTable/*<ObjectType>*/): NSArray/*<ObjectType>*/
+public func NSAllHashTableObjects(table: NSHashTable): NSArray
 
 @ObjCMirror
 public struct NSHashTableCallBacks {
-    public var hash: ObjCFunc<(NSHashTable/*<ObjectType>*/, ObjCPointer<Unit>) -> NSUInteger>
-    public var isEqual: ObjCFunc<(NSHashTable/*<ObjectType>*/, ObjCPointer<Unit>, ObjCPointer<Unit>) -> Bool>
-    public var retain: ObjCFunc<(NSHashTable/*<ObjectType>*/, ObjCPointer<Unit>) -> Unit>
-    public var release: ObjCFunc<(NSHashTable/*<ObjectType>*/, ObjCPointer<Unit>) -> Unit>
-    public var describe: ObjCFunc<(NSHashTable/*<ObjectType>*/, ObjCPointer<Unit>) -> NSString>
+    public var hash: ObjCFunc<(NSHashTable, ObjCPointer<Unit>) -> NSUInteger>
+    public var isEqual: ObjCFunc<(NSHashTable, ObjCPointer<Unit>, ObjCPointer<Unit>) -> Bool>
+    public var retain: ObjCFunc<(NSHashTable, ObjCPointer<Unit>) -> Unit>
+    public var release: ObjCFunc<(NSHashTable, ObjCPointer<Unit>) -> Unit>
+    public var describe: ObjCFunc<(NSHashTable, ObjCPointer<Unit>) -> ?NSString>
 }
 
 @ObjCMirror
-public func NSCreateHashTableWithZone(callBacks: NSHashTableCallBacks, capacity: NSUInteger, zone: ObjCPointer<NSZone>): NSHashTable/*<ObjectType>*/
+public func NSCreateHashTableWithZone(callBacks: NSHashTableCallBacks, capacity: NSUInteger, zone: ObjCPointer<NSZone>): NSHashTable
 
 @ObjCMirror
-public func NSCreateHashTable(callBacks: NSHashTableCallBacks, capacity: NSUInteger): NSHashTable/*<ObjectType>*/
+public func NSCreateHashTable(callBacks: NSHashTableCallBacks, capacity: NSUInteger): NSHashTable
 

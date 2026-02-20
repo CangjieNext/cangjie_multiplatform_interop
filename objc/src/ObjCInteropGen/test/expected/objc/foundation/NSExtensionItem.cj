@@ -10,6 +10,6 @@ public open class NSExtensionItem <: NSObject & NSCopying & NSSecureCoding {
     public open mut prop attributedTitle: ?NSAttributedString
     public open mut prop attributedContentText: ?NSAttributedString
     public open mut prop attachments: ?NSArray/*<NSItemProvider>*/
-    public open mut prop userInfo: ?NSDictionary/*<KeyType, ObjectType>*/
+    public open mut prop userInfo: ?NSDictionary
 }
 

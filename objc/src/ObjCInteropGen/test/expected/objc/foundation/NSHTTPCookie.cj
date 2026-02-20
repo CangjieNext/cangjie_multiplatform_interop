@@ -28,6 +28,6 @@ public open class NSHTTPCookie <: NSObject {
     public open prop comment: ?NSString
     public open prop commentURL: ?NSURL
     public open prop portList: ?NSArray/*<NSNumber>*/
-    public open prop sameSitePolicy: NSHTTPCookieStringPolicy
+    public open prop sameSitePolicy: ?NSHTTPCookieStringPolicy
 }
 

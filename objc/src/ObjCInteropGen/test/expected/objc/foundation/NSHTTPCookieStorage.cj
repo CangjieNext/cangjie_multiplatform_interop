@@ -24,6 +24,6 @@ public open class NSHTTPCookieStorage <: NSObject {
     public open mut prop cookieAcceptPolicy: NSUInteger /*NSHTTPCookieAcceptPolicy*/
     @ForeignName["sortedCookiesUsingDescriptors:"] public open func sortedCookiesUsingDescriptors(sortOrder: NSArray/*<NSSortDescriptor>*/): NSArray/*<NSHTTPCookie>*/
     @ForeignName["storeCookies:forTask:"] public open func storeCookiesForTask(cookies: NSArray/*<NSHTTPCookie>*/, task: NSURLSessionTask): Unit
-    @ForeignName["getCookiesForTask:completionHandler:"] public open func getCookiesForTaskCompletionHandler(task: NSURLSessionTask, completionHandler: ObjCBlock<(NSArray/*<NSHTTPCookie>*/) -> Unit>): Unit
+    @ForeignName["getCookiesForTask:completionHandler:"] public open func getCookiesForTaskCompletionHandler(task: NSURLSessionTask, completionHandler: ObjCBlock<(?NSArray/*<NSHTTPCookie>*/) -> Unit>): Unit
 }
 
