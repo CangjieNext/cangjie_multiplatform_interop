@@ -4,12 +4,12 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-package cjworld.cjworld
+package interoplib.interop.tests
 
 import interoplib.interop.*
 
 @C
-public func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
+protected func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
     withExceptionHandling(env) {
         let a = A(Java_CFFI_newGlobalReference(env, Java_CFFI_JavaEntity(JOBJECT, obj), true))
         Java_CFFI_put_to_registry_1(a)
@@ -17,14 +17,14 @@ public func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
 }
 
 @C
-public func Java_A_deleteCJObject(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
+protected func Java_A_deleteCJObject(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
     withExceptionHandling(env) {
         Java_CFFI_deleteCJObject<A>(env, self) { v => v.obj }
     }
 }
 
 @C
-public func Java_A_gooImpl(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
+protected func Java_A_gooImpl(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
     withExceptionHandling(env) {
         let v = Java_CFFI_getFromRegistry<A>(env, self)
         v.goo(env)
@@ -32,7 +32,7 @@ public func Java_A_gooImpl(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
 }
 
 @C
-public func Java_A_gooCJThrowGetImpl(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
+protected func Java_A_gooCJThrowGetImpl(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
     withExceptionHandling(env) {
         let v = Java_CFFI_getFromRegistry<A>(env, self)
         v.gooCJThrowGet(env)
@@ -40,7 +40,7 @@ public func Java_A_gooCJThrowGetImpl(env: JNIEnv_ptr, clazz: jclass, self: jlong
 }
 
 @C
-public func Java_A_gooCJThrowPutImpl(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
+protected func Java_A_gooCJThrowPutImpl(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
     withExceptionHandling(env) {
         let v = Java_CFFI_getFromRegistry<A>(env, self)
         v.gooCJThrowPut(env)
@@ -54,7 +54,7 @@ public open class A {
         this.obj = obj
     }
 
-    public func goo(env: JNIEnv_ptr): Unit {
+    protected func goo(env: JNIEnv_ptr): Unit {
         println("Hello from A goo(). Then we expect gooExceptionStatic thrown and caught exception")
         try {
             let clazz = Java_CFFI_Class(env, "Utils")
@@ -74,7 +74,7 @@ public open class A {
         Java_CFFI_callStaticMethod(env, clazz, id, [], callNest)
     }
 
-    public func gooCJThrowPut(env: JNIEnv_ptr): Unit {
+    protected func gooCJThrowPut(env: JNIEnv_ptr): Unit {
         if (true) {
             throw Exception("CJ Exception thrown from gooCJThrowPut")
         }
@@ -85,7 +85,7 @@ public open class A {
         Java_CFFI_callStaticMethod(env, clazz, id, [], callNest)
     }
 
-    public func gooCJThrowGet(env: JNIEnv_ptr): Unit {
+    protected func gooCJThrowGet(env: JNIEnv_ptr): Unit {
         println("Hello from A gooCJThrowGet(). Then we expect gooCJThrowPut thrown CJ exception")
         gooCJThrowPut(env)
     }

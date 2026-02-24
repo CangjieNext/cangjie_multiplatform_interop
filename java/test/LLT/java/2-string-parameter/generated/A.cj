@@ -4,12 +4,12 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-package cjworld.cjworld
+package interoplib.interop.tests
 
 import interoplib.interop.*
 
 @C
-public func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
+protected func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
     withExceptionHandling(env) {
         let a = A(Java_CFFI_newGlobalReference(env, Java_CFFI_JavaEntity(JOBJECT, obj), true))
         Java_CFFI_put_to_registry_1(a)
@@ -17,19 +17,19 @@ public func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
 }
 
 @C
-public func Java_A_deleteCJObject(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
+protected func Java_A_deleteCJObject(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
     withExceptionHandling(env) {
         Java_CFFI_deleteCJObject<A>(env, self) { v => v.obj }
     }
 }
 
 @C
-public func Java_A_fieldInitStatic(env: JNIEnv_ptr, clazz: jclass, value: jint): jint {
+protected func Java_A_fieldInitStatic(env: JNIEnv_ptr, clazz: jclass, value: jint): jint {
     A.fieldInitStatic(value)
 }
 
 @C
-public func Java_A_gooImpl(env: JNIEnv_ptr, _: jclass, self: jlong, arg: jstring): Unit {
+protected func Java_A_gooImpl(env: JNIEnv_ptr, _: jclass, self: jlong, arg: jstring): Unit {
     withExceptionHandling(env) {
         let v = Java_CFFI_getFromRegistry<A>(env, self)
         v.goo(env, arg)
@@ -37,7 +37,7 @@ public func Java_A_gooImpl(env: JNIEnv_ptr, _: jclass, self: jlong, arg: jstring
 }
 
 @C
-public func Java_A_gooMultipleArgsImpl(env: JNIEnv_ptr, _: jclass, self: jlong, arg1: jstring, arg2: jint): Unit {
+protected func Java_A_gooMultipleArgsImpl(env: JNIEnv_ptr, _: jclass, self: jlong, arg1: jstring, arg2: jint): Unit {
     withExceptionHandling(env) {
         let v = Java_CFFI_getFromRegistry<A>(env, self)
         v.gooMultipleArgs(env, arg1, arg2)
@@ -57,7 +57,7 @@ public open class A {
         f * 2
     }
 
-    public func gooMultipleArgs(env: JNIEnv_ptr, arg1: jstring, arg2: Int32): Unit {
+    protected func gooMultipleArgs(env: JNIEnv_ptr, arg1: jstring, arg2: Int32): Unit {
         print("Hello from overridden A gooMultipleArgs(String, int) ")
         println(Java_CFFI_JavaStringToCangjie(env, Java_CFFI_JavaEntity(JSTRING, arg1)))
         
@@ -68,7 +68,7 @@ public open class A {
         Java_CFFI_callMethod(env, obj, id, [superMsg, Java_CFFI_JavaEntity(JINT, 8)], Java_CFFI_JavaCallNest(2))
     }
 
-    public func goo(env: JNIEnv_ptr, arg: jstring): Unit {
+    protected func goo(env: JNIEnv_ptr, arg: jstring): Unit {
         print("Hello from overridden A goo(String) ")
         println(Java_CFFI_JavaStringToCangjie(env, Java_CFFI_JavaEntity(JSTRING, arg)))
         

@@ -13,7 +13,7 @@ let SIZE_LIMIT = 48 * 1024
 var registry = Registry()
 private var mutex = Mutex()
 
-public class Registry {
+protected class Registry {
     var mockRegistry: Array<Any>
     var objId: Int64
     var freeList: Array<Int64>

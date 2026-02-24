@@ -8,7 +8,7 @@ import static cangjie.lang.LibraryLoader.loadLibrary;
 
 public class A {
     static {
-        loadLibrary("cjworld.cjworld");
+        loadLibrary("interoplib.interop.tests");
     }
 
     long self;

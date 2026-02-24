@@ -24,7 +24,7 @@ public type jfloatArray = jarray
 public type jdoubleArray = jarray
 public type jobjectArray = jarray
 public type jmethodID = CPointer<Unit>
-public type JNIEnv_ptr = CPointer<CPointer<JNINativeInterface_>>
+protected type JNIEnv_ptr = CPointer<CPointer<JNINativeInterface_>>
 public type jlong = Int64
 public type jint = Int32
 public type jstring = CPointer<Unit>
@@ -40,7 +40,7 @@ public type jdouble = Float64
 public type jbyte = Int8
 type JavaVM = CPointer<JNIInvokeInterface_>
 
-public class JNIException <: Exception {
+protected class JNIException <: Exception {
     init(message: String, jException: jthrowable) {
         super(message)
         this.jException = jException
@@ -59,7 +59,7 @@ func setJavaVM(javaVM: CPointer<JavaVM>): Unit {
 }
 
 @C
-public struct JNINativeInterface_ {
+protected struct JNINativeInterface_ {
     private var reserved0 = CPointer<Unit>()
     private var reserved1 = CPointer<Unit>()
     private var reserved2 = CPointer<Unit>()
@@ -370,7 +370,7 @@ public struct JNINativeInterface_ {
 }
 
 @C
-public struct JNIInvokeInterface_ {
+protected struct JNIInvokeInterface_ {
     private var reserved0 = CPointer<Unit>()
     private var reserved1 = CPointer<Unit>()
     private var reserved2 = CPointer<Unit>()
@@ -386,7 +386,7 @@ public struct JNIInvokeInterface_ {
     var AttachCurrentThreadAsDaemon = CFunc<(CPointer<JavaVM>, CPointer<JNIEnv_ptr>, CPointer<Unit>) -> jint>(CPointer<Unit>())
 }
 
-public class InteropLibException <: Exception {
+protected class InteropLibException <: Exception {
     public init(reason: String) {
         super(reason)
     }
@@ -396,7 +396,7 @@ public class InteropLibException <: Exception {
     }
 }
 
-public enum Java_CFFI_BaseSignature {
+protected enum Java_CFFI_BaseSignature {
     | BYTE    // b
     | CHAR    // c
     | DOUBLE  // d
@@ -436,7 +436,7 @@ public enum Java_CFFI_BaseSignature {
     }
 }
 
-public enum Java_CFFI_ObjectSignature {
+protected enum Java_CFFI_ObjectSignature {
     | REFERENCE(String)                   // LClassName; TODO: class name correctness checks?
     | ARRAY(Java_CFFI_ComponentSignature) // [ComponentSignature
 
@@ -481,7 +481,7 @@ private func checkObjectSignature(signature: String, parsed: Java_CFFI_Component
     }
 }
 
-public enum Java_CFFI_ComponentSignature {
+protected enum Java_CFFI_ComponentSignature {
     | PRIMITIVE(Java_CFFI_BaseSignature)
     | OBJECT(Java_CFFI_ObjectSignature)
 
@@ -500,7 +500,7 @@ public enum Java_CFFI_ComponentSignature {
     }
 }
 
-public class Java_CFFI_MethodSignature {
+protected class Java_CFFI_MethodSignature {
     public let params: Array<Java_CFFI_ComponentSignature>
     public let ret: Java_CFFI_ComponentSignature
 
@@ -540,7 +540,7 @@ public class Java_CFFI_MethodSignature {
     }
 }
 
-public enum Java_CFFI_EntitySignature {
+protected enum Java_CFFI_EntitySignature {
     | FIELD(Java_CFFI_ComponentSignature)
     | METHOD(Java_CFFI_MethodSignature)
 
@@ -612,7 +612,7 @@ private func signatureBaseCheck(signature: String) {
     }
 }
 
-public func Java_CFFI_parseComponentSignature(signature: String): Java_CFFI_ComponentSignature {
+protected func Java_CFFI_parseComponentSignature(signature: String): Java_CFFI_ComponentSignature {
     signatureBaseCheck(signature)
     
     let parsed = Java_CFFI_parseComponentSignatureImpl(unsafe { signature.rawData() }, 0)
@@ -707,7 +707,7 @@ private func restoreComponentSignatureSize(signature: Java_CFFI_ComponentSignatu
     }
 }
 
-public func Java_CFFI_parseMethodSignature(signature: String): Java_CFFI_MethodSignature {
+protected func Java_CFFI_parseMethodSignature(signature: String): Java_CFFI_MethodSignature {
     signatureBaseCheck(signature)
     if (signature.size < 3) {
         throw InteropLibException("Cannot parse method signature ${signature}")
@@ -737,7 +737,7 @@ public func Java_CFFI_parseMethodSignature(signature: String): Java_CFFI_MethodS
     Java_CFFI_MethodSignature(args, ret)
 }
 
-public class Java_CFFI_Class <: ToString {
+protected class Java_CFFI_Class <: ToString {
     var obj = jclass()
     public let name: String
 
@@ -781,7 +781,7 @@ public class Java_CFFI_Class <: ToString {
     }
 }
 
-public class Java_CFFI_InvariantFailed <: Exception {
+protected class Java_CFFI_InvariantFailed <: Exception {
     public init() {
         super("interoplib invariant failed")
     }
@@ -837,7 +837,7 @@ public open class Java_CFFI_EntityID {
     }
 }
 
-public class Java_CFFI_FieldID <: Java_CFFI_EntityID {
+protected class Java_CFFI_FieldID <: Java_CFFI_EntityID {
     let id: jfieldID
     
     init(signature: Java_CFFI_EntitySignature, id: jfieldID, `static`: Bool) {
@@ -874,7 +874,7 @@ public class Java_CFFI_FieldID <: Java_CFFI_EntityID {
     }
 }
 
-public class Java_CFFI_MethodID <: Java_CFFI_EntityID {
+protected class Java_CFFI_MethodID <: Java_CFFI_EntityID {
     let id: jmethodID
 
     init(signature: Java_CFFI_EntitySignature, id: jmethodID, `static`: Bool) {
@@ -909,7 +909,7 @@ private func withLocalRef<R>(env: JNIEnv_ptr, obj: jobject, action: (ref: jobjec
     }
 }
 
-public func getLocalRef(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Java_CFFI_JavaEntity {
+protected func getLocalRef(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Java_CFFI_JavaEntity {
     unsafe {
         let envCJ = env.read().read()
         let localRef = envCJ.NewLocalRef(env, obj.asJObject())
@@ -917,7 +917,7 @@ public func getLocalRef(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Java_CFFI_J
     }
 }
 
-public func deleteLocalRef(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
+protected func deleteLocalRef(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
     unsafe {
         let envCJ = env.read().read()
         let localRef = envCJ.DeleteLocalRef(env, obj.asJObject())
@@ -1200,7 +1200,7 @@ public struct Java_CFFI_JavaEntity {
     }
 }
 
-public class Java_CFFI_JavaCallNest {
+protected class Java_CFFI_JavaCallNest {
     let array: Array<jvalue>
     let size: Int64
 
@@ -1369,7 +1369,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
     }
 }
 
-public func Java_CFFI_callMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, method: Java_CFFI_MethodID, args: Array<Java_CFFI_JavaEntity>, argsCallNest: Java_CFFI_JavaCallNest): Java_CFFI_JavaEntity {
+protected func Java_CFFI_callMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, method: Java_CFFI_MethodID, args: Array<Java_CFFI_JavaEntity>, argsCallNest: Java_CFFI_JavaCallNest): Java_CFFI_JavaEntity {
     if (args.size > argsCallNest.array.size) {
         throw InteropLibException("Cannot perform call, too small argsCallNest.array (${argsCallNest.size}, required at least ${args.size})")
     }
@@ -1399,7 +1399,7 @@ public func Java_CFFI_callMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, met
     res
 }
 
-public func Java_CFFI_callVirtualMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, method: Java_CFFI_MethodID, args: Array<Java_CFFI_JavaEntity>, argsCallNest: Java_CFFI_JavaCallNest): Java_CFFI_JavaEntity {
+protected func Java_CFFI_callVirtualMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, method: Java_CFFI_MethodID, args: Array<Java_CFFI_JavaEntity>, argsCallNest: Java_CFFI_JavaCallNest): Java_CFFI_JavaEntity {
     let res = Java_CFFI_callVirtualMethod_no_exception_handling(env, obj, method, args, argsCallNest)
     handlePendingException(env)
     res
@@ -1587,7 +1587,7 @@ private func Java_CFFI_callStaticMethod(env: JNIEnv_ptr, clazz: Java_CFFI_Class,
     Java_CFFI_callStaticMethod(env, clazz, id, args, callNest)
 }
 
-public func Java_CFFI_callStaticMethod(env: JNIEnv_ptr, clazz: Java_CFFI_Class, method: Java_CFFI_MethodID, args: Array<Java_CFFI_JavaEntity>, argsCallNest: Java_CFFI_JavaCallNest): Java_CFFI_JavaEntity {
+protected func Java_CFFI_callStaticMethod(env: JNIEnv_ptr, clazz: Java_CFFI_Class, method: Java_CFFI_MethodID, args: Array<Java_CFFI_JavaEntity>, argsCallNest: Java_CFFI_JavaCallNest): Java_CFFI_JavaEntity {
     if (args.size > argsCallNest.array.size) {
         throw InteropLibException("Cannot perform call, too small argsCallNest.array (${argsCallNest.size}, required at least ${args.size})")
     }
@@ -1791,7 +1791,7 @@ private unsafe func getFieldJavaEntity(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntit
     }
 }
 
-public func Java_CFFI_getField(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, field: Java_CFFI_FieldID): Java_CFFI_JavaEntity {
+protected func Java_CFFI_getField(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, field: Java_CFFI_FieldID): Java_CFFI_JavaEntity {
     if (field.`static`) {
         throw InteropLibException("Cannot get static entity from non-static obj")
     }
@@ -1804,7 +1804,7 @@ public func Java_CFFI_getField(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, field
     res
 }
 
-public func Java_CFFI_getStaticField(env: JNIEnv_ptr, clazz: Java_CFFI_Class, field: Java_CFFI_FieldID): Java_CFFI_JavaEntity {
+protected func Java_CFFI_getStaticField(env: JNIEnv_ptr, clazz: Java_CFFI_Class, field: Java_CFFI_FieldID): Java_CFFI_JavaEntity {
     if (!field.`static`) {
         throw InteropLibException("Cannot get non-static entity from class")
     }
@@ -1927,7 +1927,7 @@ private unsafe func setFieldJavaEntity(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntit
     }
 }
 
-public func Java_CFFI_setField(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, field: Java_CFFI_FieldID, value: Java_CFFI_JavaEntity): Unit {
+protected func Java_CFFI_setField(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, field: Java_CFFI_FieldID, value: Java_CFFI_JavaEntity): Unit {
     if (field.`static`) {
         throw InteropLibException("Cannot set static entity to non-static obj")
     }
@@ -1939,7 +1939,7 @@ public func Java_CFFI_setField(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, field
     handlePendingException(env)
 }
 
-public func Java_CFFI_setStaticField(env: JNIEnv_ptr, clazz: Java_CFFI_Class, field: Java_CFFI_FieldID, value: Java_CFFI_JavaEntity): Unit {
+protected func Java_CFFI_setStaticField(env: JNIEnv_ptr, clazz: Java_CFFI_Class, field: Java_CFFI_FieldID, value: Java_CFFI_JavaEntity): Unit {
     if (!field.`static`) {
         throw InteropLibException("Cannot set non-static entity to class")
     }
@@ -1985,7 +1985,7 @@ public func Java_CFFI_setStaticField(env: JNIEnv_ptr, clazz: Java_CFFI_Class, fi
     handlePendingException(env)
 }
 
-public abstract class Java_CFFI_SafeInteropPreparationMixin {
+protected abstract class Java_CFFI_SafeInteropPreparationMixin {
     private static var JavaInteropPreparationLock = AtomicBool(false)
     private static var JavaInteropPrepared = AtomicBool(false)
 
@@ -2008,7 +2008,7 @@ public abstract class Java_CFFI_SafeInteropPreparationMixin {
     }
 }
 
-public func Java_CFFI_JavaStringToCangjie(env: JNIEnv_ptr, str: Java_CFFI_JavaEntity): String {
+protected func Java_CFFI_JavaStringToCangjie(env: JNIEnv_ptr, str: Java_CFFI_JavaEntity): String {
     let jStr = str.asJString()
     unsafe {
         let envCJ = env.read().read()
@@ -2033,11 +2033,11 @@ public func Java_CFFI_JavaStringToCangjie(env: JNIEnv_ptr, str: Java_CFFI_JavaEn
     }
 }
 
-public func Java_CFFI_CangjieStringToJava(env: JNIEnv_ptr, str: String): Java_CFFI_JavaEntity {
+protected func Java_CFFI_CangjieStringToJava(env: JNIEnv_ptr, str: String): Java_CFFI_JavaEntity {
     Java_CFFI_JavaEntity(JSTRING, to_jstring(env, str))
 }
 
-public func Java_CFFI_newJavaObject(env: JNIEnv_ptr, clazz: Java_CFFI_Class, constructor: Java_CFFI_MethodID, args: Array<Java_CFFI_JavaEntity>, argsCallNest: Java_CFFI_JavaCallNest): Java_CFFI_JavaEntity {
+protected func Java_CFFI_newJavaObject(env: JNIEnv_ptr, clazz: Java_CFFI_Class, constructor: Java_CFFI_MethodID, args: Array<Java_CFFI_JavaEntity>, argsCallNest: Java_CFFI_JavaCallNest): Java_CFFI_JavaEntity {
     if (args.size > argsCallNest.size) {
         throw InteropLibException("Cannot perform call, too small argsCallNest (${argsCallNest.size}, required at least ${args.size})")
     }
@@ -2087,7 +2087,7 @@ public func Java_CFFI_newJavaObject(env: JNIEnv_ptr, clazz: Java_CFFI_Class, con
 
 // The constructor of the proxy class for structTy contains a special parameter, whereas EnumTy
 // does not require it. 
-public func Java_CFFI_newJavaProxyObjectForCJMapping(env: JNIEnv_ptr, entity: Object, name: String,
+protected func Java_CFFI_newJavaProxyObjectForCJMapping(env: JNIEnv_ptr, entity: Object, name: String,
     withMarkerParam: Bool): jobject {
     let id = Java_CFFI_put_to_registry_1(entity)
     let clazz = Java_CFFI_Class(env, name)
@@ -2104,7 +2104,7 @@ public func Java_CFFI_newJavaProxyObjectForCJMapping(env: JNIEnv_ptr, entity: Ob
     Java_CFFI_newJavaObject(env, clazz, methodId, args.toArray(), Java_CFFI_JavaCallNest(args.size)).asJObject()
 }
 
-public func Java_CFFI_newGlobalReference(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, weak: Bool): Java_CFFI_JavaEntity {
+protected func Java_CFFI_newGlobalReference(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, weak: Bool): Java_CFFI_JavaEntity {
     unsafe {
         let envCJ = env.read().read()
         if (weak) {
@@ -2115,12 +2115,12 @@ public func Java_CFFI_newGlobalReference(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
     }
 }
 
-public func Java_CFFI_newJavaArray(env: JNIEnv_ptr, elementType: String, size: jsize): Java_CFFI_JavaEntity {
+protected func Java_CFFI_newJavaArray(env: JNIEnv_ptr, elementType: String, size: jsize): Java_CFFI_JavaEntity {
     let elementTypeSignature = Java_CFFI_parseComponentSignature(elementType)
     Java_CFFI_newJavaArray(env, elementTypeSignature, size)
 }
 
-public func Java_CFFI_newJavaArray(env: JNIEnv_ptr, elementType: Java_CFFI_ComponentSignature, size: jsize): Java_CFFI_JavaEntity {
+protected func Java_CFFI_newJavaArray(env: JNIEnv_ptr, elementType: Java_CFFI_ComponentSignature, size: jsize): Java_CFFI_JavaEntity {
     let res = unsafe {
         let envCJ = env.read().read()
         match (elementType) {
@@ -2143,14 +2143,14 @@ public func Java_CFFI_newJavaArray(env: JNIEnv_ptr, elementType: Java_CFFI_Compo
     res
 }
 
-public func Java_CFFI_arrayGetLength(env: JNIEnv_ptr, array: Java_CFFI_JavaEntity): jsize {
+protected func Java_CFFI_arrayGetLength(env: JNIEnv_ptr, array: Java_CFFI_JavaEntity): jsize {
     unsafe {
         let envCJ = env.read().read()
         envCJ.GetArrayLength(env, array.asJObject())
     }
 }
 
-public func Java_CFFI_deleteGlobalReference(env: JNIEnv_ptr, ref: Java_CFFI_JavaEntity): Unit {
+protected func Java_CFFI_deleteGlobalReference(env: JNIEnv_ptr, ref: Java_CFFI_JavaEntity): Unit {
     unsafe {
         let envCJ = env.read().read()
         match (ref.kind) {
@@ -2161,7 +2161,7 @@ public func Java_CFFI_deleteGlobalReference(env: JNIEnv_ptr, ref: Java_CFFI_Java
     }
 }
 
-public func Java_CFFI_arrayGet(env: JNIEnv_ptr, elementType: Java_CFFI_JavaEntityKind, array: Java_CFFI_JavaEntity, index: jint): Java_CFFI_JavaEntity {
+protected func Java_CFFI_arrayGet(env: JNIEnv_ptr, elementType: Java_CFFI_JavaEntityKind, array: Java_CFFI_JavaEntity, index: jint): Java_CFFI_JavaEntity {
     unsafe {
         let envCJ = env.read().read()
         let res = match (elementType) {
@@ -2209,7 +2209,7 @@ public func Java_CFFI_arrayGet(env: JNIEnv_ptr, elementType: Java_CFFI_JavaEntit
 private let cstrSelf = unsafe { LibC.mallocCString("self") }
 private let cstrJ = unsafe { LibC.mallocCString("J") }
 
-public func Java_CFFI_putToRegistry(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, a: Any): Unit {
+protected func Java_CFFI_putToRegistry(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, a: Any): Unit {
     let id = registry.put(a)
     unsafe {
         let envCJ : JNINativeInterface_ = env.read().read()
@@ -2219,7 +2219,7 @@ public func Java_CFFI_putToRegistry(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, 
     }
 }
 
-public func Java_CFFI_arraySet(env: JNIEnv_ptr, elementType: Java_CFFI_JavaEntityKind, array: Java_CFFI_JavaEntity, index: jint, valueEntity: Java_CFFI_JavaEntity): Unit {
+protected func Java_CFFI_arraySet(env: JNIEnv_ptr, elementType: Java_CFFI_JavaEntityKind, array: Java_CFFI_JavaEntity, index: jint, valueEntity: Java_CFFI_JavaEntity): Unit {
     unsafe {
         let envCJ = env.read().read()
         let res = match (elementType) {
@@ -2270,7 +2270,7 @@ private func to_jstring(env: JNIEnv_ptr, str: String): jstring {
     result
 }
 
-public func Java_CFFI_get_env(): JNIEnv_ptr {
+protected func Java_CFFI_get_env(): JNIEnv_ptr {
     var envPtr = JNIEnv_ptr()
 
     unsafe {
@@ -2288,19 +2288,19 @@ public func Java_CFFI_get_env(): JNIEnv_ptr {
     envPtr
 }
 
-public func Java_CFFI_JavaEntityJobject(jobject: CPointer<Unit>): Java_CFFI_JavaEntity {
+protected func Java_CFFI_JavaEntityJobject(jobject: CPointer<Unit>): Java_CFFI_JavaEntity {
     Java_CFFI_JavaEntity(JOBJECT, jobject)
 }
 
-public func Java_CFFI_JavaEntityJobjectNull(): Java_CFFI_JavaEntity {
+protected func Java_CFFI_JavaEntityJobjectNull(): Java_CFFI_JavaEntity {
     Java_CFFI_JavaEntity(JOBJECT, CPointer<Unit>())
 }
 
-public func Java_CFFI_put_to_registry_1(any: Any): Int64 {
+protected func Java_CFFI_put_to_registry_1(any: Any): Int64 {
     registry.put(any)
 }
 
-public func Java_CFFI_getFromRegistryByObjOption<T>(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): ?T {
+protected func Java_CFFI_getFromRegistryByObjOption<T>(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): ?T {
     unsafe {
         let envCJ : JNINativeInterface_ = env.read().read()
         let jobj = obj.asJObject()
@@ -2319,11 +2319,11 @@ public func Java_CFFI_getFromRegistryByObjOption<T>(env: JNIEnv_ptr, obj: Java_C
     }
 }
 
-public func Java_CFFI_getFromRegistryByObj<T>(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): T {
+protected func Java_CFFI_getFromRegistryByObj<T>(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): T {
     return Java_CFFI_getFromRegistryByObjOption<T>(env, obj) ?? throw InteropLibException("CJ object does not exist")
 }
 
-public func Java_CFFI_getFromRegistry<T>(env: JNIEnv_ptr, self: jlong): T {
+protected func Java_CFFI_getFromRegistry<T>(env: JNIEnv_ptr, self: jlong): T {
     if (let Some(v) <- registry.get<T>(self)) {
         v
     } else {
@@ -2331,26 +2331,26 @@ public func Java_CFFI_getFromRegistry<T>(env: JNIEnv_ptr, self: jlong): T {
     }
 }
 
-public func Java_CFFI_getFromRegistryOption<T>(self: jlong): Option<T> {
+protected func Java_CFFI_getFromRegistryOption<T>(self: jlong): Option<T> {
     registry.get<T>(self)
 }
 
-public func Java_CFFI_removeFromRegistry(self: jlong): Unit {
+protected func Java_CFFI_removeFromRegistry(self: jlong): Unit {
     registry.remove(self)
 }
 
-public func Java_CFFI_deleteCJObject<T>(env: JNIEnv_ptr, self: jlong, getEntity: (T) -> Java_CFFI_JavaEntity): Unit {
+protected func Java_CFFI_deleteCJObject<T>(env: JNIEnv_ptr, self: jlong, getEntity: (T) -> Java_CFFI_JavaEntity): Unit {
     let v = Java_CFFI_getFromRegistry<T>(env, self)
     Java_CFFI_deleteGlobalReference(env, getEntity(v))
     registry.remove(self)
 }
 
-public func Java_CFFI_deleteCJObjectOneWay<T>(env: JNIEnv_ptr, self: jlong): Unit {
+protected func Java_CFFI_deleteCJObjectOneWay<T>(env: JNIEnv_ptr, self: jlong): Unit {
     let v = Java_CFFI_getFromRegistry<T>(env, self)
     registry.remove(self)
 }
 
-public func Java_CFFI_unwrapJavaEntityAsValue<T>(entity: Java_CFFI_JavaEntity): T {
+protected func Java_CFFI_unwrapJavaEntityAsValue<T>(entity: Java_CFFI_JavaEntity): T {
     match (entity.kind) {
         case JVOID where entity.asUnit() is T => (entity.asUnit() as T).getOrThrow()
         case JVALUE | JOBJECT | JWEAK | JSTRONG where entity.asJObject() is T => (entity.asJObject() as T).getOrThrow()
@@ -2367,21 +2367,21 @@ public func Java_CFFI_unwrapJavaEntityAsValue<T>(entity: Java_CFFI_JavaEntity): 
     }
 }
 
-public func Java_CFFI_ensure_not_null(entity: Java_CFFI_JavaEntity): Java_CFFI_JavaEntity {
+protected func Java_CFFI_ensure_not_null(entity: Java_CFFI_JavaEntity): Java_CFFI_JavaEntity {
     match (entity) {
         case e where e.isNull => throw NoneValueException("Unexpected `null` has come from java")
         case e => e
     }
 }
 
-public func Java_CFFI_getJavaEntityOrNull(entity: Java_CFFI_JavaEntity): ?Java_CFFI_JavaEntity {
+protected func Java_CFFI_getJavaEntityOrNull(entity: Java_CFFI_JavaEntity): ?Java_CFFI_JavaEntity {
     match (entity) {
         case e where e.isNull => None
         case e => e
     }
 }
 
-public func Java_CFFI_isInstanceOf(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, className: String): Bool {
+protected func Java_CFFI_isInstanceOf(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, className: String): Bool {
     let clazz = Java_CFFI_Class(env, className)
     unsafe {
         withLocalRef(env, obj.asJObject()) { localRef =>
@@ -2452,7 +2452,7 @@ private func Java_CFFI_wrap_cj_exception(env: JNIEnv_ptr, ex: Exception): JNIExc
     JNIException(ex.message, throwObj)
 }
 
-public func withExceptionHandling<R>(env: JNIEnv_ptr, action: () -> R): R where R <: CType {
+protected func withExceptionHandling<R>(env: JNIEnv_ptr, action: () -> R): R where R <: CType {
     try {
         action()
     } catch (ex: JNIException) {
@@ -2465,31 +2465,31 @@ public func withExceptionHandling<R>(env: JNIEnv_ptr, action: () -> R): R where 
     }
 }
 
-public func Java_CFFI_MethodIDConstr(env: JNIEnv_ptr, clazz: Java_CFFI_Class, methodName: String, signature: Java_CFFI_MethodSignature): Java_CFFI_MethodID {
+protected func Java_CFFI_MethodIDConstr(env: JNIEnv_ptr, clazz: Java_CFFI_Class, methodName: String, signature: Java_CFFI_MethodSignature): Java_CFFI_MethodID {
     Java_CFFI_MethodID.constr(env, clazz, methodName, signature)
 }
 
-public func Java_CFFI_MethodIDConstrStatic(env: JNIEnv_ptr, clazz: Java_CFFI_Class, methodName: String, signature: Java_CFFI_MethodSignature): Java_CFFI_MethodID {
+protected func Java_CFFI_MethodIDConstrStatic(env: JNIEnv_ptr, clazz: Java_CFFI_Class, methodName: String, signature: Java_CFFI_MethodSignature): Java_CFFI_MethodID {
     Java_CFFI_MethodID.constrStatic(env, clazz, methodName, signature)
 }
 
-public func Java_CFFI_FieldIDConstr(env: JNIEnv_ptr, clazz: Java_CFFI_Class, fieldName: String, signature: Java_CFFI_ComponentSignature): Java_CFFI_FieldID {
+protected func Java_CFFI_FieldIDConstr(env: JNIEnv_ptr, clazz: Java_CFFI_Class, fieldName: String, signature: Java_CFFI_ComponentSignature): Java_CFFI_FieldID {
     Java_CFFI_FieldID.constr(env, clazz, fieldName, signature)
 }
 
-public func Java_CFFI_FieldIDConstrStatic(env: JNIEnv_ptr, clazz: Java_CFFI_Class, fieldName: String, signature: Java_CFFI_ComponentSignature): Java_CFFI_FieldID {
+protected func Java_CFFI_FieldIDConstrStatic(env: JNIEnv_ptr, clazz: Java_CFFI_Class, fieldName: String, signature: Java_CFFI_ComponentSignature): Java_CFFI_FieldID {
     Java_CFFI_FieldID.constrStatic(env, clazz, fieldName, signature)
 }
 
-public func Java_CFFI_ClassInit(env: JNIEnv_ptr, name: String) : Java_CFFI_Class {
+protected func Java_CFFI_ClassInit(env: JNIEnv_ptr, name: String) : Java_CFFI_Class {
     Java_CFFI_Class(env, name)
 }
 
-public func Java_CFFI_JavaCallNestInit(n: Int64) : Java_CFFI_JavaCallNest {
+protected func Java_CFFI_JavaCallNestInit(n: Int64) : Java_CFFI_JavaCallNest {
     Java_CFFI_JavaCallNest(n)
 }
 
-public func Java_CFFI_monitorEnter(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
+protected func Java_CFFI_monitorEnter(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
     unsafe {
         let envCJ = env.read().read()
         let jobj = obj.asJObject()
@@ -2500,7 +2500,7 @@ public func Java_CFFI_monitorEnter(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): 
     }
 }
 
-public func Java_CFFI_monitorExit(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
+protected func Java_CFFI_monitorExit(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
     unsafe {
         let envCJ = env.read().read()
         let jobj = obj.asJObject()
@@ -2511,7 +2511,7 @@ public func Java_CFFI_monitorExit(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): U
     }
 }
 
-public func Java_CFFI_withLocalFrame(env: JNIEnv_ptr, capacity: jint, action: () -> Java_CFFI_JavaEntity): Java_CFFI_JavaEntity {
+protected func Java_CFFI_withLocalFrame(env: JNIEnv_ptr, capacity: jint, action: () -> Java_CFFI_JavaEntity): Java_CFFI_JavaEntity {
     unsafe {
         let envCJ = env.read().read()
         let status = envCJ.PushLocalFrame(env, capacity)
@@ -2529,7 +2529,7 @@ public func Java_CFFI_withLocalFrame(env: JNIEnv_ptr, capacity: jint, action: ()
     }
 }
 
-public func Java_CFFI_withLocalFrameUnit(env: JNIEnv_ptr, capacity: jint, action: () -> Unit): Unit {
+protected func Java_CFFI_withLocalFrameUnit(env: JNIEnv_ptr, capacity: jint, action: () -> Unit): Unit {
     unsafe {
         let envCJ = env.read().read()
         let status = envCJ.PushLocalFrame(env, capacity)
@@ -2545,12 +2545,12 @@ public func Java_CFFI_withLocalFrameUnit(env: JNIEnv_ptr, capacity: jint, action
     }
 }
 
-public func getJavaLambdaObject(fun : Any, className: String) : jobject {
+protected func getJavaLambdaObject(fun : Any, className: String) : jobject {
     let obj = getJavaLambdaEntity(fun, className)
     obj.asJObject()
 }
 
-public func getJavaLambdaEntity(fun : Any, className: String) : Java_CFFI_JavaEntity {
+protected func getJavaLambdaEntity(fun : Any, className: String) : Java_CFFI_JavaEntity {
     let cjId = Java_CFFI_put_to_registry_1(fun)
     let env = Java_CFFI_get_env()
     let clazz = Java_CFFI_ClassInit(env, className)
@@ -2559,7 +2559,7 @@ public func getJavaLambdaEntity(fun : Any, className: String) : Java_CFFI_JavaEn
     obj
 }
 
-public class JavaObjectController<T> {
+protected class JavaObjectController<T> {
     var obj: Java_CFFI_JavaEntity
     var cjObj: ?T = None
     var detached = false
