@@ -4,7 +4,7 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-package cjworld.cjworld
+package interoplib.interop.tests
 
 import interoplib.interop.*
 
@@ -52,7 +52,7 @@ private func Java_CFFI_setField_raw(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, 
 }
 
 @C
-public func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject, sort: jboolean, shouldLog: jboolean): jlong {
+protected func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject, sort: jboolean, shouldLog: jboolean): jlong {
     withExceptionHandling(env) {
         let a = A(env, Java_CFFI_newGlobalReference(env, Java_CFFI_JavaEntity(JOBJECT, obj), true), sort, shouldLog)
         Java_CFFI_put_to_registry_1(a)
@@ -60,14 +60,14 @@ public func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject, sort: jboolean, s
 }
 
 @C
-public func Java_A_deleteCJObject(env: JNIEnv_ptr, _: jobject, self: jlong): Unit {
+protected func Java_A_deleteCJObject(env: JNIEnv_ptr, _: jobject, self: jlong): Unit {
     withExceptionHandling(env) {
         Java_CFFI_deleteCJObject<A>(env, self) { v => v.obj }
     }
 }
 
 @C
-public func Java_A_gooImpl(env: JNIEnv_ptr, _: jclass, self: jlong): Unit {
+protected func Java_A_gooImpl(env: JNIEnv_ptr, _: jclass, self: jlong): Unit {
     withExceptionHandling(env) {
         let v = Java_CFFI_getFromRegistry<A>(env, self)
         v.goo(env)
@@ -84,7 +84,7 @@ public open class A {
     let obj: Java_CFFI_JavaEntity
     let sort: Bool
 
-    init(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, sort: jboolean, shouldLog: jboolean) {
+    protected init(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, sort: jboolean, shouldLog: jboolean) {
         this.obj = obj
         this.sort = sort != 0
         Java_CFFI_setField_raw(env, obj, "M", "shouldLog", "Z", Java_CFFI_JavaEntity(JBOOLEAN, shouldLog))
@@ -189,7 +189,7 @@ public open class A {
         buffer.toString()
     }
 
-    public func goo(env: JNIEnv_ptr): Unit {
+    protected func goo(env: JNIEnv_ptr): Unit {
         let buffer = StringBuilder()
         buffer.append("Hello from Cangjie A goo(). This object contains array ")
         if (Java_CFFI_getField_raw(env, obj, "M", "shouldLog", "Z").asBool()) {

@@ -4,12 +4,12 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-package cjworld.cjworld
+package interoplib.interop.tests
 
 import interoplib.interop.*
 
 @C
-public func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
+protected func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
     withExceptionHandling(env) {
         let a = A(Java_CFFI_newGlobalReference(env, Java_CFFI_JavaEntity(JOBJECT, obj), true))
         Java_CFFI_put_to_registry_1(a)
@@ -17,14 +17,14 @@ public func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
 }
 
 @C
-public func Java_A_deleteCJObject(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
+protected func Java_A_deleteCJObject(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
     withExceptionHandling(env) {
         Java_CFFI_deleteCJObject<A>(env, self) { v => v.obj }
     }
 }
 
 @C
-public func Java_A_gooImpl(env: JNIEnv_ptr, _: jclass, self: jlong): Unit {
+protected func Java_A_gooImpl(env: JNIEnv_ptr, _: jclass, self: jlong): Unit {
     withExceptionHandling(env) {
         let v = Java_CFFI_getFromRegistry<A>(env, self)
         v.goo(env)
@@ -38,7 +38,7 @@ public open class A {
         this.obj = obj
     }
 
-    public func goo(env: JNIEnv_ptr): Unit {
+    protected func goo(env: JNIEnv_ptr): Unit {
         println("Hello from overridden A goo()")
 
         // Native Java super.goo() call
