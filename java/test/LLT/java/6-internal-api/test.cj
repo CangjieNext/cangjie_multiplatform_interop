@@ -4,13 +4,15 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-package cjworld
+package interoplib.interop.tests
+
+import interoplib.interop.*
 
 import java.lang.*
 import std.console.Console
 
 @C
-public func Java_Main_foo(env: JNIEnv_ptr, _: jclass): jint {
+protected func Java_Main_foo(env: JNIEnv_ptr, _: jclass): jint {
     withExceptionHandling<jint>(env) {
         try {
             Java_CFFI_withLocalFrameUnit(env, 1) {

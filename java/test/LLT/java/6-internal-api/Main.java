@@ -10,7 +10,7 @@ public final class Main {
     static final String VALUE = "Lorem ipsum dolor sit amet";
 
     static {
-        loadLibrary("cjworld");
+        loadLibrary("interoplib.interop.tests");
     }
 
     public static void main(String[] args) {

@@ -4,12 +4,12 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-package cjworld.cjworld
+package interoplib.interop.tests
 
 import interoplib.interop.*
 
 @C
-public func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
+protected func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
     withExceptionHandling(env) {
         let a = A(Java_CFFI_newGlobalReference(env, Java_CFFI_JavaEntity(JOBJECT, obj), true))
         Java_CFFI_put_to_registry_1(a)
@@ -17,14 +17,14 @@ public func Java_A_initCJObject(env: JNIEnv_ptr, obj: jobject): jlong {
 }
 
 @C
-public func Java_A_deleteCJObject(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
+protected func Java_A_deleteCJObject(env: JNIEnv_ptr, clazz: jclass, self: jlong): Unit {
     withExceptionHandling(env) {
         Java_CFFI_deleteCJObject<A>(env, self) { v => v.obj }
     }
 }
 
 @C
-public func Java_A_gooImpl(env: JNIEnv_ptr, _: jclass, self: jlong, arg: jobject): Unit {
+protected func Java_A_gooImpl(env: JNIEnv_ptr, _: jclass, self: jlong, arg: jobject): Unit {
     withExceptionHandling(env) {
         let v = Java_CFFI_getFromRegistry<A>(env, self)
         v.goo(env, arg)
@@ -32,7 +32,7 @@ public func Java_A_gooImpl(env: JNIEnv_ptr, _: jclass, self: jlong, arg: jobject
 }
 
 @C
-public func Java_A_booImpl(env: JNIEnv_ptr, _: jclass, self: jlong, size: jfloat): jdouble {
+protected func Java_A_booImpl(env: JNIEnv_ptr, _: jclass, self: jlong, size: jfloat): jdouble {
     withExceptionHandling(env) {
         let v = Java_CFFI_getFromRegistry<A>(env, self)
         v.boo(env, size)
@@ -46,7 +46,7 @@ public open class A {
         this.obj = obj
     }
 
-    public init(env: JNIEnv_ptr, arg: Int32) {
+    protected init(env: JNIEnv_ptr, arg: Int32) {
         let clazz = Java_CFFI_Class(env, "A")
         let signature = Java_CFFI_parseMethodSignature("(IZ)V")
         let id = Java_CFFI_MethodID.constr(env, clazz, "<init>", signature)
@@ -54,7 +54,7 @@ public open class A {
         this.obj = Java_CFFI_newGlobalReference(env, a, true) 
     }
 
-    public func goo(env: JNIEnv_ptr, arg: jobject): Unit {
+    protected func goo(env: JNIEnv_ptr, arg: jobject): Unit {
         println("Hello from overridden A goo(HashMap)")
         let map = Java_CFFI_JavaEntity(JOBJECT, arg)
         
@@ -88,7 +88,7 @@ public open class A {
         println("A.boo -> ${doubleSize}");
     }
 
-    public func boo(env: JNIEnv_ptr, size: jfloat): jdouble {
+    protected func boo(env: JNIEnv_ptr, size: jfloat): jdouble {
         println("Hello from A.boo(${size})")
 
         return unsafe {
