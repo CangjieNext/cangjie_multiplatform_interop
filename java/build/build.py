@@ -329,12 +329,12 @@ def build(args):
         command(*cjc_args, cwd=INTEROPLIB_DIR)
 
         command(
-            "javac", "-d", DIST_DIR, "-source", "8", "-target", "8", "LibraryLoader.java", "$$NativeConstructorMarker.java",
+            "javac", "-d", DIST_DIR, "-source", "8", "-target", "8", "LibraryLoader.java", "$$NativeConstructorMarker.java", "ClassAnalyser.java", "MethodDef.java",
             cwd=INTEROPLIB_DIR,
         )
 
         command(
-            "jar", "cf",  LIBRARY_LOADER_JAR, "cangjie/lang/LibraryLoader.class", "cangjie/lang/internal/$$NativeConstructorMarker.class",
+            "jar", "cf",  LIBRARY_LOADER_JAR, "cangjie/lang/LibraryLoader.class", "cangjie/lang/internal/$$NativeConstructorMarker.class", "cangjie/interop/java/ClassAnalyser.class", "cangjie/interop/java/MethodDef.class",
             cwd=DIST_DIR,
         )
 
