@@ -8,6 +8,7 @@ package interoplib.interop
 
 import std.collection.ArrayQueue
 import std.sync.AtomicBool
+import std.sync.Mutex
 
 public type jobject = CPointer<Unit>
 public type jarray = jobject
@@ -336,8 +337,8 @@ public struct JNINativeInterface_ {
     private var RegisterNatives = CPointer<Unit>()
     private var UnregisterNatives = CPointer<Unit>()
 
-    private var MonitorEnter = CPointer<Unit>()
-    private var MonitorExit = CPointer<Unit>()
+    var MonitorEnter = CFunc<(JNIEnv_ptr, jobject) -> jint>(CPointer<Unit>())
+    var MonitorExit = CFunc<(JNIEnv_ptr, jobject) -> jint>(CPointer<Unit>())
 
     private var GetJavaVM = CPointer<Unit>()
 
@@ -905,6 +906,21 @@ private func withLocalRef<R>(env: JNIEnv_ptr, obj: jobject, action: (ref: jobjec
         } finally {
             envCJ.DeleteLocalRef(env, localRef)
         }
+    }
+}
+
+public func getLocalRef(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Java_CFFI_JavaEntity {
+    unsafe {
+        let envCJ = env.read().read()
+        let localRef = envCJ.NewLocalRef(env, obj.asJObject())
+        Java_CFFI_JavaEntity(JOBJECT, localRef)
+    }
+}
+
+public func deleteLocalRef(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
+    unsafe {
+        let envCJ = env.read().read()
+        let localRef = envCJ.DeleteLocalRef(env, obj.asJObject())
     }
 }
 
@@ -2471,4 +2487,151 @@ public func Java_CFFI_ClassInit(env: JNIEnv_ptr, name: String) : Java_CFFI_Class
 
 public func Java_CFFI_JavaCallNestInit(n: Int64) : Java_CFFI_JavaCallNest {
     Java_CFFI_JavaCallNest(n)
+}
+
+public func Java_CFFI_monitorEnter(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
+    unsafe {
+        let envCJ = env.read().read()
+        let jobj = obj.asJObject()
+        let result = envCJ.MonitorEnter(env, jobj)
+        if (result != 0) {
+            throw InteropLibException("Error entering monitor: ${result}")
+        }
+    }
+}
+
+public func Java_CFFI_monitorExit(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
+    unsafe {
+        let envCJ = env.read().read()
+        let jobj = obj.asJObject()
+        let result = envCJ.MonitorExit(env, jobj)
+        if (result != 0) {
+            throw InteropLibException("Error entering monitor: ${result}")
+        }
+    }
+}
+
+public func Java_CFFI_withLocalFrame(env: JNIEnv_ptr, capacity: jint, action: () -> Java_CFFI_JavaEntity): Java_CFFI_JavaEntity {
+    unsafe {
+        let envCJ = env.read().read()
+        let status = envCJ.PushLocalFrame(env, capacity)
+        if (status != 0) {
+            throw InteropLibException("Error entering local frame: ${status}")
+        }
+
+        var result = Java_CFFI_JavaEntityJobjectNull()
+        try {
+            result = action()
+        } finally {
+            result = Java_CFFI_JavaEntity(JOBJECT, envCJ.PopLocalFrame(env, result.asJObject()))
+        }
+        return result
+    }
+}
+
+public func Java_CFFI_withLocalFrameUnit(env: JNIEnv_ptr, capacity: jint, action: () -> Unit): Unit {
+    unsafe {
+        let envCJ = env.read().read()
+        let status = envCJ.PushLocalFrame(env, capacity)
+        if (status != 0) {
+            throw InteropLibException("Error entering local frame: ${status}")
+        }
+
+        try {
+            action()
+        } finally {
+            envCJ.PopLocalFrame(env, jobject())
+        }
+    }
+}
+
+public func getJavaLambdaObject(fun : Any, className: String) : jobject {
+    let obj = getJavaLambdaEntity(fun, className)
+    obj.asJObject()
+}
+
+public func getJavaLambdaEntity(fun : Any, className: String) : Java_CFFI_JavaEntity {
+    let cjId = Java_CFFI_put_to_registry_1(fun)
+    let env = Java_CFFI_get_env()
+    let clazz = Java_CFFI_ClassInit(env, className)
+    let methodId = Java_CFFI_MethodIDConstr(env, clazz, "<init>", Java_CFFI_parseMethodSignature("(J)V"));
+    let obj = Java_CFFI_newJavaObject(env, clazz, methodId, [Java_CFFI_JavaEntity(cjId)], Java_CFFI_JavaCallNest(1))
+    obj
+}
+
+public class JavaObjectController<T> {
+    var obj: Java_CFFI_JavaEntity
+    var cjObj: ?T = None
+    var detached = false
+    var skipDetach = false
+    var cjLock: ?Java_CFFI_JavaEntity = None
+    var waitId: ?Java_CFFI_MethodID = None
+    var attachCJObjectId: ?Java_CFFI_MethodID = None
+
+    public init(obj: Java_CFFI_JavaEntity, className: String) {
+        this.obj = obj
+        let env = Java_CFFI_get_env()
+        let clazz = Java_CFFI_Class(env, className)
+        let cjLockFieldId = Java_CFFI_FieldID.constrStatic(env, clazz, "cjLock", Java_CFFI_parseComponentSignature("Ljava/lang/Object;"))
+        let cjLockLocal = Java_CFFI_getStaticField(env, clazz, cjLockFieldId)
+        cjLock = Java_CFFI_newGlobalReference(env, cjLockLocal, false)
+        let objectClass = Java_CFFI_Class(env, "java/lang/Object")
+        waitId = Java_CFFI_MethodID.constr(env, objectClass, "wait", Java_CFFI_parseMethodSignature("()V"))
+        attachCJObjectId = Java_CFFI_MethodID.constr(env, clazz, "attachCJObject", Java_CFFI_parseMethodSignature("(J)V"))
+    }
+
+    private func waitAndGetJavaObject(env: JNIEnv_ptr): Java_CFFI_JavaEntity {
+        var ref = getLocalRef(env, obj)
+        while (ref.isNull) {
+            skipDetach = true
+            Java_CFFI_callVirtualMethod(env, cjLock.getOrThrow(), waitId.getOrThrow(), [], Java_CFFI_JavaCallNest(0))
+            ref = getLocalRef(env, obj)
+        }
+        ref
+    }
+
+    public func attachCJObject(env: JNIEnv_ptr): Java_CFFI_JavaEntity {
+        acquireCJLock(env)
+        try {
+            let localRef = waitAndGetJavaObject(env)
+            if (detached) {
+                println("Attaching CJ object")
+                let cjObjId = Java_CFFI_put_to_registry_1(cjObj.getOrThrow())
+                Java_CFFI_callMethod(env, localRef, attachCJObjectId.getOrThrow(), [Java_CFFI_JavaEntity(JLONG, cjObjId)], Java_CFFI_JavaCallNest(1))
+                Java_CFFI_deleteGlobalReference(env, this.obj)
+                this.obj = Java_CFFI_newGlobalReference(env, localRef, true)
+                detached = false
+            }
+            localRef
+        } finally {
+            releaseCJLock(env)
+        }
+    }
+
+    public func detachCJObject(env: JNIEnv_ptr, javaObj: Java_CFFI_JavaEntity, cjObjId: Int64): Bool {
+        Java_CFFI_deleteGlobalReference(env, this.obj)
+        if (skipDetach) {
+            this.obj = Java_CFFI_newGlobalReference(env, javaObj, true)
+            skipDetach = false
+        } else {
+            this.obj = Java_CFFI_newGlobalReference(env, javaObj, false)
+            cjObj = Java_CFFI_getFromRegistry<T>(env, cjObjId)
+            Java_CFFI_deleteCJObjectOneWay<T>(env, cjObjId)
+            detached = true
+        }
+        detached
+    }
+
+    private func acquireCJLock(env: JNIEnv_ptr) {
+        Java_CFFI_monitorEnter(env, cjLock.getOrThrow())
+    }
+
+    private func releaseCJLock(env: JNIEnv_ptr) {
+        Java_CFFI_monitorExit(env, cjLock.getOrThrow())
+    }
+
+    public func finalize(): Unit {
+        let env = Java_CFFI_get_env()
+        Java_CFFI_deleteGlobalReference(env, obj)
+    }
 }

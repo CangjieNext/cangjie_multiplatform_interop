@@ -67,11 +67,11 @@ static toml::table parse_toml_file(const std::string_view path, std::unordered_s
     }
 
     if (auto [_, new_path] = imported.emplace(path); !new_path) {
-        fatal("TOML file `", "` is recursive");
+        fatal("TOML file `", path, "` is recursive");
     }
 
     if (!std::filesystem::exists(path)) {
-        fatal("TOML file `", "` doesn't exist");
+        fatal("TOML file `", path, "` doesn't exist");
     }
 
     auto config = toml::parse_file(path);

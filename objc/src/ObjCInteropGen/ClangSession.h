@@ -23,7 +23,7 @@ public:
     virtual void parse_sources(const std::vector<std::string>& files, const std::vector<std::string>& arguments) = 0;
 
 protected:
-    [[nodiscard]] explicit ClangSession() = default;
+    explicit ClangSession() = default;
 };
 
 } // namespace objcgen
