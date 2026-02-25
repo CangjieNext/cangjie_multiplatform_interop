@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
 # This source file is part of the Cangjie project, licensed under Apache-2.0
 # with Runtime Library Exception.
@@ -18,9 +18,8 @@ clang -fstack-protector-strong -s -Wl,-z,relro,-z,now -fPIC -shared -o ../../dis
 cjc --strip-all --link-options "-z relro" --link-options "-z now" -O2 --output-type=dylib --output-dir=../../dist --int-overflow wrapping jni.cj registry.cj -L../../dist -lcinteroplib
 cjc --strip-all --link-options "-z relro" --link-options "-z now" --output-type=dylib --output-dir=../../dist --import-path=../../dist --int-overflow wrapping ./javalib/*.cj
 
-javac -source 8 -target 8 -d ../../dist LibraryLoader.java
-javac -source 8 -target 8 -d ../../dist \$\$NativeConstructorMarker.java
+javac -source 8 -target 8 -d ../../dist *.java
 cd ../../dist
-jar cf library-loader.jar cangjie/lang/LibraryLoader.class cangjie/lang/internal/\$\$NativeConstructorMarker.class
+jar cf library-loader.jar cangjie/lang/LibraryLoader.class cangjie/lang/internal/\$\$NativeConstructorMarker.class cangjie/interop/java/*.class 
 
 cd ../build

@@ -25,7 +25,6 @@ package cangjie.interop.driver;
 import static cangjie.interop.Utils.addBackticksIfNeeded;
 import static cangjie.interop.Utils.addUnderscoresIfNeeded;
 import static cangjie.interop.Utils.getFlatNameWithoutPackage;
-import static cangjie.interop.Utils.syntheticParameterName;
 import static cangjie.interop.driver.VisitorUtils.addSymbolsToMangle;
 import static cangjie.interop.driver.VisitorUtils.collectImports;
 import static cangjie.interop.driver.VisitorUtils.collectSuperTypes;
@@ -630,20 +629,10 @@ public final class EmitMirrorVisitor {
             }
         }
         if (!classSymbol.isInterface()
-                && (generateDefinition && (!hasInitWithoutParams || classSymbol.hasOuterInstance())
-                || !generateDefinition && !hasInit)) {
+                && generateDefinition && (!hasInitWithoutParams || classSymbol.hasOuterInstance())) {
             final var initMethodTree = new CJTree.Declaration.FunctionDeclaration("init", true);
             initMethodTree.modifiers.add(Modifiers.PUBLIC.toCJTree());
-            if (generateDefinition) {
-                initMethodTree.setBody(new CJTree.Expression.Block(true));
-            } else {
-                if (classSymbol.hasOuterInstance() && !classSymbol.isStatic()) {
-                    final var decl = new CJTree.Declaration.VariableDeclaration.Parameter(syntheticParameterName(0, 1));
-                    final var outerThisType = types.erasure(classSymbol.type.getEnclosingType());
-                    decl.setType(name(outerThisType));
-                    initMethodTree.valueParameters.add(decl);
-                }
-            }
+            initMethodTree.setBody(new CJTree.Expression.Block(true));
             block.add(initMethodTree);
         }
         return block;
