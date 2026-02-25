@@ -17,8 +17,6 @@ void check_marked_symbols()
 {
     for (auto&& type : Universe::get().all_declarations()) {
         if (type.package()) {
-            assert(!type.is(NamedTypeSymbol::Kind::SourcePrimitive));
-            assert(!type.is(NamedTypeSymbol::Kind::TargetPrimitive));
             if (type.is(NamedTypeSymbol::Kind::Union)) {
                 const auto* input_file = type.defining_file();
                 assert(input_file);
