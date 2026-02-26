@@ -9,13 +9,14 @@
 #define CONFIG_H
 
 #include <string_view>
-#include "toml.hpp"
+
+#include "Toml.h"
 
 namespace objcgen {
 
-extern toml::table config;
+extern toml::Value config;
 
-void parse_toml_config_file(std::string_view path);
+void parse_toml_config_file(const std::string& path);
 
 } // namespace objcgen
 
