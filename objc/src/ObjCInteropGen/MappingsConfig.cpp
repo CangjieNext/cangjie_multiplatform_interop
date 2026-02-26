@@ -13,19 +13,16 @@
 
 namespace objcgen {
 
-static void read_table_mappings(const toml::table& mapping, std::size_t i)
+static void read_table_mappings(const toml::Table& mapping, std::size_t i)
 {
     // TODO: consider supporting packages-mixins
     for (auto&& [key, value] : mapping) {
-        if (auto* value_string = value.as_string()) {
-            if (auto value_value = value_string->value_exact<std::string>()) {
-                if (value_value->empty()) {
-                    fatal("`mappings` entry #", i, " for key `", key, "` is empty");
-                }
-                add_non_generic_mapping(*value_value).add_from(key);
-            } else {
-                fatal("`mappings` entry #", i, " for key `", key, "` has no string value");
+        if (value.is<std::string>()) {
+            const auto& value_string = value.as<std::string>();
+            if (value_string.empty()) {
+                fatal("`mappings` entry #", i, " for key `", key, "` is empty");
             }
+            add_non_generic_mapping(value_string).add_from(key);
         } else {
             fatal("`mappings` entry #", i, " for key `", key, "` is not a TOML string");
         }
@@ -34,12 +31,12 @@ static void read_table_mappings(const toml::table& mapping, std::size_t i)
 
 void read_toml_mappings()
 {
-    if (auto* mappings_any = config.get("mappings")) {
-        if (auto* mappings = mappings_any->as_array()) {
+    if (const auto* mappings_any = config.find("mappings")) {
+        if (mappings_any->is<toml::Array>()) {
             std::size_t i = 0;
-            for (auto&& mapping_any : *mappings) {
-                if (const auto* mapping = mapping_any.as_table()) {
-                    read_table_mappings(*mapping, i);
+            for (auto&& mapping_any : mappings_any->as<toml::Array>()) {
+                if (mapping_any.is<toml::Table>()) {
+                    read_table_mappings(mapping_any.as<toml::Table>(), i);
                 } else {
                     fatal("`mappings` entry #", i, " is not a TOML table");
                 }
