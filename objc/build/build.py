@@ -17,6 +17,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
 from enum import Enum
 from logging.handlers import TimedRotatingFileHandler
 from subprocess import PIPE
@@ -33,7 +34,6 @@ DEFAULT_INSTALL_DIR = os.path.join(HOME_DIR, 'dist')
 INTEROPLIB_DIR = os.path.join(HOME_DIR, 'src', 'interoplib')
 INTEROPLIB_OUT = os.path.join(INTEROPLIB_DIR, 'output')
 DYLIB_EXT = "dylib" if IS_DARWIN else "so"
-OBJC_INTEROP_THIRD_PARTY = os.path.join(HOME_DIR, 'third_party')
 
 INTEROPLIB_OBJCLIB_DIR = os.path.join(INTEROPLIB_DIR, 'src', 'objclib')
 
@@ -116,18 +116,66 @@ def command(*args, cwd=None, env=None):
 def runtime_name(target):
     return target+"_cjnative"
 
-def fetch_tomlplusplus(target_dir):
-    """Fetch tomlplusplus from GitHub if it doesn't exist"""
-    tomlplusplus_dir = os.path.join(target_dir, 'tomlplusplus')
-    if not os.path.exists(tomlplusplus_dir):
-        LOG.info('Fetching tomlplusplus from GitHub...\n')
-        command(
-            "git", "clone", "--depth=1", "-b", "v3.4.0", "https://gitee.com/mirrors_marzer/tomlplusplus.git",
-            tomlplusplus_dir
-        )
-        LOG.info('Finished fetching tomlplusplus\n')
-    else:
-        LOG.info('tomlplusplus directory already exists, skipping fetch\n')
+def download_and_patch_tinytoml():
+    """Set up the tinytoml third-party library"""
+    TINYTOML_DIR = os.path.join(HOME_DIR, "third_party", "tinytoml")
+    PATCH_FILE = os.path.join(TINYTOML_DIR, "fixFloatEqualError.patch")
+    TAR_PATH = os.path.join(TINYTOML_DIR, "tinytoml-0.4.tar.gz")
+    TINYTOMLTAR_PATH = os.path.join(TINYTOML_DIR, "tinytoml-0.4")
+
+    LOG.info("Setting up tinytoml...")
+
+    # Create Parent Directory
+    os.makedirs(os.path.dirname(TINYTOML_DIR), exist_ok=True)
+
+    try:
+
+        if not os.path.exists(TAR_PATH):
+            # Fetch tinytoml from the remote repostory
+            subprocess.run(
+                ["git", "clone", "https://gitee.com/src-openeuler/tinytoml.git",
+                 TINYTOML_DIR],
+                 check=True
+            )
+            # Switch to the specified tag
+            subprocess.run(
+                ["git", "checkout", "openEuler-24.03-LTS-SP1"],
+                cwd=TINYTOML_DIR,
+                check=True
+            )
+
+        # Extract the package
+        LOG.info("Extracting tinytoml package...")
+        with tarfile.open(TAR_PATH) as tar:
+            tar.extractall(path=TINYTOML_DIR)
+
+        # Apply Patch
+        patch_file_exists = os.path.exists(PATCH_FILE)
+        target_dir_exists = os.path.exists(TINYTOMLTAR_PATH) and os.path.isdir(TINYTOMLTAR_PATH)
+        if patch_file_exists and target_dir_exists:
+            LOG.info("Applying tinytoml patch...")
+            subprocess.run(
+                f"patch -p0 -l -f < {PATCH_FILE}",
+                cwd=TINYTOMLTAR_PATH,
+                shell=True,
+                check=True
+            )
+        else:
+            LOG.warning(f"Patch file not found: {PATCH_FILE}")
+
+        TOML_H_SRC = os.path.join(TINYTOMLTAR_PATH, "include", "toml", "toml.h")
+        TOML_H_DST = os.path.join(TINYTOML_DIR, "toml.h")
+
+        if os.path.exists(TOML_H_SRC):
+            LOG.info(f"Copying toml.h from {TOML_H_SRC} to {TOML_H_DST}")
+            shutil.copy2(TOML_H_SRC, TOML_H_DST)
+
+    except subprocess.CalledProcessError as e:
+        LOG.error(f"Failed to setup tinytoml: {str(e)}")
+        # Clean Files
+        if os.path.exists(TINYTOML_DIR):
+            shutil.rmtree(TINYTOML_DIR)
+        raise
 
 def build(args):
     """interoplib or objc-interop-gen build"""
@@ -192,8 +240,10 @@ def build(args):
     else:
         LOG.info('begin build objc-interop-gen...\n')
 
-        # Fetch tomlplusplus before building
-        fetch_tomlplusplus(OBJC_INTEROP_THIRD_PARTY)
+        # Add the tinytoml third-party library for acquisition and customize code application.
+        tinytoml_target = os.path.join(HOME_DIR, "third_party", "tinytoml", "toml.h")
+        if not os.path.exists(tinytoml_target):
+            download_and_patch_tinytoml()
 
         command("cmake", "-B", CMAKE_BUILD_DIR, '-DCMAKE_BUILD_TYPE=' + args.build_type.value, cwd=OBJC_INTEROP_GEN_DIR)
 
