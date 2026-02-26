@@ -39,12 +39,12 @@ PackageFilesIterator::reference PackageFilesIterator::get() const
     return *it_->second;
 }
 
-static Package* create_package(std::size_t package_index, const toml::table& config)
+static Package* create_package(std::size_t package_index, const toml::Table& config)
 {
     std::string name_desc = "#" + std::to_string(package_index);
 
     auto package_cangjie_name =
-        get_string_value(config, name_desc, "package-name", [&name_desc](const toml::table&) -> std::string {
+        get_string_value(config, name_desc, "package-name", [&name_desc](const auto&) -> std::string {
             fatal("`packages` entry ", name_desc, " should define `package-name` property");
         });
 
@@ -52,25 +52,22 @@ static Package* create_package(std::size_t package_index, const toml::table& con
 
     auto output_path = compute_output_path(name_desc, config, package_cangjie_name);
 
-    const toml::table* filters;
-    if (auto* filters_any = config.get("filters")) {
-        if (auto* filters_table = filters_any->as_table()) {
-            filters = filters_table;
-        } else {
-            fatal("`packages` entry ", name_desc, " property `filters` should be a TOML table");
-        }
-    } else {
+    auto filters_it = config.find("filters");
+    if (filters_it == config.end()) {
         fatal("`packages` entry ", name_desc, " should define `filters` property");
     }
-
-    assert(filters);
+    const auto& filters_any = filters_it->second;
+    if (!filters_any.is<toml::Table>()) {
+        fatal("`packages` entry ", name_desc, " property `filters` should be a TOML table");
+    }
+    const auto& filters = filters_any.as<toml::Table>();
 
     if (packages.by_cangjie_name(package_cangjie_name)) {
         fatal("There are multiple `packages` entries with the same `package-name` value `", package_cangjie_name, "`");
     }
 
     auto* package = new Package(package_cangjie_name, output_path);
-    package->set_filters(create_filter(package, *filters));
+    package->set_filters(create_filter(package, filters));
 
     packages.insert(package);
     return package;
@@ -83,16 +80,14 @@ PackagesIterator::reference PackagesIterator::get() const
 
 void create_packages()
 {
-    if (auto* packages = config.get_as<toml::array>("packages")) {
+    if (const auto* packages = config.find("packages")) {
         std::size_t i = 0;
-        for (auto&& package_any : *packages) {
-            if (const auto* package = package_any.as_table()) {
-                // TODO: consider supporting packages-mixins
-                create_package(i, *package);
-            } else {
+        for (auto&& package_any : packages->as<toml::Array>()) {
+            if (!package_any.is<toml::Table>()) {
                 fatal("`packages` entry #", i, " is not a TOML table");
             }
-            i++;
+            // TODO: consider supporting packages-mixins
+            create_package(i++, package_any.as<toml::Table>());
         }
     } else {
         fatal("`packages` should be a TOML array of tables");

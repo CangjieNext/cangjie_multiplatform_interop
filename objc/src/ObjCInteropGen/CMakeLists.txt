@@ -48,6 +48,8 @@ add_executable(ObjCInteropGen
         Strings.h
         Symbol.cpp
         Symbol.h
+        Toml.cpp
+        Toml.h
         Transform.cpp
         Transform.h
         Universe.cpp
@@ -75,7 +77,10 @@ if(UNIX AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 # Link ObjCInteropGen to LLVM & Clang
-target_include_directories(ObjCInteropGen SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS} ../../third_party/tomlplusplus)
+target_include_directories(ObjCInteropGen SYSTEM PRIVATE
+    ${CLANG_INCLUDE_DIRS}
+    ${LLVM_INCLUDE_DIRS}
+    ../../third_party/tinytoml-0.4/include)
 target_link_libraries(ObjCInteropGen PRIVATE libclang clangAST)
 
 install(TARGETS ObjCInteropGen DESTINATION tools/bin)
