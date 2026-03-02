@@ -49,7 +49,9 @@ public class Registry {
     }
 
     public func get<T>(id: Int64): ?T {
-        mockRegistry[id] as T
+        synchronized(mutex) {
+            mockRegistry[id] as T
+        }
     }
 
     public func remove(id: Int64): Unit {
