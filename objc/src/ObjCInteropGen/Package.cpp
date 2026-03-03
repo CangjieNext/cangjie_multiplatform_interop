@@ -87,7 +87,8 @@ void create_packages()
                 fatal("`packages` entry #", i, " is not a TOML table");
             }
             // TODO: consider supporting packages-mixins
-            create_package(i++, package_any.as<toml::Table>());
+            create_package(i, package_any.as<toml::Table>());
+            i++;
         }
     } else {
         fatal("`packages` should be a TOML array of tables");

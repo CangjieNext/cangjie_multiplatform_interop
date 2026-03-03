@@ -25,29 +25,23 @@ static void append_to_left(toml::Value& lhs, const toml::Array& rhs)
     }
 }
 
-static void merge_to_left_array(toml::Value& lhs, const toml::Table& rhs, const std::string& property_name)
+static void merge_to_left_array(toml::Value& lhs, const toml::Value& rhs, const std::string& property_name)
 {
     assert(lhs.is<toml::Table>());
+    assert(rhs.is<toml::Table>());
     auto* lhs_array = lhs.find(property_name);
     if (lhs_array && !lhs_array->is<toml::Array>()) {
         fatal("TOML property `", property_name, "` should be an array");
     }
 
-    auto rhs_it = rhs.find(property_name);
-    const auto* rhs_any = rhs_it == rhs.end() ? nullptr : &*rhs_it;
-    const toml::Array* rhs_array;
-    if (rhs_any) {
-        if (!rhs_any->second.is<toml::Array>()) {
-            fatal("TOML property `", property_name, "` should be an array");
-        }
-        rhs_array = &rhs_any->second.as<toml::Array>();
-    } else {
-        rhs_array = nullptr;
+    const auto* rhs_array = rhs.find(property_name);
+    if (rhs_array && !rhs_array->is<toml::Array>()) {
+        fatal("TOML property `", property_name, "` should be an array");
     }
 
     if (lhs_array) {
         if (rhs_array) {
-            append_to_left(*lhs_array, *rhs_array);
+            append_to_left(*lhs_array, rhs_array->as<toml::Array>());
         }
         return;
     }
@@ -87,31 +81,28 @@ static toml::Value parse_toml_file(const std::string& path, std::unordered_set<s
     }
     assert(parse_result.value.is<toml::Table>());
     if (const auto* imports_any = parse_result.value.find("imports")) {
-        if (imports_any->is<toml::Array>()) {
-            const auto& imports_array = imports_any->as<toml::Array>();
-            std::size_t i = 0;
-            for (auto&& item_any : imports_array) {
-                if (item_any.is<std::string>()) {
-                    const auto& import_path = item_any.as<std::string>();
-                    if (import_path.empty()) {
-                        fatal("`imports` in `", path, "` item #", i, " is empty");
-                    }
-
-                    auto import_config = parse_toml_file(import_path, imported);
-                    assert(import_config.is<toml::Table>());
-
-                    if (verbosity >= LogLevel::INFO) {
-                        std::cerr << "Merging TOML file `" << import_path << "` into `" << path << "`" << std::endl;
-                    }
-
-                    merge_to_left(parse_result.value, import_config.as<toml::Table>());
-                } else {
-                    fatal("`imports` in `", path, "` item #", i, " should be a string");
-                }
-                i++;
-            }
-        } else {
+        if (!imports_any->is<toml::Array>()) {
             fatal("`imports` in `", path, "` should be a TOML array of strings");
+        }
+        std::size_t i = 0;
+        for (auto&& item_any : imports_any->as<toml::Array>()) {
+            if (!item_any.is<std::string>()) {
+                fatal("`imports` in `", path, "` item #", i, " should be a string");
+            }
+            const auto& import_path = item_any.as<std::string>();
+            if (import_path.empty()) {
+                fatal("`imports` in `", path, "` item #", i, " is empty");
+            }
+
+            auto import_config = parse_toml_file(import_path, imported);
+            assert(import_config.is<toml::Table>());
+
+            if (verbosity >= LogLevel::INFO) {
+                std::cerr << "Merging TOML file `" << import_path << "` into `" << path << "`" << std::endl;
+            }
+
+            merge_to_left(parse_result.value, import_config.as<toml::Table>());
+            i++;
         }
     }
 
