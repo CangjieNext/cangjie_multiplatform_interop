@@ -5,6 +5,7 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #include <iostream>
+#include <optional>
 #include <string_view>
 
 #include "CangjieWriter.h"
@@ -105,7 +106,7 @@ int main(int argc, char* argv[])
                     return 1;
                 }
                 config_specified = true;
-                parse_toml_config_file(arg);
+                parse_toml_config_file(std::string(arg));
                 continue;
             }
 
@@ -136,8 +137,8 @@ int main(int argc, char* argv[])
 
         stage = "Writing Cangjie outputs";
         write_cangjie();
-    } catch (const toml::parse_error& e) {
-        std::cerr << e << std::endl;
+    } catch (const TomlParseError& e) {
+        std::cerr << e.what() << std::endl;
         return 1;
     } catch (const FatalException&) {
         // FatalException is assumed to print the error message before throwing

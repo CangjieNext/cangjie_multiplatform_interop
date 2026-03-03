@@ -9,40 +9,38 @@
 #define SCOPECONFIG_H
 
 #include <iostream>
+#include <optional>
 
 #include "FatalException.h"
 #include "Package.h"
-#include "toml.hpp"
+#include "toml.h"
 
 namespace objcgen {
 
 template <typename T, typename Desc>
 std::string get_string_value(
-    const toml::table& config, const Desc& package_name, const std::string_view property_name, T fallback)
+    const toml::Table& config, const Desc& package_name, const std::string& property_name, T fallback)
 {
-    if (auto* package_name_any = config.get(property_name)) {
-        if (auto* package_name_string = package_name_any->as_string()) {
-            if (auto package_name_value = package_name_string->value_exact<std::string>()) {
-                if (package_name_value->empty()) {
-                    fatal("`packages` entry ", package_name, " string `", property_name, "` is empty");
-                }
-
-                return *package_name_value;
-            }
-
-            fatal("`packages` entry ", package_name, " string `", property_name, "` has no string value");
-        }
-
+    auto package_name_it = config.find(property_name);
+    if (package_name_it == config.end()) {
+        return fallback(config);
+    }
+    const auto& package_name_any = package_name_it->second;
+    if (!package_name_any.is<std::string>()) {
         fatal("`packages` entry ", package_name, " property `", property_name, "` should be a TOML string");
     }
+    const auto& package_name_string = package_name_any.as<std::string>();
+    if (package_name_string.empty()) {
+        fatal("`packages` entry ", package_name, " string `", property_name, "` is empty");
+    }
 
-    return fallback(config);
+    return package_name_string;
 }
 
-[[nodiscard]] PackageFilter* create_filter(const Package* package, const toml::table& table);
+[[nodiscard]] PackageFilter* create_filter(const Package* package, const toml::Table& table);
 
 std::string compute_output_path(
-    const std::string& name, const toml::table& config, std::string_view package_cangjie_name);
+    const std::string& name, const toml::Table& config, std::string_view package_cangjie_name);
 
 } // namespace objcgen
 
