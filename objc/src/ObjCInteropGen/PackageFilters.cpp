@@ -125,51 +125,41 @@ public:
 };
 
 static PackageFilter* create_regex_filter(
-    const Package* package, const toml::node& node, const std::string_view mode_name)
+    const Package* package, const toml::Value& node, const std::string_view mode_name)
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
         std::cerr << "`packages` entry `" << package->cangjie_name() << "` " << mode_name << " filter" << std::endl;
     }
 
-    if (auto* node_string = node.as_string()) {
-        if (const auto node_value = node_string->value_exact<std::string>()) {
-            return new RegexFilter(package, *node_value, mode_name);
-        }
-
-        fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter has no string value");
+    if (node.is<std::string>()) {
+        return new RegexFilter(package, node.as<std::string>(), mode_name);
     }
 
-    if (auto* node_array = node.as_array()) {
-        auto* result = new SetOperationFilter(package, SetOperation::Union);
+    if (!node.is<toml::Array>()) {
+        fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name,
+            " filter must be a TOML string or an array of TOML strings");
+    }
+    auto* result = new SetOperationFilter(package, SetOperation::Union);
 
-        std::size_t i = 0;
-        for (auto&& item_any : *node_array) {
-            if (auto* item_string = item_any.as_string()) {
-                if (auto item_value = item_string->value_exact<std::string>()) {
-                    result->add_argument(new RegexFilter(package, *item_value, mode_name));
-                } else {
-                    fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter #", i,
-                        " has no string value");
-                }
-            } else {
-                fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter #", i,
-                    " must be a TOML string");
-            }
-            i++;
+    std::size_t i = 0;
+    for (auto&& item_any : node.as<toml::Array>()) {
+        if (!item_any.is<std::string>()) {
+            fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter #", i,
+                " must be a TOML string");
         }
-
-        if (result->size() == 0) {
-            fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter array has no items");
-        }
-
-        return result;
+        const auto& item_string = item_any.as<std::string>();
+        result->add_argument(new RegexFilter(package, item_string, mode_name));
+        i++;
     }
 
-    fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name,
-        " filter must be a TOML string or an array of TOML strings");
+    if (result->size() == 0) {
+        fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter array has no items");
+    }
+
+    return result;
 }
 
-static PackageFilter* create_set_filter(const Package* package, const toml::node& node, const SetOperation op)
+static PackageFilter* create_set_filter(const Package* package, const toml::Value& node, const SetOperation op)
 {
     const std::string_view mode_name = op == SetOperation::Union ? "union" : "intersect";
 
@@ -179,50 +169,47 @@ static PackageFilter* create_set_filter(const Package* package, const toml::node
 
     auto* result = new SetOperationFilter(package, op);
 
-    if (auto* node_array = node.as_array()) {
-        std::size_t i = 0;
-        for (auto&& item_any : *node_array) {
-            if (auto* item_table = item_any.as_table()) {
-                const auto* arg = create_filter(package, *item_table);
-                result->add_argument(arg);
-            } else {
-                fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter #", i,
-                    " must be a TOML table");
-            }
-            i++;
-        }
-    } else {
+    if (!node.is<toml::Array>()) {
         fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter must be an array of filters");
     }
+    std::size_t i = 0;
+    for (auto&& item_any : node.as<toml::Array>()) {
+        if (!item_any.is<toml::Table>()) {
+            fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter #", i,
+                " must be a TOML table");
+        }
+        result->add_argument(create_filter(package, item_any.as<toml::Table>()));
+        i++;
+    }
 
-    const auto size = result->size();
-    if (size == 0) {
+    if (result->size() == 0) {
         fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter array has no items");
     }
 
     return result;
 }
 
-PackageFilter* create_filter(const Package* package, const toml::table& table)
+PackageFilter* create_filter(const Package* package, const toml::Table& table)
 {
-    auto* include = table.get("include");
-    auto* exclude = table.get("exclude");
-    auto* filter = table.get("filter");
-    auto* filter_not = table.get("filter-not");
-    auto* set_union = table.get("union");
-    auto* set_intersect = table.get("intersect");
-    auto* set_not = table.get("not");
+    auto e = table.end();
+    auto include_it = table.find("include");
+    auto exclude_it = table.find("exclude");
+    auto filter_it = table.find("filter");
+    auto filter_not_it = table.find("filter-not");
+    auto set_union_it = table.find("union");
+    auto set_intersect_it = table.find("intersect");
+    auto set_not_it = table.find("not");
 
     std::size_t non_null = 0;
-    if (include)
+    if (include_it != e)
         non_null++;
-    if (exclude)
+    if (exclude_it != e)
         non_null++;
-    if (set_union)
+    if (set_union_it != e)
         non_null++;
-    if (set_intersect)
+    if (set_intersect_it != e)
         non_null++;
-    if (set_not)
+    if (set_not_it != e)
         non_null++;
 
     if (non_null == 0) {
@@ -235,45 +222,45 @@ PackageFilter* create_filter(const Package* package, const toml::table& table)
             " operations, but only 1 is allowed simultaneously");
     }
 
-    auto* result = [package, include, exclude, set_union, set_intersect, set_not]() -> PackageFilter* {
-        if (include) {
-            return create_regex_filter(package, *include, "include");
+    auto* result = [package, e, include_it, exclude_it, set_union_it, set_intersect_it,
+                       set_not_it]() -> PackageFilter* {
+        if (include_it != e) {
+            return create_regex_filter(package, include_it->second, "include");
         }
 
-        if (exclude) {
-            return new NotFilter(package, create_regex_filter(package, *exclude, "exclude"));
+        if (exclude_it != e) {
+            return new NotFilter(package, create_regex_filter(package, exclude_it->second, "exclude"));
         }
 
-        if (set_union) {
-            return create_set_filter(package, *set_union, SetOperation::Union);
+        if (set_union_it != e) {
+            return create_set_filter(package, set_union_it->second, SetOperation::Union);
         }
 
-        if (set_intersect) {
-            return create_set_filter(package, *set_intersect, SetOperation::Intersection);
+        if (set_intersect_it != e) {
+            return create_set_filter(package, set_intersect_it->second, SetOperation::Intersection);
         }
 
-        if (set_not) {
-            if (auto* set_not_table = set_not->as_table()) {
-                return new NotFilter(package, create_filter(package, *set_not_table));
-            }
-
+        if (set_not_it == e) {
+            fatal("`packages` entry `", package->cangjie_name(), "` filter is unknown");
+        }
+        const auto& set_not_any = set_not_it->second;
+        if (!set_not_any.is<toml::Table>()) {
             fatal("`packages` entry `", package->cangjie_name(), "` not filter must be a TOML table");
         }
-
-        fatal("`packages` entry `", package->cangjie_name(), "` filter is unknown");
+        return new NotFilter(package, create_filter(package, set_not_any.as<toml::Table>()));
     }();
 
-    if (filter || filter_not) {
+    if (filter_it != e || filter_not_it != e) {
         auto* intersect = new SetOperationFilter(package, SetOperation::Intersection);
         intersect->add_argument(result);
 
-        if (filter) {
-            const auto* regex_filter = create_regex_filter(package, *filter, "filter");
+        if (filter_it != e) {
+            const auto* regex_filter = create_regex_filter(package, filter_it->second, "filter");
             intersect->add_argument(regex_filter);
         }
 
-        if (filter_not) {
-            const auto* regex_filter = create_regex_filter(package, *filter_not, "filter-not");
+        if (filter_not_it != e) {
+            const auto* regex_filter = create_regex_filter(package, filter_not_it->second, "filter-not");
             intersect->add_argument(new NotFilter(package, regex_filter));
         }
 
