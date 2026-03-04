@@ -8,8 +8,9 @@
 #ifndef SYMBOL_H
 #define SYMBOL_H
 
+#include <array>
 #include <cassert>
-#include <optional>
+#include <deque>
 #include <unordered_set>
 
 #include "InputFile.h"
@@ -23,83 +24,67 @@ class ParameterSymbol;
 class Symbol;
 struct TypeMapping;
 
-class SymbolPrintFormat {
-public:
-    enum class Value {
-        // The symbol is printed "as is".  This is good for readability (for example, in
-        // diagnostic texts or comments), but syntactic Cangjie correctness is not
-        // guaranteed.
-        raw,
+enum class SymbolPrintFormat {
+    // The symbol is printed "as is".  This is good for readability (for example, in
+    // diagnostic texts or comments), but syntactic Cangjie correctness is not
+    // guaranteed.
+    Raw,
 
-        // The symbol is being emitted as a part of Cangjie code.  The following
-        // formatting is applied:
-        //     - Generic type names are printed with their type arguments erased.  That
-        //       is,
-        //           NSArray<ElementT>
-        //       is printed as
-        //           NSArray/*<ElementT>*/
-        //     - Generic type arguments are erased to `id`.  That is,
-        //           - (ElementT) firstObject;
-        //       is printed as
-        //           - (id /*ElementT*/) firstObject;
-        emit_cangjie
-    };
+    // The symbol is being emitted as a part of Cangjie code.  The following
+    // formatting is applied:
+    //     - Generic type names are printed with their type arguments erased.  That
+    //       is,
+    //           NSArray<ElementT>
+    //       is printed as
+    //           NSArray/*<ElementT>*/
+    //     - Generic type arguments are erased to `ObjCId`.  That is,
+    //           - (ElementT) firstObject;
+    //       is printed as
+    //           - (ObjCId /*ElementT*/) firstObject;
+    EmitCangjie,
 
-    static constexpr Value raw = Value::raw;
-    static constexpr Value emit_cangjie_ = Value::emit_cangjie;
-
-    const Value value;
-
-    SymbolPrintFormat(Value value) noexcept : value(value)
-    {
-    }
-
-    bool emit_cangjie() const noexcept
-    {
-        return value != raw;
-    }
+    // Same as EmitCangjie plus the following additional formatting is applied:
+    //     - CPointer is printed as ObjCPointer
+    //     - CFunc is printed as ObjCFunc
+    EmitCangjieStrict,
 };
 
 class SymbolPrinter {
 public:
-    bool emit_cangjie() const noexcept
+    SymbolPrinter(const Symbol& symbol, SymbolPrintFormat format) noexcept : symbol_(symbol), format_(format)
     {
-        return format.emit_cangjie();
     }
 
     friend std::ostream& operator<<(std::ostream& stream, const SymbolPrinter& symbolPrinter);
 
-    friend SymbolPrinter raw(const Symbol* symbol) noexcept;
+    const auto& symbol() const noexcept
+    {
+        return symbol_;
+    }
 
-    friend SymbolPrinter emit_cangjie(const Symbol* symbol) noexcept;
+    const auto& format() const noexcept
+    {
+        return format_;
+    }
 
 private:
-    const Symbol* const symbol;
-    const SymbolPrintFormat format;
-
-    SymbolPrinter(const Symbol* symbol, SymbolPrintFormat::Value format) noexcept : symbol(symbol), format(format)
-    {
-    }
+    const Symbol& symbol_;
+    const SymbolPrintFormat format_;
 };
-
-inline SymbolPrinter raw(const Symbol* symbol) noexcept
-{
-    return SymbolPrinter(symbol, SymbolPrintFormat::raw);
-}
 
 inline SymbolPrinter raw(const Symbol& symbol) noexcept
 {
-    return raw(&symbol);
-}
-
-inline SymbolPrinter emit_cangjie(const Symbol* symbol) noexcept
-{
-    return SymbolPrinter(symbol, SymbolPrintFormat::emit_cangjie_);
+    return {symbol, SymbolPrintFormat::Raw};
 }
 
 inline SymbolPrinter emit_cangjie(const Symbol& symbol) noexcept
 {
-    return emit_cangjie(&symbol);
+    return {symbol, SymbolPrintFormat::EmitCangjie};
+}
+
+inline SymbolPrinter emit_cangjie_strict(const Symbol& symbol) noexcept
+{
+    return {symbol, SymbolPrintFormat::EmitCangjieStrict};
 }
 
 class KeywordEscaper {
@@ -213,7 +198,7 @@ public:
     virtual void print(std::ostream& stream, SymbolPrintFormat format) const;
 
 protected:
-    [[nodiscard]] explicit Symbol(std::string name);
+    [[nodiscard]] explicit Symbol(std::string name) noexcept;
 
     virtual ~Symbol() = default;
 };
@@ -256,6 +241,8 @@ protected:
     virtual void visit_impl(FileLevelSymbol* owner, FileLevelSymbol* value, SymbolProperty property) = 0;
 };
 
+enum class OutputStatus { Undefined, Root, Referenced, ReferencedMarked, MultiReferenced };
+
 class FileLevelSymbol : public Symbol {
     InputFile* input_file_ = nullptr; // Stage 1
     LineCol location_ = {0, 0};
@@ -264,7 +251,12 @@ class FileLevelSymbol : public Symbol {
     std::string cangjie_package_name_;
     PackageFile* output_file_ = nullptr; // Stage 3
 
-    bool no_output_file_ = false;
+    OutputStatus output_status_ = OutputStatus::Undefined;
+
+    size_t number_of_referencing_packages_ = 0;
+
+    // Used only for debug print when verbosity > LogLevel::WARNING
+    std::unordered_set<const Package*> referencing_packages_;
 
 public:
     // Applicable only for symbols with the same defining file
@@ -286,9 +278,14 @@ public:
 
     [[nodiscard]] virtual bool is_file_level() const noexcept = 0;
 
-    [[nodiscard]] InputFile* defining_file() const
+    [[nodiscard]] virtual InputFile* defining_file() const noexcept
     {
         return input_file_;
+    }
+
+    [[nodiscard]] virtual bool is_ctype() const noexcept
+    {
+        return false;
     }
 
     void set_definition_location(const Location& location);
@@ -302,31 +299,27 @@ public:
         return references_symbols_;
     }
 
-    void add_reference(FileLevelSymbol* symbol);
+    bool add_reference(FileLevelSymbol& symbol);
 
-    [[nodiscard]] bool no_output_file() const
+    [[nodiscard]] auto output_status() const noexcept
     {
-        return no_output_file_;
+        return output_status_;
     }
 
-    void mark_no_output_file()
+    void set_output_status(OutputStatus output_status) noexcept
     {
-        assert(!no_output_file_);
-        assert(!output_file_);
-        no_output_file_ = true;
+        output_status_ = output_status;
     }
+
+    void add_referencing_package(const Package& package);
+
+    size_t number_of_referencing_packages() const noexcept;
+
+    void print_referencing_packages_info() const;
 
 protected:
-    explicit FileLevelSymbol(std::string name) : Symbol(std::move(name))
+    explicit FileLevelSymbol(std::string name) noexcept : Symbol(std::move(name))
     {
-    }
-
-    void add_reference_to_self(FileLevelSymbol* symbol)
-    {
-        assert(symbol);
-        assert(this->is_file_level());
-        assert(symbol->is_file_level());
-        references_symbols_.insert(symbol);
     }
 
     virtual void visit_impl(SymbolVisitor& visitor) = 0;
@@ -338,15 +331,9 @@ class TypeLikeSymbol : public FileLevelSymbol {
 public:
     [[nodiscard]] virtual TypeLikeSymbol* map() = 0;
 
-    [[nodiscard]] virtual bool is_ctype() const noexcept
+    [[nodiscard]] virtual bool is_unit() const noexcept
     {
         return false;
-    }
-
-    [[nodiscard]] bool is_unit() const
-    {
-        assert(name() != "void");
-        return name() == "Unit";
     }
 
     [[nodiscard]] bool is_instancetype() const
@@ -359,9 +346,14 @@ public:
      * `clang_getCanonicalType` API.  That is, either the type itself, or its
      * underlying type in case of typedef.
      */
-    [[nodiscard]] virtual TypeLikeSymbol& canonical_type()
+    [[nodiscard]] virtual const TypeLikeSymbol& canonical_type() const
     {
         return *this;
+    }
+
+    [[nodiscard]] virtual bool contains_pointer_or_func() const noexcept
+    {
+        return false;
     }
 
 protected:
@@ -434,6 +426,45 @@ private:
     std::string protocol_name_;
 };
 
+class PointerTypeSymbol final : public TypeLikeSymbol {
+public:
+    PointerTypeSymbol(TypeLikeSymbol& pointee) : TypeLikeSymbol(""), pointee_(&pointee)
+    {
+    }
+
+    const TypeLikeSymbol& pointee() const noexcept
+    {
+        return *pointee_;
+    }
+
+    void print(std::ostream& stream, SymbolPrintFormat format) const override;
+
+    void visit_impl(SymbolVisitor& visitor) override
+    {
+        visitor.visit(this, pointee_, SymbolProperty::TypeArgument);
+    }
+
+    [[nodiscard]] PointerTypeSymbol* map() override;
+
+    [[nodiscard]] bool is_ctype() const noexcept override
+    {
+        return pointee_->is_ctype();
+    }
+
+    [[nodiscard]] bool contains_pointer_or_func() const noexcept override
+    {
+        return true;
+    }
+
+    [[nodiscard]] bool is_file_level() const noexcept override
+    {
+        return false;
+    }
+
+private:
+    TypeLikeSymbol* const pointee_;
+};
+
 class VArraySymbol final : public TypeLikeSymbol {
 public:
     TypeLikeSymbol* const element_type_;
@@ -444,10 +475,26 @@ public:
     {
     }
 
+    [[nodiscard]] const auto& element_type() const noexcept
+    {
+        return *element_type_;
+    }
+
+    [[nodiscard]] auto& element_type() noexcept
+    {
+        return *element_type_;
+    }
+
+    [[nodiscard]] auto size() const noexcept
+    {
+        return size_;
+    }
+
     void print(std::ostream& stream, SymbolPrintFormat format) const override;
 
-    void visit_impl(SymbolVisitor&) override
+    void visit_impl(SymbolVisitor& visitor) override
     {
+        visitor.visit(this, element_type_, SymbolProperty::TypeArgument);
     }
 
     [[nodiscard]] VArraySymbol* map() override;
@@ -466,9 +513,8 @@ public:
 class NamedTypeSymbol : public TypeLikeSymbol {
 public:
     enum class Kind : std::uint8_t {
-        Undefined,
-        SourcePrimitive,
-        TargetPrimitive,
+        Unexposed,
+        Primitive,
         TypeDef,
         Protocol,
         Interface,
@@ -476,12 +522,8 @@ public:
         Union,
         Enum,
         Category,
+        TopLevel,
     };
-
-    [[nodiscard]] TypeLikeSymbol& canonical_type() override
-    {
-        return *this;
-    }
 
     void rename(std::string_view new_name) override;
 
@@ -495,7 +537,7 @@ public:
         return kind_;
     }
 
-    [[nodiscard]] virtual std::size_t parameter_count() const = 0;
+    [[nodiscard]] virtual std::size_t parameter_count() const noexcept = 0;
 
     [[nodiscard]] virtual TypeLikeSymbol* parameter(std::size_t index) const = 0;
 
@@ -513,7 +555,7 @@ public:
         mapping_ = mapping;
     }
 
-    [[nodiscard]] virtual NamedTypeSymbol* original() const = 0;
+    [[nodiscard]] virtual NamedTypeSymbol* original() const noexcept = 0;
 
     [[nodiscard]] TypeLikeSymbol* map() override;
 
@@ -523,14 +565,12 @@ protected:
     explicit NamedTypeSymbol(const Kind kind, std::string name) : TypeLikeSymbol(std::move(name)), kind_(kind)
     {
         // Categories can have empty names
-        assert(!this->name().empty() || this->kind_ == Kind::Category);
-
-        assert(this->kind_ != Kind::Undefined);
+        assert(!this->name().empty() || this->kind_ == Kind::Category || this->kind_ == Kind::TopLevel);
     }
 
 private:
     TypeMapping* mapping_ = nullptr;
-    Kind kind_;
+    const Kind kind_;
 
     /**
      * Return `true` if either this symbol satisfies the predicate `cond` or (if
@@ -542,51 +582,256 @@ private:
     bool is_objc_reference() const noexcept;
 };
 
+class EnumConstantSymbol final : public FileLevelSymbol {
+public:
+    explicit EnumConstantSymbol(std::string name, const std::array<uint64_t, 2>& value) noexcept
+        : FileLevelSymbol(std::move(name)), value_{value[0], value[1]}
+    {
+    }
+
+    template <class T> [[nodiscard]] std::enable_if_t<sizeof(T) <= 64, T> value() const noexcept
+    {
+        return static_cast<T>(value_[0]);
+    }
+
+    template <class T> std::enable_if_t<sizeof(T) <= 64, T> value128_lo() const noexcept
+    {
+        return value<T>();
+    }
+
+    template <class T> [[nodiscard]] std::enable_if_t<sizeof(T) <= 64, T> value128_hi() const noexcept
+    {
+        return static_cast<T>(value_[1]);
+    }
+
+private:
+    // In clang, the enum underlying type can also be a 128bit integral
+    uint64_t value_[2];
+
+    [[nodiscard]] bool is_file_level() const noexcept override
+    {
+        return false;
+    }
+
+    [[nodiscard]] bool is_ctype() const noexcept override
+    {
+        return true;
+    }
+
+    void visit_impl(SymbolVisitor&) override
+    {
+    }
+};
+
+class EnumDeclarationSymbol final : public NamedTypeSymbol {
+public:
+    EnumDeclarationSymbol(std::string name) noexcept
+        : NamedTypeSymbol(NamedTypeSymbol::Kind::Enum, std::move(name)), underlying_type_(nullptr)
+    {
+    }
+
+    auto empty() const noexcept
+    {
+        return constants_.empty();
+    }
+
+    NamedTypeSymbol& underlying_type() const noexcept;
+
+    EnumConstantSymbol& add_constant(
+        std::string name, NamedTypeSymbol& underlying_type, const std::array<uint64_t, 2>& value);
+
+    template <class Proc>
+    void for_each_constant(Proc proc) const noexcept(noexcept(proc(std::declval<EnumConstantSymbol>())))
+    {
+        for (const auto& constant : constants_) {
+            proc(constant);
+        }
+    }
+
+    [[nodiscard]] size_t parameter_count() const noexcept override
+    {
+        return 0;
+    }
+
+    [[nodiscard]] TypeLikeSymbol* parameter(size_t) const override
+    {
+        assert(false);
+        return nullptr;
+    }
+
+private:
+    NamedTypeSymbol* underlying_type_;
+    std::deque<EnumConstantSymbol> constants_;
+
+    [[nodiscard]] bool is_file_level() const noexcept override
+    {
+        return true;
+    }
+
+    void visit_impl(SymbolVisitor& visitor) override
+    {
+        if (underlying_type_) {
+            visitor.visit(this, underlying_type_, SymbolProperty::ReturnType);
+        }
+    }
+
+    [[nodiscard]] EnumDeclarationSymbol* original() const noexcept override
+    {
+        return const_cast<EnumDeclarationSymbol*>(this);
+    }
+
+    [[nodiscard]] bool is_ctype() const noexcept override
+    {
+        return true;
+    }
+};
+
 enum class PrimitiveTypeCategory : std::uint8_t {
-    Unknown,
+    Unit,
     SignedInteger,
     UnsignedInteger,
     FloatingPoint,
     Boolean,
 };
 
-class PrimitiveTypeInformation final {
-    std::size_t size_;
-    PrimitiveTypeCategory category_;
+enum class PrimitiveSize : uint8_t { Zero = 0, One = 1, Two = 2, Four = 4, Eight = 8 };
 
+class PrimitiveTypeSymbol final : public NamedTypeSymbol {
 public:
-    [[nodiscard]] PrimitiveTypeInformation(const std::size_t size, const PrimitiveTypeCategory category)
-        : size_(size), category_(category)
+    [[nodiscard]] PrimitiveTypeSymbol(std::string name, PrimitiveTypeCategory category, PrimitiveSize size)
+        : NamedTypeSymbol(NamedTypeSymbol::Kind::Primitive, std::move(name)), category_(category), size_(size)
     {
     }
 
-    [[nodiscard]] std::size_t size() const
+    [[nodiscard]] PrimitiveTypeCategory category() const noexcept
+    {
+        return category_;
+    }
+
+    [[nodiscard]] PrimitiveSize size() const noexcept
     {
         return size_;
     }
 
-    [[nodiscard]] PrimitiveTypeCategory category() const
+    [[nodiscard]] bool is_unit() const noexcept override
     {
-        return category_;
+        return category_ == PrimitiveTypeCategory::Unit;
+    }
+
+private:
+    PrimitiveTypeCategory category_;
+    PrimitiveSize size_;
+
+    [[nodiscard]] bool is_file_level() const noexcept override
+    {
+        return false;
+    }
+
+    void visit_impl(SymbolVisitor&) override
+    {
+    }
+
+    [[nodiscard]] size_t parameter_count() const noexcept override
+    {
+        return 0;
+    }
+
+    [[nodiscard]] TypeLikeSymbol* parameter(size_t) const override
+    {
+        assert(false);
+        return nullptr;
+    }
+
+    [[nodiscard]] PrimitiveTypeSymbol* original() const noexcept override
+    {
+        return const_cast<PrimitiveTypeSymbol*>(this);
+    }
+
+    [[nodiscard]] virtual bool is_ctype() const noexcept override
+    {
+        return true;
     }
 };
 
-// Zero means ModifierPublic
-constexpr uint8_t ModifierPrivate = 1 << 0;
-constexpr uint8_t ModifierProtected = 1 << 1;
-constexpr uint8_t ModifierPackage = 1 << 2;
-constexpr uint8_t ModifierAccessMask = ModifierPrivate | ModifierProtected | ModifierPackage;
+/**
+ * Either an Objective-C compiler primitive built-in type not properly supported
+ * in Cangjie (for example, __int128), or a type that libclang does not provide
+ * enough info about (CXType_Unexposed).
+ *
+ * For fields and variables, this type is mapped to a primitive or to VArray of
+ * the corresponding size.
+ *
+ * For method parameters and return values, the entire method is commented out
+ * in the normal mode, as we cannot guarantee correct parameter passing in that
+ * case.
+ */
+class UnexposedTypeSymbol final : public NamedTypeSymbol {
+public:
+    [[nodiscard]] UnexposedTypeSymbol(std::string name, const TypeLikeSymbol& type)
+        : NamedTypeSymbol(NamedTypeSymbol::Kind::Unexposed, std::move(name)), type_(type)
+    {
+    }
 
-constexpr uint8_t ModifierStatic = 1 << 3;
-constexpr uint8_t ModifierReadonly = 1 << 4;
-constexpr uint8_t ModifierNullable = 1 << 5;
+private:
+    [[nodiscard]] bool is_file_level() const noexcept override
+    {
+        return false;
+    }
+
+    void visit_impl(SymbolVisitor&) override
+    {
+    }
+
+    [[nodiscard]] size_t parameter_count() const noexcept override
+    {
+        return 0;
+    }
+
+    [[nodiscard]] TypeLikeSymbol* parameter(size_t) const override
+    {
+        assert(false);
+        return nullptr;
+    }
+
+    [[nodiscard]] UnexposedTypeSymbol* original() const noexcept override
+    {
+        return const_cast<UnexposedTypeSymbol*>(this);
+    }
+
+    [[nodiscard]] bool is_ctype() const noexcept override
+    {
+        return true;
+    }
+
+    [[nodiscard]] const TypeLikeSymbol& canonical_type() const override
+    {
+        return type_;
+    }
+
+    void print(std::ostream& stream, SymbolPrintFormat format) const override;
+
+    const TypeLikeSymbol& type_;
+};
+
+// Zero means ModifierPublic
+constexpr uint16_t ModifierPrivate = 1 << 0;
+constexpr uint16_t ModifierProtected = 1 << 1;
+constexpr uint16_t ModifierPackage = 1 << 2;
+constexpr uint16_t ModifierAccessMask = ModifierPrivate | ModifierProtected | ModifierPackage;
+
+constexpr uint16_t ModifierStatic = 1 << 3;
+constexpr uint16_t ModifierReadonly = 1 << 4;
+constexpr uint16_t ModifierNullable = 1 << 5;
+constexpr uint16_t ModifierOverride = 1 << 6;
+constexpr uint16_t ModifierOptional = 1 << 7;
+constexpr uint16_t ModifierInternalLinkage = 1 << 8; // used for Kind::GlobalFunction
 
 class TypeDeclarationSymbol : public NamedTypeSymbol {
     std::vector<std::unique_ptr<TypeParameterSymbol>> parameters_;
     std::vector<NonTypeSymbol> members_;
-    std::vector<TypeLikeSymbol*> bases_;
+    std::vector<TypeDeclarationSymbol*> bases_;
     bool is_ctype_;
-    std::optional<PrimitiveTypeInformation> primitive_information_;
+    bool contains_pointer_or_func_ = false;
     bool static_instance_clashes_resolved_ = false;
 
 public:
@@ -624,12 +869,12 @@ public:
         }
     };
 
-    struct BaseCollection final : SymbolChildren<TypeDeclarationSymbol, TypeLikeSymbol> {
+    struct BaseCollection final : SymbolChildren<TypeDeclarationSymbol, TypeDeclarationSymbol> {
         explicit BaseCollection(TypeDeclarationSymbol* self) : SymbolChildren(self)
         {
         }
 
-        [[nodiscard]] TypeLikeSymbol& get(const std::size_t index) const override
+        [[nodiscard]] TypeDeclarationSymbol& get(const std::size_t index) const override
         {
             auto* base = self_->base(index);
             assert(base);
@@ -642,14 +887,19 @@ public:
         }
     };
 
-    [[nodiscard]] explicit TypeDeclarationSymbol(Kind kind, std::string name);
+    [[nodiscard]] TypeDeclarationSymbol(Kind kind, std::string name);
 
     [[nodiscard]] bool is_ctype() const noexcept override
     {
         return is_ctype_;
     }
 
-    [[nodiscard]] std::size_t parameter_count() const override
+    [[nodiscard]] bool contains_pointer_or_func() const noexcept override
+    {
+        return contains_pointer_or_func_;
+    }
+
+    [[nodiscard]] std::size_t parameter_count() const noexcept override
     {
         return parameters_.size();
     }
@@ -685,12 +935,14 @@ public:
 
     template <class Pred> bool all_of_members(Pred cond) const noexcept(noexcept(cond(std::declval<NonTypeSymbol>())));
 
+    template <class Pred> bool any_of_members(Pred cond) const noexcept(noexcept(cond(std::declval<NonTypeSymbol>())));
+
     [[nodiscard]] std::size_t base_count() const
     {
         return bases_.size();
     }
 
-    [[nodiscard]] TypeLikeSymbol* base(const std::size_t index) const
+    [[nodiscard]] TypeDeclarationSymbol* base(const std::size_t index) const
     {
         return bases_.at(index);
     }
@@ -700,33 +952,21 @@ public:
         return BaseCollection(this);
     }
 
-    [[nodiscard]] std::optional<PrimitiveTypeInformation> primitive_information() const
-    {
-        return primitive_information_;
-    }
-
-    void set_primitive_information(const PrimitiveTypeInformation& primitive_information)
-    {
-        primitive_information_ = primitive_information;
-    }
-
     void add_parameter(std::string name);
 
-    NonTypeSymbol& add_member_method(std::string name, TypeLikeSymbol* return_type, uint8_t modifiers);
+    NonTypeSymbol& add_member_method(std::string name, TypeLikeSymbol* return_type, uint16_t modifiers);
 
     NonTypeSymbol& add_constructor(std::string name, TypeLikeSymbol* return_type);
 
     NonTypeSymbol& add_field(std::string name, TypeLikeSymbol* type, bool is_nullable);
 
-    NonTypeSymbol& add_instance_variable(std::string name, TypeLikeSymbol* type, uint8_t modifiers);
+    NonTypeSymbol& add_instance_variable(std::string name, TypeLikeSymbol* type, uint16_t modifiers);
 
-    NonTypeSymbol& add_enum_constant(std::string name, TypeLikeSymbol* type);
+    NonTypeSymbol& add_property(std::string name, std::string getter, std::string setter, uint16_t modifiers);
 
-    NonTypeSymbol& add_property(std::string name, std::string getter, std::string setter, uint8_t modifiers);
+    void add_base(TypeDeclarationSymbol& base);
 
-    void add_base(TypeLikeSymbol* base);
-
-    [[nodiscard]] TypeDeclarationSymbol* original() const override
+    [[nodiscard]] TypeDeclarationSymbol* original() const noexcept override
     {
         return const_cast<TypeDeclarationSymbol*>(this);
     }
@@ -770,6 +1010,7 @@ private:
 class TupleTypeSymbol final : public TypeLikeSymbol {
     std::vector<TypeLikeSymbol*> items_;
     bool is_ctype_;
+    bool contains_pointer_or_func_;
 
 public:
     explicit TupleTypeSymbol();
@@ -781,7 +1022,12 @@ public:
         return is_ctype_;
     }
 
-    [[nodiscard]] std::size_t item_count() const
+    [[nodiscard]] bool contains_pointer_or_func() const noexcept override
+    {
+        return contains_pointer_or_func_;
+    }
+
+    [[nodiscard]] std::size_t item_count() const noexcept
     {
         return items_.size();
     }
@@ -794,12 +1040,15 @@ public:
         if (is_ctype_ && !parameter->is_ctype()) {
             is_ctype_ = false;
         }
+        if (parameter->contains_pointer_or_func()) {
+            contains_pointer_or_func_ = true;
+        }
         items_.push_back(parameter);
     }
 
     void print(std::ostream& stream, SymbolPrintFormat format) const override;
 
-    [[nodiscard]] TypeLikeSymbol* map() override;
+    [[nodiscard]] TupleTypeSymbol* map() override;
 
     [[nodiscard]] bool is_file_level() const noexcept override
     {
@@ -810,20 +1059,11 @@ protected:
     void visit_impl(SymbolVisitor& visitor) override;
 };
 
-class FuncTypeSymbol final : public TypeLikeSymbol {
+class FuncLikeTypeSymbol : public TypeLikeSymbol {
     TupleTypeSymbol* parameters_ = nullptr;
     TypeLikeSymbol* return_type_ = nullptr;
 
 public:
-    explicit FuncTypeSymbol();
-
-    FuncTypeSymbol(TupleTypeSymbol* parameters, TypeLikeSymbol* return_type);
-
-    [[nodiscard]] bool is_ctype() const noexcept override
-    {
-        return parameters_->is_ctype() && return_type_->is_ctype();
-    }
-
     [[nodiscard]] TupleTypeSymbol* parameters() const
     {
         return parameters_;
@@ -846,17 +1086,58 @@ public:
         return_type_ = return_type;
     }
 
-    void print(std::ostream& stream, SymbolPrintFormat format) const override;
-
-    [[nodiscard]] TypeLikeSymbol* map() override;
-
     [[nodiscard]] bool is_file_level() const noexcept override
     {
         return false;
     }
 
 protected:
+    FuncLikeTypeSymbol();
+    FuncLikeTypeSymbol(TupleTypeSymbol* parameters, TypeLikeSymbol* return_type);
     void visit_impl(SymbolVisitor& visitor) override;
+    void do_print(std::ostream& stream, std::string_view name, SymbolPrintFormat format) const;
+};
+
+class FuncTypeSymbol final : public FuncLikeTypeSymbol {
+public:
+    FuncTypeSymbol()
+    {
+    }
+
+    FuncTypeSymbol(TupleTypeSymbol* parameters, TypeLikeSymbol* return_type)
+        : FuncLikeTypeSymbol(parameters, return_type)
+    {
+    }
+
+    [[nodiscard]] bool is_ctype() const noexcept override
+    {
+        return parameters()->is_ctype() && return_type()->is_ctype();
+    }
+
+    [[nodiscard]] bool contains_pointer_or_func() const noexcept override
+    {
+        return true;
+    }
+
+    void print(std::ostream& stream, SymbolPrintFormat format) const override;
+
+    [[nodiscard]] FuncTypeSymbol* map() override;
+};
+
+class BlockTypeSymbol final : public FuncLikeTypeSymbol {
+public:
+    BlockTypeSymbol()
+    {
+    }
+
+    BlockTypeSymbol(TupleTypeSymbol* parameters, TypeLikeSymbol* return_type)
+        : FuncLikeTypeSymbol(parameters, return_type)
+    {
+    }
+
+    void print(std::ostream& stream, SymbolPrintFormat format) const override;
+
+    [[nodiscard]] BlockTypeSymbol* map() override;
 };
 
 class ConstructedTypeSymbol final : public NamedTypeSymbol {
@@ -871,7 +1152,12 @@ public:
         return original_ && original_->is_ctype();
     }
 
-    [[nodiscard]] std::size_t parameter_count() const override
+    [[nodiscard]] bool contains_pointer_or_func() const noexcept override
+    {
+        return original_ && original_->contains_pointer_or_func();
+    }
+
+    [[nodiscard]] std::size_t parameter_count() const noexcept override
     {
         return parameters_.size();
     }
@@ -884,7 +1170,7 @@ public:
         parameters_.push_back(parameter);
     }
 
-    [[nodiscard]] TypeDeclarationSymbol* original() const override
+    [[nodiscard]] TypeDeclarationSymbol* original() const noexcept override
     {
         return original_;
     }
@@ -892,6 +1178,11 @@ public:
     [[nodiscard]] bool is_file_level() const noexcept override
     {
         return false;
+    }
+
+    [[nodiscard]] InputFile* defining_file() const noexcept override
+    {
+        return original_->defining_file();
     }
 
 protected:
@@ -909,7 +1200,12 @@ public:
         return target_ && target_->is_ctype();
     }
 
-    [[nodiscard]] std::size_t parameter_count() const override
+    [[nodiscard]] bool contains_pointer_or_func() const noexcept override
+    {
+        return target_ && target_->contains_pointer_or_func();
+    }
+
+    [[nodiscard]] std::size_t parameter_count() const noexcept override
     {
         return 0;
     }
@@ -925,8 +1221,6 @@ public:
         return target_;
     }
 
-    [[nodiscard]] TypeLikeSymbol* root_target() const;
-
     void set_target(TypeLikeSymbol* target)
     {
         // TODO: check the underlying type is identical
@@ -934,7 +1228,7 @@ public:
         target_ = target;
     }
 
-    [[nodiscard]] TypeAliasSymbol* original() const override
+    [[nodiscard]] TypeAliasSymbol* original() const noexcept override
     {
         return const_cast<TypeAliasSymbol*>(this);
     }
@@ -951,10 +1245,11 @@ public:
         return true;
     }
 
-    [[nodiscard]] TypeLikeSymbol& canonical_type() override;
+    [[nodiscard]] const TypeLikeSymbol& canonical_type() const override;
 
 protected:
     void visit_impl(SymbolVisitor& visitor) override;
+    void print(std::ostream& stream, SymbolPrintFormat format) const override;
 };
 
 class NonTypeSymbol final : public FileLevelSymbol {
@@ -969,8 +1264,7 @@ public:
         InstanceVariable,
         GlobalFunction, // NOTE: must have stable address and live forever
         MemberMethod,
-        Constructor,
-        EnumConstant,
+        Constructor
     };
 
     struct ParameterCollection final : SymbolChildren<NonTypeSymbol, ParameterSymbol> {
@@ -990,12 +1284,12 @@ public:
     };
 
     [[nodiscard]] NonTypeSymbol(
-        Private, std::string name, const Kind kind, TypeLikeSymbol* return_type, uint8_t modifiers = 0)
+        Private, std::string name, const Kind kind, TypeLikeSymbol* return_type, uint16_t modifiers = 0)
         : FileLevelSymbol(std::move(name)), kind_(kind), modifiers_(modifiers), return_type_(return_type)
     {
     }
 
-    [[nodiscard]] NonTypeSymbol(Private, std::string name, std::string getter, std::string setter, uint8_t modifiers)
+    [[nodiscard]] NonTypeSymbol(Private, std::string name, std::string getter, std::string setter, uint16_t modifiers)
         : FileLevelSymbol(std::move(name)),
           kind_(Kind::Property),
           modifiers_(modifiers),
@@ -1045,12 +1339,7 @@ public:
         return is_member_method() || is_constructor() || is_global_function();
     }
 
-    [[nodiscard]] bool is_enum_constant() const noexcept
-    {
-        return kind() == Kind::EnumConstant;
-    }
-
-    [[nodiscard]] uint8_t modifiers() const noexcept
+    [[nodiscard]] uint16_t modifiers() const noexcept
     {
         return modifiers_;
     }
@@ -1073,6 +1362,16 @@ public:
     [[nodiscard]] bool is_nullable() const noexcept
     {
         return modifiers_ & ModifierNullable;
+    }
+
+    [[nodiscard]] bool is_override() const noexcept
+    {
+        return modifiers_ & ModifierOverride;
+    }
+
+    [[nodiscard]] bool is_optional() const noexcept
+    {
+        return modifiers_ & ModifierOptional;
     }
 
     [[nodiscard]] const std::string& getter() const noexcept
@@ -1110,13 +1409,15 @@ public:
         return bit_field_size_ != 0xFF;
     }
 
+    [[nodiscard]] bool is_ctype() const noexcept override;
+
     void set_return_type(TypeLikeSymbol* return_type)
     {
         assert(return_type);
         return_type_ = return_type;
     }
 
-    [[nodiscard]] std::size_t parameter_count() const
+    [[nodiscard]] std::size_t parameter_count() const noexcept
     {
         return parameters_.size();
     }
@@ -1162,18 +1463,9 @@ public:
         return selector_attribute_.empty() ? name() : selector_attribute_;
     }
 
-    [[nodiscard]] std::uint64_t enum_constant_value() const
+    [[nodiscard]] bool has_internal_linkage() const noexcept
     {
-        assert(is_enum_constant());
-        assert(enum_constant_value_.has_value());
-        return *enum_constant_value_;
-    }
-
-    void set_enum_constant_value(const std::uint64_t enum_constant_value)
-    {
-        assert(is_enum_constant());
-        assert(!enum_constant_value_.has_value());
-        enum_constant_value_ = enum_constant_value;
+        return modifiers_ & ModifierInternalLinkage;
     }
 
     void set_bit_field_size(uint8_t size) noexcept
@@ -1187,10 +1479,12 @@ protected:
     void visit_impl(SymbolVisitor& visitor) override;
 
 private:
+    // Only these classes are allowed to create instances of NonTypeSymbol
     friend class TypeDeclarationSymbol;
+    friend class TopLevel;
 
     Kind kind_;
-    uint8_t modifiers_;
+    uint16_t modifiers_;
 
     // used for Kind::Property
     std::string getter_;
@@ -1200,7 +1494,6 @@ private:
     TypeLikeSymbol* return_type_;
     std::vector<ParameterSymbol> parameters_;
     std::string selector_attribute_;
-    std::optional<std::uint64_t> enum_constant_value_;
 };
 
 class ParameterSymbol final : public Symbol {
@@ -1230,13 +1523,7 @@ public:
     }
 };
 
-[[nodiscard]] NamedTypeSymbol* cfunc(FuncTypeSymbol* symbol);
-
-[[nodiscard]] NamedTypeSymbol* objc_func(FuncTypeSymbol* symbol);
-
-[[nodiscard]] NamedTypeSymbol& pointer(TypeLikeSymbol& pointee);
-
-void add_builtin_types();
+[[nodiscard]] TypeLikeSymbol& pointer(TypeLikeSymbol& pointee);
 
 } // namespace objcgen
 

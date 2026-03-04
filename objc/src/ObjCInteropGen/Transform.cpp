@@ -14,9 +14,24 @@
 
 namespace objcgen {
 
-static void append_name(Symbol& symbol, std::string_view suffix)
+static void resolve_static_instance_clash(Symbol& symbol, bool is_static)
 {
-    symbol.rename(std::string(symbol.name()).append(suffix));
+    symbol.rename(std::string(symbol.name()).append(is_static ? "Static" : "Instance"));
+}
+
+static void resolve_static_instance_clash(TypeDeclarationSymbol& decl, NonTypeSymbol& method, bool is_static)
+{
+    assert(method.kind() == NonTypeSymbol::Kind::MemberMethod);
+    resolve_static_instance_clash(method, is_static);
+
+    // This method can be the getter of a property.  Rename the property too.
+    for (auto& member : decl.members()) {
+        if (member.kind() == NonTypeSymbol::Kind::Property && member.is_static() == is_static &&
+            member.getter() == method.selector()) {
+            resolve_static_instance_clash(member, is_static);
+            break;
+        }
+    }
 }
 
 static void resolve_static_instance_clashes(TypeDeclarationSymbol& type);
@@ -30,8 +45,7 @@ static void resolve_static_instance_clashes(TypeDeclarationSymbol& subclass, Typ
     // recursively resolves clashes between `subclass` and each of the ancestors of
     // `superclass`, starting from the root(s), sequentially.
     for (auto& super_superclass : superclass.bases()) {
-        assert(dynamic_cast<TypeDeclarationSymbol*>(&super_superclass));
-        resolve_static_instance_clashes(subclass, static_cast<TypeDeclarationSymbol&>(super_superclass));
+        resolve_static_instance_clashes(subclass, super_superclass);
     }
 
     // This loop resolves clashes between members of `subclass` and `superclass`,
@@ -45,10 +59,10 @@ static void resolve_static_instance_clashes(TypeDeclarationSymbol& subclass, Typ
                     if (supername == submember.name()) {
                         if (submember.is_static()) {
                             if (!supermember.is_static()) {
-                                append_name(submember, "Static");
+                                resolve_static_instance_clash(subclass, submember, true);
                             }
                         } else if (supermember.is_static()) {
-                            append_name(submember, "Instance");
+                            resolve_static_instance_clash(subclass, submember, false);
                         }
                     } else {
                         // The supermember could be already renamed.  In Objective-C methods are not
@@ -127,8 +141,7 @@ static void resolve_static_instance_clashes(TypeDeclarationSymbol& type)
     // Recursively call this function for all ancestors, then resolve conflicts
     // between this class and each of the ancestors.
     for (auto& supertype : type.bases()) {
-        assert(dynamic_cast<TypeDeclarationSymbol*>(&supertype));
-        resolve_static_instance_clashes(type, static_cast<TypeDeclarationSymbol&>(supertype));
+        resolve_static_instance_clashes(type, supertype);
     }
 
     // Resolve conflicts inside the class.
@@ -139,10 +152,29 @@ static void resolve_static_instance_clashes(TypeDeclarationSymbol& type)
         }
     }
     for (const auto& [name, methods] : map) {
-        if (methods.both() && methods.get_static()->name() == methods.get_instance()->name()) {
-            append_name(*methods.get_static(), "Static");
+        if (methods.both()) {
+            auto& static_method = *methods.get_static();
+            if (static_method.name() == methods.get_instance()->name()) {
+                resolve_static_instance_clash(type, static_method, true);
+            }
         }
     }
+
+    map.clear();
+    for (auto& member : type.members()) {
+        if (member.kind() == NonTypeSymbol::Kind::Property) {
+            map[member.selector()].add(member);
+        }
+    }
+    for (const auto& [name, props] : map) {
+        if (props.both()) {
+            auto& static_prop = *props.get_static();
+            if (static_prop.name() == props.get_instance()->name()) {
+                resolve_static_instance_clash(static_prop, true);
+            }
+        }
+    }
+
     type.mark_static_instance_clashes_resolved();
 }
 
@@ -178,13 +210,28 @@ static void do_rename()
 
     for (auto&& type : type_definitions) {
         if (type.is(NamedTypeSymbol::Kind::Protocol)) {
-            auto name = std::string(type.name());
-            if (universe.type(TypeNamespace::Primary, name)) {
-                auto new_name = name + "Protocol";
-                if (verbosity >= LogLevel::INFO) {
-                    std::cerr << "Renaming clashing protocol `" << name << "` to `" << new_name << "`" << std::endl;
+            for (;;) {
+                const auto& name = type.name();
+                bool clashing = false;
+                for (uint8_t ns = 0; ns < TYPE_NAMESPACE_COUNT; ++ns) {
+                    auto namespaze = static_cast<TypeNamespace>(ns);
+                    if (namespaze != TypeNamespace::Protocols) {
+                        const auto* non_protocol_type = universe.type(namespaze, name);
+                        if (non_protocol_type && non_protocol_type->package() == type.package()) {
+                            auto new_name = name + "Protocol";
+                            if (verbosity >= LogLevel::INFO) {
+                                std::cerr << "Renaming clashing protocol `" << name << "` to `" << new_name << "`"
+                                          << std::endl;
+                            }
+                            type.rename(new_name);
+                            clashing = true;
+                            break;
+                        }
+                    }
                 }
-                type.rename(new_name);
+                if (!clashing) {
+                    break;
+                }
             }
         }
 
@@ -216,12 +263,25 @@ static void do_rename()
     for (auto& type : type_definitions) {
         resolve_static_instance_clashes(type);
     }
+
+    // In Objective-C, a global function can share the same name with a
+    // structure/class/protocol.  In Cangjie, it cannot.  Resolve the conflict by
+    // adding the `Func` suffix to the name of the global function.
+    for (auto& top_level : universe.top_level()) {
+        if (top_level.is_global_function()) {
+            const auto& name = top_level.name();
+            const auto* type = universe.type(name);
+            if (type && type->package() == top_level.package()) {
+                top_level.rename(name + "Func");
+            }
+        }
+    }
 }
 
 static void set_type_mappings()
 {
     for (auto&& type : Universe::get().all_declarations()) {
-        for (auto&& mapping_ptr : mappings) {
+        for (auto mapping_ptr : mappings) {
             auto& mapping = *mapping_ptr;
             if (mapping.can_map(&type)) {
                 type.set_mapping(&mapping);
@@ -230,23 +290,32 @@ static void set_type_mappings()
     }
 }
 
-static void do_type_map()
+static void do_map(NonTypeSymbol& symbol, TypeDeclarationSymbol* decl)
 {
-    for (auto&& decl : Universe::get().all_declarations()) {
+    for (auto&& parameter : symbol.parameters()) {
+        parameter.set_type(parameter.type()->map());
+    }
+    auto return_type = symbol.return_type()->map();
+    assert(return_type);
+    if (return_type->is_instancetype()) {
+        assert(decl);
+        return_type = decl;
+    }
+    symbol.set_return_type(return_type);
+}
+
+static void do_map()
+{
+    auto& universe = Universe::get();
+    for (auto& top_level : universe.top_level()) {
+        do_map(top_level, nullptr);
+    }
+    for (auto&& decl : universe.all_declarations()) {
         if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(&decl)) {
             for (auto&& member : type->members()) {
-                if (member.is_property()) {
-                    continue;
+                if (!member.is_property()) {
+                    do_map(member, type);
                 }
-                for (auto&& parameter : member.parameters()) {
-                    parameter.set_type(parameter.type()->map());
-                }
-                auto return_type = member.return_type()->map();
-                assert(return_type);
-                if (return_type->is_instancetype()) {
-                    return_type = &decl;
-                }
-                member.set_return_type(return_type);
             }
         } else if (auto* alias = dynamic_cast<TypeAliasSymbol*>(&decl)) {
             auto* target = alias->target();
@@ -263,7 +332,7 @@ void apply_transforms()
 {
     do_rename();
     set_type_mappings();
-    do_type_map();
+    do_map();
 }
 
 } // namespace objcgen

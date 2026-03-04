@@ -8,5 +8,5 @@ package objc.lang
 
 public import interoplib.objc.*
 
-// @ObjCMirror
+@ObjCMirror
 public interface ObjCId {}
