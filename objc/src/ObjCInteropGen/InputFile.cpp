@@ -90,7 +90,7 @@ bool Inputs::add_cursor(const Location& location, const std::string& name)
         builtin_cursors_in_this_translation_.emplace(name);
         return true;
     }
-    return (*this)[location.file_].add_cursor(location);
+    return (*this)[location.file_].add_cursor(location.pos_);
 }
 
 } // namespace objcgen

@@ -391,7 +391,7 @@ void FileLevelSymbol::set_definition_location(const Location& location)
 {
     assert(!input_file_);
     input_file_ = &inputs[location.file_];
-    location_ = location;
+    location_ = location.pos_;
     input_file_->add_symbol(this);
 }
 

@@ -356,25 +356,24 @@ ClangSessionImpl::~ClangSessionImpl()
     return clang_equalLocations(loc, clang_getNullLocation());
 }
 
-static Location get_location(const CXSourceLocation& loc)
+[[nodiscard]] static Location get_location(const CXCursor& decl)
 {
-    assert(!is_null_location(loc));
+    assert(is_valid(decl));
+    auto loc = clang_getCursorLocation(decl);
+    if (is_null_location(loc)) {
+        return {};
+    }
     Location location;
     CXFile file;
-    clang_getFileLocation(loc, &file, &location.line_, &location.col_, nullptr);
-    assert(file);
+    clang_getFileLocation(loc, &file, &location.pos_.line_, &location.pos_.col_, nullptr);
+    if (!file) {
+        return {};
+    }
     location.file_ = as_string(clang_getFileName(file));
     if (!location.file_.is_absolute()) {
         location.file_ = std::filesystem::absolute(location.file_);
     }
     return location;
-}
-
-static Location get_location(const CXCursor& decl)
-{
-    assert(is_valid(decl));
-    auto loc = clang_getCursorLocation(decl);
-    return is_null_location(loc) ? Location{{0, 0}, {}} : get_location(loc);
 }
 
 [[nodiscard]] static std::string declaring_file_name(const CXCursor& decl)
@@ -563,8 +562,8 @@ struct UndecorateResult {
  *     @end
  * </pre>
  *
- * Also, under `-fobjc-arc` the type parameter name can be prefixed with the
- * `__unsafe_unretained` or `__strong` modifier.
+ * Also the type parameter name can be prefixed with the `const`,
+ * `__unsafe_unretained`, or `__strong` modifier.
  *
  * <p> We need a pure name without any "decorations", to make it possible to
  * find the parameter in its owner's parameter list.  The pure name hardly can
@@ -572,7 +571,8 @@ struct UndecorateResult {
  */
 static UndecorateResult undecorate_parameter_type_name(const std::string& decorated_type_name)
 {
-    auto without_prefix = remove_prefix(remove_prefix(decorated_type_name, "__unsafe_unretained "), "__strong ");
+    auto without_prefix =
+        remove_prefix(remove_prefix(remove_prefix(decorated_type_name, "__unsafe_unretained "), "__strong "), "const ");
     auto opening_bracket = without_prefix.find('<');
     return opening_bracket == std::string_view::npos || without_prefix.back() != '>'
         ? UndecorateResult{without_prefix, std::string_view()}
@@ -592,6 +592,20 @@ static UndecorateResult undecorate_parameter_type_name(const std::string& decora
 #endif
     remove_prefix_in_place(type_name, "__strong ");
     return type_name;
+}
+
+[[nodiscard]] static TypeLikeSymbol& primitive_type(const CXType& type) noexcept
+{
+    auto size = clang_Type_getSizeOf(type);
+    auto& universe = Universe::get();
+    auto* type_symbol = universe.primitive_type(get_primitive_category(type), static_cast<size_t>(size < 0 ? 0 : size));
+    if (type_symbol) {
+        return *type_symbol;
+    }
+    if (size <= 0) {
+        return universe.unit();
+    }
+    return *new VArraySymbol(universe.int8(), static_cast<size_t>(size));
 }
 
 TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
@@ -675,21 +689,8 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
                 return type_like_symbol(modified_type);
             }
             auto type_name = get_type_name(type);
-            auto& universe = Universe::get();
-            TypeLikeSymbol* result = universe.type(type_name);
-            if (!result) {
-                auto size = clang_Type_getSizeOf(type);
-                result =
-                    universe.primitive_type(get_primitive_category(type), static_cast<size_t>(size < 0 ? 0 : size));
-                if (!result) {
-                    if (size <= 0) {
-                        result = &universe.unit();
-                    } else {
-                        result = new VArraySymbol(universe.int8(), static_cast<size_t>(size));
-                    }
-                }
-            }
-            return new UnexposedTypeSymbol(type_name, *result);
+            auto* result = Universe::get().type(type_name);
+            return new UnexposedTypeSymbol(type_name, result ? *result : primitive_type(type));
         }
 
         case CXType_Attributed: {
@@ -828,15 +829,9 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
             break;
         }
 
-        default: {
+        default:
             assert(is_builtin(type));
-            type_name = get_type_name(type);
-            auto size = clang_Type_getSizeOf(type);
-            auto* primitive_symbol =
-                Universe::get().primitive_type(get_primitive_category(type), static_cast<size_t>(size < 0 ? 0 : size));
-            assert(primitive_symbol);
-            return primitive_symbol;
-        }
+            return &primitive_type(type);
     }
 
     if (auto* type_symbol = Universe::get().type(type_kind, type_name)) {

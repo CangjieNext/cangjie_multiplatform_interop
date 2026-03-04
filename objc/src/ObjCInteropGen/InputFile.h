@@ -42,8 +42,9 @@ struct LineCol {
     unsigned col_;
 };
 
-struct Location : LineCol {
+struct Location {
     std::filesystem::path file_;
+    LineCol pos_;
 
     [[nodiscard]] bool is_null() const noexcept
     {
