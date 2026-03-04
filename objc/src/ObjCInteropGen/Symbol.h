@@ -169,7 +169,7 @@ private:
     void set_cangjie_package_name(std::string cangjie_package_name) noexcept;
 
     InputFile* input_file_ = nullptr; // Stage 1
-    LineCol location_ = {0, 0};
+    LineCol location_{};
     std::unordered_set<FileLevelSymbol*> references_symbols_; // Stage 2
 
     std::string cangjie_package_name_;

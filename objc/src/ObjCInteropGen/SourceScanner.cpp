@@ -350,25 +350,24 @@ ClangSessionImpl::~ClangSessionImpl()
     return clang_equalLocations(loc, clang_getNullLocation());
 }
 
-[[nodiscard]] static Location get_location(const CXSourceLocation& loc)
+[[nodiscard]] static Location get_location(const CXCursor& decl)
 {
-    assert(!is_null_location(loc));
+    assert(is_valid(decl));
+    auto loc = clang_getCursorLocation(decl);
+    if (is_null_location(loc)) {
+        return {};
+    }
     Location location;
     CXFile file;
-    clang_getFileLocation(loc, &file, &location.line_, &location.col_, nullptr);
-    assert(file);
+    clang_getFileLocation(loc, &file, &location.pos_.line_, &location.pos_.col_, nullptr);
+    if (!file) {
+        return {};
+    }
     location.file_ = as_string(clang_getFileName(file));
     if (!location.file_.is_absolute()) {
         location.file_ = std::filesystem::absolute(location.file_);
     }
     return location;
-}
-
-[[nodiscard]] static Location get_location(const CXCursor& decl)
-{
-    assert(is_valid(decl));
-    auto loc = clang_getCursorLocation(decl);
-    return is_null_location(loc) ? Location{{0, 0}, {}} : get_location(loc);
 }
 
 [[nodiscard]] static std::string declaring_file_name(const CXCursor& decl)
