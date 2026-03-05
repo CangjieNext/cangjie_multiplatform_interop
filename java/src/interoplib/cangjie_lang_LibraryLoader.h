@@ -16,10 +16,10 @@ extern "C" {
 /*
  * Class:     cangjie_lang_LibraryLoader
  * Method:    nativeLoadCJLibrary
- * Signature: (Ljava/lang/String;)V
+ * Signature: (Ljava/lang/String;Ljava/lang/ClassLoader;)V
  */
 JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary
-  (JNIEnv *, jclass, jstring);
+  (JNIEnv *, jclass, jstring, jobject);
 
 #ifdef __cplusplus
 }

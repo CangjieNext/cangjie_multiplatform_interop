@@ -213,6 +213,7 @@ static enum RTLogLevel InitLogLevel()
 extern int InitCJRuntime(const struct RuntimeParam* param);
 extern int LoadCJLibraryWithInit(const char* libName);
 extern void setJavaVM(JavaVM *vm);
+extern void initClassLoading(JNIEnv *env, jobject classLoader);
 
 struct SignalAction {
     union {
@@ -244,7 +245,7 @@ static void setEmptyDefaultSIGSEGVHandler() {
     AddHandlerToSignalStack(SIGSEGV, &sa);
 }
 
-JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(JNIEnv *env, jobject obj, jstring libName) {
+JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(JNIEnv *env, jclass clazz, jstring libName, jobject classLoader) {
     JavaVM *vm = NULL;
     jboolean isCopy = false;
     const char *cjLibraryName = (*env)->GetStringUTFChars(env, libName, &isCopy);
@@ -256,6 +257,7 @@ JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(JNIEn
 
     (*env)->GetJavaVM(env, &vm);
     setJavaVM(vm);
+    initClassLoading(env, classLoader);
 }
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
