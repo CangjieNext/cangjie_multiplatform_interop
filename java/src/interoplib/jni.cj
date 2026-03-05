@@ -58,6 +58,69 @@ func setJavaVM(javaVM: CPointer<JavaVM>): Unit {
     jvm = javaVM
 }
 
+var classLoading = ClassLoading()
+
+public struct ClassLoading {
+    private let classLoader: jobject
+    private let loadClassID: jmethodID
+    let initialized: Bool
+
+    init() {
+        this.classLoader = jobject()
+        this.loadClassID = jmethodID()
+        this.initialized = false
+    }
+
+    init(classLoader: jobject, loadClassID: jmethodID) {
+        this.classLoader = classLoader
+        this.loadClassID = loadClassID
+        this.initialized = true
+    }
+
+    /**
+     * Loads class by its fully-qualified name.
+     *
+     * @return local reference to the loaded class, or null if the class wasn't found
+     */
+    func loadClass(env: JNIEnv_ptr, name: String): jclass {
+        assert(initialized)
+        var result = jclass()
+        unsafe {
+            try (searchName = LibC.mallocCString(name.replace("/", ".")).asResource()) {
+                let envCJ = env.read().read()
+                let callArgs: Array<jvalue> = [
+                  reinterpret_cast<jvalue, jstring>(envCJ.NewStringUTF(env, searchName.value))
+                ]
+                result = withPinnedArray(callArgs) { argsPtr =>
+                    let envCJ = env.read().read()
+                    jclass(envCJ.CallObjectMethodA(env, classLoader, loadClassID, argsPtr))
+                }
+            }
+        }
+        handlePendingException(env)
+        result
+    }
+}
+
+@C
+func initClassLoading(env: JNIEnv_ptr, classLoader: jobject): Unit {
+    if (classLoading.initialized) { return }
+
+    assert(!classLoader.isNull())
+    unsafe {
+        try (
+          methodName = LibC.mallocCString("loadClass").asResource(),
+          methodSig = LibC.mallocCString("(Ljava/lang/String;)Ljava/lang/Class;").asResource()
+        ) {
+            let envCJ = env.read().read()
+            let clazz = envCJ.GetObjectClass(env, classLoader)
+            let methodID = envCJ.GetMethodID(env, clazz, methodName.value, methodSig.value)
+            assert(!methodID.isNull())
+            classLoading = ClassLoading(envCJ.NewGlobalRef(env, classLoader), methodID)
+        }
+    }
+}
+
 @C
 public struct JNINativeInterface_ {
     private var reserved0 = CPointer<Unit>()
@@ -759,12 +822,7 @@ public class Java_CFFI_Class <: ToString {
             name
         }
 
-        unsafe {
-            let envCJ = env.read().read()
-            let cName = LibC.mallocCString(this.name)
-            obj = envCJ.FindClass(env, cName)
-            LibC.free(cName)
-        }
+        obj = classLoading.loadClass(env, name)
 
         if (obj.isNull()) {
             throw InteropLibException("Cannot find class ${name}")

@@ -21,6 +21,14 @@ extern "C" {
 JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary
   (JNIEnv *, jclass, jstring);
 
+/*
+ * Class:     cangjie_lang_LibraryLoader
+ * Method:    nativeInitClassLoading
+ * Signature: (Ljava/lang/ClassLoader;)V
+ */
+JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeInitClassLoading
+  (JNIEnv *, jclass, jobject);
+
 #ifdef __cplusplus
 }
 #endif

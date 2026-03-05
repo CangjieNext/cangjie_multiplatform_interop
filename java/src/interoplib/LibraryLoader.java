@@ -11,7 +11,9 @@ public class LibraryLoader {
         System.loadLibrary(libName);
         String systemLibName = System.mapLibraryName(libName);
         nativeLoadCJLibrary(systemLibName);
+        nativeInitClassLoading(LibraryLoader.class.getClassLoader());
     }
 
     public static native void nativeLoadCJLibrary(String libName);
+    public static native void nativeInitClassLoading(ClassLoader classLoader);
 }
