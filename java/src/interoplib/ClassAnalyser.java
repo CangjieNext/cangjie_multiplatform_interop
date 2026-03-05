@@ -8,19 +8,32 @@ package cangjie.interop.java;
 
 import java.util.HashMap;
 
+/**
+ * This class provides internal API used by the synthetic glue code.
+ * It provides the facility to calculate the bitmask that enables
+ * fast virtual method calls.
+ *
+ * @since 2025-10-20
+ */
 public final class ClassAnalyser<T> {
     private final Class<T> baseClass;
     private final MethodDef[] virtualMethods;
 
     private volatile HashMap<Class<?>, Long> classMap = new HashMap<>();
 
+    /**
+     * Create the specialized analyzer instance.
+     * 
+     * @param baseClass super class descriptor
+     * @param virtualMethods virtual method definitions to analyze
+     */
     public ClassAnalyser(Class<T> baseClass, MethodDef[] virtualMethods) {
         this.baseClass = baseClass;
         this.virtualMethods = virtualMethods;
         if (baseClass.isInterface()) {
             throw new IllegalArgumentException();
         }
-        for(MethodDef mdef : virtualMethods) {
+        for (MethodDef mdef : virtualMethods) {
             try {
                 baseClass.getDeclaredMethod(mdef.name, mdef.parameters);
             } catch (NoSuchMethodException e) {
@@ -29,6 +42,12 @@ public final class ClassAnalyser<T> {
         }
     }
 
+    /**
+     * Perform the actual analysis and calculate the required bitmask.
+     * 
+     * @param clazz the child class to compute the mask for
+     * @return the bitmask with bits set for each method overridden in any super class
+     */
     public <E extends T> long getOverrideMask(Class<E> clazz) {
         if (clazz == baseClass) {
             return 0;
@@ -42,20 +61,20 @@ public final class ClassAnalyser<T> {
                 throw new IllegalArgumentException("Class" + clazz + " is not allowed to have finalizer");
             }
         } catch (NoSuchMethodException e) {
-
+            // Normal behavior (no finalizer overridden)
         }
         Long overrideMask = classMap.get(clazz);
         if (overrideMask != null) {
             return overrideMask;
         }
-        long mask = 0;
+        long mask = 0L;
         for (Class<?> c = clazz; c != baseClass; c = c.getSuperclass()) {
             for (int i = 0; i < virtualMethods.length && i < 64; i++) {
                 try {
                     clazz.getDeclaredMethod(virtualMethods[i].name, virtualMethods[i].parameters);
                     mask |= 1L << i;
                 } catch (NoSuchMethodException e) {
-
+                    // Normal behavior (method not overridden)
                 }
             }
         }

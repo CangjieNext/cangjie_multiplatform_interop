@@ -6,10 +6,23 @@
 
 package cangjie.interop.java;
 
+/**
+ * This class provides internal API used by the synthetic glue code.
+ * It represents a single virtual method, with its name
+ * and partial signature.
+ *
+ * @since 2025-10-20
+ */
 public final class MethodDef {
     final String name;
     final Class<?> [] parameters;
 
+    /**
+     * Create the method definition data structure.
+     * 
+     * @param name method name
+     * @param parameters method parameter types
+     */
     public MethodDef(String name, Class<?>... parameters) {
         this.name = name;
         this.parameters = parameters;

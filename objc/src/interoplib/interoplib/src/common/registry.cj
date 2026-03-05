@@ -48,7 +48,9 @@ public class Registry {
     }
 
     public unsafe func get<T>(id: Int64): ?T {
-        mockRegistry[id] as T
+        synchronized(mutex) {
+            mockRegistry[id] as T
+        }
     }
 
     public unsafe func remove(id: Int64): Unit {
