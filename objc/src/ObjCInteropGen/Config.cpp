@@ -12,6 +12,7 @@
 
 #include "FatalException.h"
 #include "Logging.h"
+#include "TomlParseError.h"
 
 namespace objcgen {
 

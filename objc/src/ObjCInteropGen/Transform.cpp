@@ -203,6 +203,33 @@ static void remove_duplicates(TypeDeclarationSymbol& type)
     }
 }
 
+static void rename_clashing_protocols(TypeDeclarationSymbol& type)
+{
+    auto& universe = Universe::get();
+    for (;;) {
+        const auto& name = type.name();
+        bool clashing = false;
+        for (uint8_t ns = 0; ns < TYPE_NAMESPACE_COUNT; ++ns) {
+            auto namespaze = static_cast<TypeNamespace>(ns);
+            if (namespaze != TypeNamespace::Protocols) {
+                const auto* non_protocol_type = universe.type(namespaze, name);
+                if (non_protocol_type && non_protocol_type->package() == type.package()) {
+                    auto new_name = name + "Protocol";
+                    if (verbosity >= LogLevel::INFO) {
+                        std::cerr << "Renaming clashing protocol `" << name << "` to `" << new_name << "`" << std::endl;
+                    }
+                    type.rename(new_name);
+                    clashing = true;
+                    break;
+                }
+            }
+        }
+        if (!clashing) {
+            break;
+        }
+    }
+}
+
 static void do_rename()
 {
     auto& universe = Universe::get();
@@ -210,29 +237,7 @@ static void do_rename()
 
     for (auto&& type : type_definitions) {
         if (type.is(NamedTypeSymbol::Kind::Protocol)) {
-            for (;;) {
-                const auto& name = type.name();
-                bool clashing = false;
-                for (uint8_t ns = 0; ns < TYPE_NAMESPACE_COUNT; ++ns) {
-                    auto namespaze = static_cast<TypeNamespace>(ns);
-                    if (namespaze != TypeNamespace::Protocols) {
-                        const auto* non_protocol_type = universe.type(namespaze, name);
-                        if (non_protocol_type && non_protocol_type->package() == type.package()) {
-                            auto new_name = name + "Protocol";
-                            if (verbosity >= LogLevel::INFO) {
-                                std::cerr << "Renaming clashing protocol `" << name << "` to `" << new_name << "`"
-                                          << std::endl;
-                            }
-                            type.rename(new_name);
-                            clashing = true;
-                            break;
-                        }
-                    }
-                }
-                if (!clashing) {
-                    break;
-                }
-            }
+            rename_clashing_protocols(type);
         }
 
         remove_duplicates(type);

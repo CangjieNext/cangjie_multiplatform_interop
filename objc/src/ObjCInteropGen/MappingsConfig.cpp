@@ -15,7 +15,7 @@ namespace objcgen {
 
 static void read_table_mappings(const toml::Table& mapping, std::size_t i)
 {
-    // TODO: consider supporting packages-mixins
+    // It makes sense to consider supporting packages-mixins
     for (auto&& [key, value] : mapping) {
         if (value.is<std::string>()) {
             const auto& value_string = value.as<std::string>();
