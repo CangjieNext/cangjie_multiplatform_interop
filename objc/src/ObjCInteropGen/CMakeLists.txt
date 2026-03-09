@@ -48,6 +48,7 @@ add_executable(ObjCInteropGen
         Strings.h
         Symbol.cpp
         Symbol.h
+        TomlParseError.h
         Transform.cpp
         Transform.h
         Universe.cpp

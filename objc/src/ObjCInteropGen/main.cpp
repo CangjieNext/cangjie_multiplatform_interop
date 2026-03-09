@@ -19,6 +19,7 @@
 #include "Package.h"
 #include "SourceScannerConfig.h"
 #include "Strings.h"
+#include "TomlParseError.h"
 #include "Transform.h"
 #include "Universe.h"
 

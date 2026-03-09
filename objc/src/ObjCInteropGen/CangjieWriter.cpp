@@ -189,7 +189,7 @@ protected:
             return;
         }
 
-        const auto* constructed_type = dynamic_cast<const ConstructedTypeSymbol*>(value);
+        auto* constructed_type = dynamic_cast<ConstructedTypeSymbol*>(value);
         if (constructed_type) {
             value = constructed_type->original();
             assert(value);
@@ -208,7 +208,7 @@ static void collect_import(TypeLikeSymbol& symbol)
 // Currently in the NORMAL mode, Objective-C compatible types are primitives,
 // @C structures, ObjCPointer, ObjCFunc, ObjCBlock, and classes/interfaces.
 // But not CPointer, CFunc, or VArray.
-static bool is_objc_compatible(const TypeLikeSymbol& type)
+static bool is_objc_compatible(TypeLikeSymbol& type)
 {
     assert(normal_mode());
     if (&type == &Universe::get().sel()) {
@@ -288,15 +288,22 @@ public:
     {
     }
 
-    friend std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter& op);
+    const auto& symbol() const noexcept
+    {
+        return symbol_;
+    }
+
+    const auto& type_printer() const noexcept
+    {
+        return type_printer_;
+    }
 
 private:
     const NonTypeSymbol& symbol_;
     const SymbolPrinter type_printer_;
 };
 
-static DefaultValuePrinter default_value(
-    const NonTypeSymbol& symbol, const TypeLikeSymbol& type, SymbolPrintFormat format)
+static DefaultValuePrinter default_value(const NonTypeSymbol& symbol, TypeLikeSymbol& type, SymbolPrintFormat format)
 {
     return DefaultValuePrinter(symbol, SymbolPrinter(type, format));
 }
@@ -313,31 +320,52 @@ static void print_tricky_default_value(std::ostream& stream, std::string_view ty
     }
 }
 
+static void print_alias_default_value(std::ostream& stream, NamedTypeSymbol& named_type, const DefaultValuePrinter& op)
+{
+    assert(dynamic_cast<TypeAliasSymbol*>(&named_type));
+    auto& target = named_type.canonical_type();
+    const auto* named_target = dynamic_cast<const NamedTypeSymbol*>(&target);
+    if (named_target && named_target->is(NamedTypeSymbol::Kind::Primitive)) {
+        assert(dynamic_cast<const PrimitiveTypeSymbol*>(named_target));
+        const auto& primitive_target = static_cast<const PrimitiveTypeSymbol&>(*named_target);
+        switch (primitive_target.category()) {
+            case PrimitiveTypeCategory::SignedInteger:
+            case PrimitiveTypeCategory::UnsignedInteger:
+                stream << "unsafe{zeroValue<" << named_type.name() << ">()}";
+                return;
+            default:
+                break;
+        }
+    }
+    stream << default_value(op.symbol(), target, op.type_printer().format());
+}
+
 static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter& op)
 {
-    const auto& type = op.type_printer_.symbol();
+    const auto& type_printer = op.type_printer();
+    auto& type = type_printer.symbol();
     if (dynamic_cast<const TypeParameterSymbol*>(&type)) {
-        print_tricky_default_value(stream, "ObjCId", op.symbol_.is_nullable());
+        print_tricky_default_value(stream, "ObjCId", op.symbol().is_nullable());
         return stream;
     }
     const auto* ptr = dynamic_cast<const PointerTypeSymbol*>(&type);
     if (ptr) {
-        return stream << op.type_printer_
-                      << (!ptr->is_ctype() || op.type_printer_.format() == SymbolPrintFormat::EmitCangjieStrict
+        return stream << type_printer
+                      << (!ptr->is_ctype() || type_printer.format() == SymbolPrintFormat::EmitCangjieStrict
                                  ? "(CPointer<Unit>())"
                                  : "()");
     }
     const auto* func = dynamic_cast<const FuncTypeSymbol*>(&type);
     if (func) {
-        return stream << op.type_printer_
-                      << (!func->is_ctype() || op.type_printer_.format() == SymbolPrintFormat::EmitCangjieStrict
+        return stream << type_printer
+                      << (!func->is_ctype() || type_printer.format() == SymbolPrintFormat::EmitCangjieStrict
                                  ? "(CPointer<CFunc<() -> Unit>>())"
                                  : "(CPointer<Unit>())");
     }
     if (dynamic_cast<const BlockTypeSymbol*>(&type)) {
-        return stream << op.type_printer_ << "(CPointer<NativeBlockABI>())";
+        return stream << type_printer << "(CPointer<NativeBlockABI>())";
     }
-    const auto* named_type = dynamic_cast<const NamedTypeSymbol*>(&type);
+    auto* named_type = dynamic_cast<NamedTypeSymbol*>(&type);
     if (named_type) {
         switch (named_type->kind()) {
             case NamedTypeSymbol::Kind::Primitive: {
@@ -364,32 +392,20 @@ static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter&
             }
             case NamedTypeSymbol::Kind::TypeDef: {
                 assert(dynamic_cast<const TypeAliasSymbol*>(named_type));
-                const auto& target = named_type->canonical_type();
-                const auto* named_target = dynamic_cast<const NamedTypeSymbol*>(&target);
-                if (named_target && named_target->is(NamedTypeSymbol::Kind::Primitive)) {
-                    assert(dynamic_cast<const PrimitiveTypeSymbol*>(named_target));
-                    const auto& primitive_target = static_cast<const PrimitiveTypeSymbol&>(*named_target);
-                    switch (primitive_target.category()) {
-                        case PrimitiveTypeCategory::SignedInteger:
-                        case PrimitiveTypeCategory::UnsignedInteger:
-                            return stream << "unsafe{zeroValue<" << named_type->name() << ">()}";
-                        default:
-                            break;
-                    }
-                }
-                return stream << default_value(op.symbol_, target, op.type_printer_.format());
+                print_alias_default_value(stream, *named_type, op);
+                return stream;
             }
             case NamedTypeSymbol::Kind::Unexposed:
                 assert(dynamic_cast<const UnexposedTypeSymbol*>(named_type));
-                return stream << default_value(op.symbol_, named_type->canonical_type(), op.type_printer_.format());
+                return stream << default_value(op.symbol(), named_type->canonical_type(), type_printer.format());
             case NamedTypeSymbol::Kind::Enum:
                 assert(dynamic_cast<const EnumDeclarationSymbol*>(named_type));
-                return stream << default_value(op.symbol_,
+                return stream << default_value(op.symbol(),
                            static_cast<const EnumDeclarationSymbol&>(*named_type).underlying_type(),
-                           op.type_printer_.format());
+                           type_printer.format());
             case NamedTypeSymbol::Kind::Interface:
             case NamedTypeSymbol::Kind::Protocol:
-                print_tricky_default_value(stream, named_type->name(), op.symbol_.is_nullable());
+                print_tricky_default_value(stream, named_type->name(), op.symbol().is_nullable());
                 return stream;
             default:
                 break;
@@ -399,7 +415,7 @@ static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter&
         if (varray) {
             stream << '[';
             if (varray->size_) {
-                auto value = default_value(op.symbol_, *varray->element_type_, op.type_printer_.format());
+                auto value = default_value(op.symbol(), *varray->element_type_, type_printer.format());
                 stream << value;
                 for (size_t i = 1; i < varray->size_; ++i) {
                     stream << ", " << value;
@@ -412,7 +428,7 @@ static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter&
 }
 
 static void print_enum_constant_value(
-    std::ostream& output, const NamedTypeSymbol& underlying_type, const EnumConstantSymbol& constant)
+    std::ostream& output, NamedTypeSymbol& underlying_type, const EnumConstantSymbol& constant)
 {
     const auto& canonical_type = underlying_type.canonical_type();
     const auto* primitive_type = dynamic_cast<const PrimitiveTypeSymbol*>(&canonical_type);
@@ -544,20 +560,20 @@ static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method
     }
 }
 
-static bool same_types(const TypeLikeSymbol* type1, const TypeLikeSymbol* type2)
+static bool same_types(TypeLikeSymbol* type1, TypeLikeSymbol* type2)
 {
-    const auto* alias = dynamic_cast<const TypeAliasSymbol*>(type1);
+    auto* alias = dynamic_cast<TypeAliasSymbol*>(type1);
     if (alias) {
         type1 = &alias->canonical_type();
     }
-    alias = dynamic_cast<const TypeAliasSymbol*>(type2);
+    alias = dynamic_cast<TypeAliasSymbol*>(type2);
     if (alias) {
         type2 = &alias->canonical_type();
     }
 
-    const auto* constructed1 = dynamic_cast<const ConstructedTypeSymbol*>(type1);
+    auto* constructed1 = dynamic_cast<ConstructedTypeSymbol*>(type1);
     if (constructed1) {
-        const auto* constructed2 = dynamic_cast<const ConstructedTypeSymbol*>(type2);
+        auto* constructed2 = dynamic_cast<ConstructedTypeSymbol*>(type2);
         return constructed2 && same_types(constructed1->original(), constructed2->original());
     }
 
@@ -588,9 +604,9 @@ static bool same_types(const TypeLikeSymbol* type1, const TypeLikeSymbol* type2)
         return true;
     }
 
-    const auto* varray1 = dynamic_cast<const VArraySymbol*>(type1);
+    auto* varray1 = dynamic_cast<VArraySymbol*>(type1);
     if (varray1) {
-        const auto* varray2 = dynamic_cast<const VArraySymbol*>(type2);
+        auto* varray2 = dynamic_cast<VArraySymbol*>(type2);
         return varray2 && varray1->size() == varray2->size() &&
             same_types(&varray1->element_type(), &varray2->element_type());
     }
@@ -729,6 +745,30 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
     }
 }
 
+[[nodiscard]] static SymbolPrintFormat write_top_level_func_attribs(
+    std::ostream& output, NonTypeSymbol& function, SymbolPrintFormat format, bool is_ctype)
+{
+    // Foreign @C functions cannot have a foreign name
+    const auto& selector_attribute = function.selector_attribute();
+    if (is_ctype) {
+        output << "foreign ";
+        if (!selector_attribute.empty()) {
+            write_foreign_name(output, "@ForeignName", selector_attribute, true);
+        }
+    } else {
+        auto generate_definitions = generate_definitions_mode();
+        if (!generate_definitions) {
+            output << "@ObjCMirror\n";
+            format = SymbolPrintFormat::EmitCangjieStrict;
+        }
+        if (!selector_attribute.empty()) {
+            write_foreign_name(output, "@ForeignName", selector_attribute, generate_definitions);
+        }
+        output << "public ";
+    }
+    return format;
+}
+
 enum class FuncKind { TopLevelFunc, InterfaceMethod, ClassMethod };
 
 static void write_function(
@@ -744,25 +784,7 @@ static void write_function(
     switch (kind) {
         case FuncKind::TopLevelFunc: {
             is_ctype = function.is_ctype();
-
-            // Foreign @C functions cannot have a foreign name
-            const auto& selector_attribute = function.selector_attribute();
-            if (is_ctype) {
-                output << "foreign ";
-                if (!selector_attribute.empty()) {
-                    write_foreign_name(output, "@ForeignName", selector_attribute, true);
-                }
-            } else {
-                auto generate_definitions = generate_definitions_mode();
-                if (!generate_definitions) {
-                    output << "@ObjCMirror\n";
-                    format = SymbolPrintFormat::EmitCangjieStrict;
-                }
-                if (!selector_attribute.empty()) {
-                    write_foreign_name(output, "@ForeignName", selector_attribute, generate_definitions);
-                }
-                output << "public ";
-            }
+            format = write_top_level_func_attribs(output, function, format, is_ctype);
             break;
         }
         case FuncKind::InterfaceMethod:
@@ -1175,6 +1197,20 @@ static void write_enum_declaration(IndentingStringStream& output, const EnumDecl
     output << '}' << std::endl;
 }
 
+static void add_package_dependencies(const FileLevelSymbol& symbol)
+{
+    if (auto* package_file = symbol.package_file()) {
+        auto* edge_from = package_file->package();
+        assert(edge_from);
+        for (const auto* reference : symbol.references_symbols()) {
+            auto* edge_to = reference->package();
+            if (edge_to && edge_from != edge_to) {
+                edge_from->add_dependency_edge(edge_to);
+            }
+        }
+    }
+}
+
 void write_cangjie()
 {
     std::uint64_t generated_files = 0;
@@ -1242,17 +1278,7 @@ void write_cangjie()
             for (const auto* input_file : *input_directory) {
                 for (const auto* symbol : *input_file) {
                     assert(symbol);
-                    if (auto* package_file = symbol->package_file()) {
-                        auto* edge_from = package_file->package();
-                        assert(edge_from);
-                        for (const auto* reference : symbol->references_symbols()) {
-                            if (auto* edge_to = reference->package()) {
-                                if (edge_from != edge_to) {
-                                    edge_from->add_dependency_edge(edge_to);
-                                }
-                            }
-                        }
-                    }
+                    add_package_dependencies(*symbol);
                 }
             }
         }

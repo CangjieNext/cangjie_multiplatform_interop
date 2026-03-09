@@ -201,16 +201,21 @@ PackageFilter* create_filter(const Package* package, const toml::Table& table)
     auto set_not_it = table.find("not");
 
     std::size_t non_null = 0;
-    if (include_it != e)
+    if (include_it != e) {
         non_null++;
-    if (exclude_it != e)
+    }
+    if (exclude_it != e) {
         non_null++;
-    if (set_union_it != e)
+    }
+    if (set_union_it != e) {
         non_null++;
-    if (set_intersect_it != e)
+    }
+    if (set_intersect_it != e) {
         non_null++;
-    if (set_not_it != e)
+    }
+    if (set_not_it != e) {
         non_null++;
+    }
 
     if (non_null == 0) {
         fatal("`packages` entry `", package->cangjie_name(),

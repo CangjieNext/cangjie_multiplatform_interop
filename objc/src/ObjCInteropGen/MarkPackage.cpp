@@ -124,7 +124,7 @@ protected:
             // Skip the root type of this visit session to avoid self-referencing of each type.
             return;
         }
-        const auto* named_value = dynamic_cast<const NamedTypeSymbol*>(value);
+        auto* named_value = dynamic_cast<NamedTypeSymbol*>(value);
         if (named_value) {
             value = named_value->original();
         }
@@ -213,8 +213,8 @@ static void symbol_references_to_packages_pass(ScopeBuilderStatus& status, FileL
                 const auto* reference_package = reference->package();
                 assert(reference_package);
                 if (reference_package != package) {
-                    // TODO: build graph of dependencies between packages and resolve the most
-                    // common cases by selecting the closest common dependency package
+                    // It makes sense to build graph of dependencies between packages and resolve
+                    // the most common cases by selecting the closest common dependency package.
                     reference->set_output_status(OutputStatus::MultiReferenced);
                     reference->add_referencing_package(*package);
                     status.mark_error();
