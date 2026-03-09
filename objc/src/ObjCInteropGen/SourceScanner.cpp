@@ -235,6 +235,9 @@ public:
 
 protected:
     CXChildVisitResult visit_impl(CXCursor cursor, CXCursor parent) override;
+
+private:
+    bool visit_parameter_declaration(std::string cursor_name, const CXType& cursor_type);
 };
 
 class ClangSessionImpl final : public ClangSession {
@@ -594,6 +597,25 @@ static UndecorateResult undecorate_parameter_type_name(const std::string& decora
     return type_name;
 }
 
+static TypeLikeSymbol& get_unexposed_base_type(const CXType& type, const std::string& type_name)
+{
+    auto& universe = Universe::get();
+    TypeLikeSymbol* result = universe.type(type_name);
+    if (result) {
+        return *result;
+    }
+    auto size = clang_Type_getSizeOf(type);
+    result = universe.primitive_type(
+        get_primitive_category(type), size < 0 ? PrimitiveSize::Zero : static_cast<PrimitiveSize>(size));
+    if (result) {
+        return *result;
+    }
+    if (size <= 0) {
+        return universe.unit();
+    }
+    return *new VArraySymbol(universe.int8(), static_cast<size_t>(size));
+}
+
 TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
 {
     assert(type.kind != CXType_Invalid);
@@ -675,21 +697,7 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
                 return type_like_symbol(modified_type);
             }
             auto type_name = get_type_name(type);
-            auto& universe = Universe::get();
-            TypeLikeSymbol* result = universe.type(type_name);
-            if (!result) {
-                auto size = clang_Type_getSizeOf(type);
-                result =
-                    universe.primitive_type(get_primitive_category(type), static_cast<size_t>(size < 0 ? 0 : size));
-                if (!result) {
-                    if (size <= 0) {
-                        result = &universe.unit();
-                    } else {
-                        result = new VArraySymbol(universe.int8(), static_cast<size_t>(size));
-                    }
-                }
-            }
-            return new UnexposedTypeSymbol(type_name, *result);
+            return new UnexposedTypeSymbol(type_name, get_unexposed_base_type(type, type_name));
         }
 
         case CXType_Attributed: {
@@ -783,7 +791,7 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
         case CXType_Typedef:
             type_kind = NamedTypeSymbol::Kind::TypeDef;
             type_name = get_type_name(type);
-            // TODO: clang_getCanonicalType(type) if needed
+            // It makes sense to call clang_getCanonicalType(type) if needed
             break;
 
         case CXType_ObjCInterface: {
@@ -832,8 +840,8 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
             assert(is_builtin(type));
             type_name = get_type_name(type);
             auto size = clang_Type_getSizeOf(type);
-            auto* primitive_symbol =
-                Universe::get().primitive_type(get_primitive_category(type), static_cast<size_t>(size < 0 ? 0 : size));
+            auto* primitive_symbol = Universe::get().primitive_type(
+                get_primitive_category(type), size < 0 ? PrimitiveSize::Zero : static_cast<PrimitiveSize>(size));
             assert(primitive_symbol);
             return primitive_symbol;
         }
@@ -1036,13 +1044,41 @@ Symbol* SourceScanner::push_constructor(CXCursor cursor, std::string&& name)
     return push_current(decl->add_constructor(std::move(name), type_like_symbol(result_type)));
 }
 
-[[nodiscard]] static std::array<uint64_t, 2> get_enum_constant_value(const CXCursor& cursor)
+constexpr auto WordsInAPInt = 2;
+
+[[nodiscard]] static std::array<uint64_t, WordsInAPInt> get_enum_constant_value(const CXCursor& cursor)
 {
     static_assert(llvm::APInt::APINT_WORD_SIZE == sizeof(uint64_t));
     auto val = cursor_to_decl<clang::EnumConstantDecl>(cursor).getInitVal();
-    assert(val.getNumWords() <= 2);
+    assert(val.getNumWords() <= WordsInAPInt);
     const auto* raw_value = val.getRawData();
     return {raw_value[0], val.getBitWidth() <= llvm::APInt::APINT_BITS_PER_WORD ? 0 : raw_value[1]};
+}
+
+bool SourceScanner::visit_parameter_declaration(std::string cursor_name, const CXType& cursor_type)
+{
+    auto& non_type = *current_non_type();
+    if (non_type.is_method()) {
+        // Omit return func type parameters.  See comments for
+        // `SourceScanner::func_parameter_index_`.
+        auto param_index = this->func_parameter_index_++;
+        const auto* return_func_type = dynamic_cast<const FuncTypeSymbol*>(non_type.return_type());
+        if (return_func_type) {
+            auto number_of_parameters_in_return_func_type = return_func_type->parameters()->item_count();
+            if (param_index < number_of_parameters_in_return_func_type) {
+                return false;
+            }
+            param_index -= number_of_parameters_in_return_func_type;
+        }
+
+        if (cursor_name.empty()) {
+            // Objective-C function parameters can be nameless.  Synthesize a name (needed in Cangjie).
+            cursor_name = non_type.parameter_count() ? 'x' + std::to_string(param_index) : "x";
+        }
+        non_type.add_parameter(std::move(cursor_name), type_like_symbol(cursor_type), is_nullable(cursor_type));
+        return false;
+    }
+    return !non_type.is_property();
 }
 
 CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
@@ -1093,7 +1129,7 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
     // #define NS_AUTOMATED_REFCOUNT_UNAVAILABLE
     //     __attribute__((unavailable("not available in automatic reference counting mode")))
     //
-    // TODO: take into account particular platform?
+    // It would make sense to take into account particular platform.
     int always_unavailable;
     clang_getCursorPlatformAvailability(cursor, nullptr, nullptr, &always_unavailable, nullptr, nullptr, 0);
     if (always_unavailable) {
@@ -1312,7 +1348,7 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
             auto access_control = cursor_to_decl<clang::ObjCIvarDecl>(cursor).getCanonicalAccessControl();
             switch (access_control) {
                 case clang::ObjCIvarDecl::AccessControl::Package:
-                    // TODO?
+                    // Currently `package` does not go to mirrors
                     recurse = false;
                     break;
                 case clang::ObjCIvarDecl::AccessControl::Private:
@@ -1355,45 +1391,20 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
                 enum_decl.add_constant(std::move(name), *named_type_symbol(type), get_enum_constant_value(cursor)));
             break;
         }
-        case CXCursor_ParmDecl: {
+        case CXCursor_ParmDecl:
             assert(is_canonical(cursor));
             assert(is_defining(cursor));
             if (current_top_is_non_type()) {
-                auto& non_type = *current_non_type();
-                if (non_type.is_method()) {
-                    recurse = false;
-
-                    // Omit return func type parameters.  See comments for
-                    // `SourceScanner::func_parameter_index_`.
-                    auto param_index = this->func_parameter_index_++;
-                    const auto* return_func_type = dynamic_cast<const FuncTypeSymbol*>(non_type.return_type());
-                    if (return_func_type) {
-                        auto number_of_parameters_in_return_func_type = return_func_type->parameters()->item_count();
-                        if (param_index < number_of_parameters_in_return_func_type) {
-                            break;
-                        }
-                        param_index -= number_of_parameters_in_return_func_type;
-                    }
-
-                    if (name.empty()) {
-                        // Objective-C function parameters can be nameless.  Synthesize a name (needed in
-                        // Cangjie).
-                        name = non_type.parameter_count() ? 'x' + std::to_string(param_index) : "x";
-                    }
-                    non_type.add_parameter(std::move(name), type_like_symbol(type), is_nullable(type));
-                } else if (non_type.is_property()) {
-                    recurse = false;
-                }
+                recurse = visit_parameter_declaration(name, type);
             }
             break;
-        }
         case CXCursor_FunctionDecl:
             pushed = push_top_level_function(cursor, std::move(name));
             this->func_parameter_index_ = 0;
             break;
         case CXCursor_VarDecl: {
             // We don't support variables (generic C interop) at the moment.
-            // TODO: consider special-casing static const variables, like:
+            // It makes sense to consider special-casing static const variables, like:
             // static const NSLayoutPriority NSLayoutPriorityDefaultHigh = 750.0;
             recurse = false;
             break;

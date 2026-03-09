@@ -272,7 +272,7 @@ public:
         return sel_;
     }
 
-    [[nodiscard]] NamedTypeSymbol* primitive_type(PrimitiveTypeCategory category, size_t size) noexcept;
+    [[nodiscard]] NamedTypeSymbol* primitive_type(PrimitiveTypeCategory category, PrimitiveSize size) noexcept;
 
     // Find the registered type symbol by its name and kind.  Return nullptr if no
     // such type has been registered.
