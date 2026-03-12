@@ -245,7 +245,7 @@ static void setEmptyDefaultSIGSEGVHandler() {
     AddHandlerToSignalStack(SIGSEGV, &sa);
 }
 
-JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(JNIEnv *env, jobject obj, jstring libName) {
+JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(JNIEnv *env, jclass clazz, jstring libName, jobject classLoader) {
     JavaVM *vm = NULL;
     jboolean isCopy = false;
     const char *cjLibraryName = (*env)->GetStringUTFChars(env, libName, &isCopy);
@@ -257,9 +257,6 @@ JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(JNIEn
 
     (*env)->GetJavaVM(env, &vm);
     setJavaVM(vm);
-}
-
-JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeInitClassLoading(JNIEnv *env, jclass clazz, jobject classLoader) {
     initClassLoading(env, classLoader);
 }
 
