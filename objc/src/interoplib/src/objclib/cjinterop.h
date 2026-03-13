@@ -4,9 +4,6 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#import <stddef.h>
-#import <Foundation/NSObjCRuntime.h>
-
 /**
  * Initialize Cangjie runtime and call LoadCJLibraryWithInit for `cj_gluecode_lib_name` library.
  */
