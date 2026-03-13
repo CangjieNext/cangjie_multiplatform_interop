@@ -18,6 +18,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import zipfile
 from enum import Enum
 from logging.handlers import TimedRotatingFileHandler
 from subprocess import PIPE
@@ -31,7 +32,7 @@ if 'CANGJIE_HOME' not in os.environ:
     exit(1)
 
 # The date used as modification time for all JAR contents
-JAR_CONTENTS_EPOCH = datetime.datetime(2023, 1, 2, 3, 4, 5).timestamp()
+JAR_CONTENTS_EPOCH = (2023, 1, 2, 3, 4, 5)
 
 IS_DARWIN = platform.system() == "Darwin"
 IS_WINDOWS = platform.system() == "Windows"
@@ -136,27 +137,41 @@ def dylib_ext(target):
 
 def repack_jar_stable(jar):
     tmp_dir = os.path.join(REPACK_DIR, f"{pathlib.Path(jar).stem}-unpacked")
-    tmp_zip = os.path.join(REPACK_DIR, pathlib.Path(jar).with_suffix(".zip").name)
-    tmp_base = os.path.join(REPACK_DIR, pathlib.Path(jar).stem)
+    tmp_jar = os.path.join(REPACK_DIR, pathlib.Path(jar).name)
     if os.path.isdir(tmp_dir):
         shutil.rmtree(tmp_dir, ignore_errors=True)
     shutil.unpack_archive(jar, tmp_dir, "zip")
 
     # (atime, mtime)
-    timestamps = (JAR_CONTENTS_EPOCH, JAR_CONTENTS_EPOCH)
+    timestamp = datetime.datetime(*JAR_CONTENTS_EPOCH).timestamp()
+    timestamps = (timestamp, timestamp)
     for root, dirs, files in os.walk(tmp_dir):
         for d in dirs:
-            dir_path = os.path.join(root, d)
-            os.utime(dir_path, timestamps)
-
+            os.utime(os.path.join(root, d), timestamps)
         for f in files:
-            file_path = os.path.join(root, f)
-            os.utime(file_path, timestamps)
+            os.utime(os.path.join(root, f), timestamps)
 
-    if os.path.isfile(tmp_zip):
-        os.remove(tmp_zip)
-    shutil.make_archive(tmp_base, 'zip', tmp_dir)
-    os.replace(tmp_zip, jar)
+    # Create a new deterministic zip
+    with zipfile.ZipFile(tmp_jar, 'w', compression=zipfile.ZIP_DEFLATED) as zip:
+        for root, dirs, files in os.walk(tmp_dir):
+            # Sort dirs and files to ensure deterministic order
+            dirs.sort()
+            files.sort()
+
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, tmp_dir)
+
+                # Create ZipInfo with fixed timestamp
+                info = zipfile.ZipInfo(arcname)
+                info.date_time = (2000, 1, 1, 0, 0, 0)  # Fixed timestamp
+                info.compress_type = zipfile.ZIP_DEFLATED
+
+                with zip.open(info, 'w') as dest, open(file_path, 'rb') as src:
+                    zip.writestr
+                    shutil.copyfileobj(src, dest)
+
+    os.replace(tmp_jar, jar)
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
 def copy_with_exclusions(src, dst, exclusions):
