@@ -62,7 +62,8 @@ OUT_JAVA_LANG_CJO = os.path.join(DIST_DIR, "java.lang.cjo")
 LOG_DIR = os.path.join(BUILD_DIR, 'logs')
 LOG_FILE = os.path.join(LOG_DIR, 'JavaInterop.log')
 
-CJC_BASE_ARGS = ["--strip-all", "--link-options", "-z relro", "--link-options", "-z now", "-O2", "--output-type=dylib", "--output-dir=" + DIST_DIR, "--int-overflow=wrapping", "--disable-reflection"]
+LINKER_ARGS = ["--link-options", "-undefined dynamic_lookup"] if IS_DARWIN else ["--link-options", "-z relro", "--link-options", "-z now"]
+CJC_BASE_ARGS = ["-Woff", "unused", "-Woff", "parser", "--strip-all", "-O2", "--output-dir=" + DIST_DIR, "--int-overflow=wrapping", "--disable-reflection"] + LINKER_ARGS
 
 def log_output(output):
     """log command output"""
@@ -324,54 +325,49 @@ def build(args):
 
         DYLIB_PREF = dylib_pref(args.target_lib)
         DYLIB_EXT = dylib_ext(args.target_lib)
+        OUT_CINTEROPLIB_O = os.path.join(DIST_DIR, "cinteroplib.o")
         OUT_CINTEROPLIB_SO = os.path.join(DIST_DIR, f"{DYLIB_PREF}cinteroplib.{DYLIB_EXT}")
 
         if not os.path.exists(DIST_DIR):
             os.makedirs(DIST_DIR)
 
         #clang c_core.c
-        clang_args = ["clang", "-D_XOPEN_SOURCE=600"] if IS_DARWIN else ["clang"]
-        clang_args += ["-fstack-protector-strong", "-s", "-Wl,-z,relro,-z,now", "-fPIC", "-shared"]
-        clang_args += ["-o", OUT_CINTEROPLIB_SO]
-        clang_args += ["-lcangjie-runtime"]
-        clang_args += ["-I" + JAVA_INCLUDE, "-I" + JAVA_INCLUDE_ARCH]
-        clang_args += ["-L" + os.path.join(CJ_RUNTIME_LIB, args.target_lib)]
-        clang_args += ["c_core.c"]
-
+        clang_command = ["clang", "-D_XOPEN_SOURCE=600"] if IS_DARWIN else ["clang"]
         if args.target:
-            clang_args += ["--target=" + args.target]
+            clang_command += ["--target=" + args.target]
         if args.target_sysroot:
-            clang_args += ["-isysroot", args.target_sysroot]
+            clang_command += ["-isysroot", args.target_sysroot]
 
-        command(*clang_args, cwd=INTEROPLIB_DIR)
+        clang_O = clang_command.copy() + ["-c", "-fstack-protector-strong", "-fPIC"]
+        clang_O += ["-o", OUT_CINTEROPLIB_O]
+        clang_O += ["-I" + JAVA_INCLUDE, "-I" + JAVA_INCLUDE_ARCH]
+        clang_O += ["c_core.c"]
+        command(*clang_O, cwd=INTEROPLIB_DIR)
+
+        clang_SO = clang_command.copy() + ["-shared"]
+        clang_SO += ["-Wl,-U,_setJavaVM"] if IS_DARWIN else ["-Wl,-z,relro,-z,now"]
+        clang_SO += [f"-o{OUT_CINTEROPLIB_SO}", OUT_CINTEROPLIB_O]
+        clang_SO += [f"-L{os.path.join(CJ_RUNTIME_LIB, args.target_lib)}", "-lcangjie-runtime"]
+        command(*clang_SO, cwd=INTEROPLIB_DIR)
 
         #cjc jni.cj registry.cj
-        cjc_args = ["cjc"] + list(CJC_BASE_ARGS)
-        cjc_args += ["jni.cj", "registry.cj"]
-        cjc_args += ["-L" + DIST_DIR, "-lcinteroplib"]
-
+        cjc_command = ["cjc"] + list(CJC_BASE_ARGS)
         if args.target:
-            cjc_args += ["--target=" + args.target]
+            cjc_command += ["--target=" + args.target]
         if args.target_sysroot:
-            cjc_args += ["--sysroot", args.target_sysroot]
+            cjc_command += ["--sysroot", args.target_sysroot]
         if args.target_toolchain:
-            cjc_args += ["-B", args.target_toolchain]
+            cjc_command += ["-B", args.target_toolchain]
 
-        command(*cjc_args, cwd=INTEROPLIB_DIR)
+        cjc_A = cjc_command.copy() + ["--output-type=staticlib"]
+        cjc_SO = cjc_command.copy() + ["--output-type=dylib"]
 
-        #cjc javalib/*.cj
-        cjc_args = ["cjc"] + list(CJC_BASE_ARGS)
-        cjc_args += ["--import-path=" + DIST_DIR]
-        cjc_args += list(glob.glob(os.path.join(INTEROPLIB_DIR, "javalib") + "/*.cj", recursive=False))
+        command(*(cjc_A.copy() + ["jni.cj", "registry.cj"]), cwd=INTEROPLIB_DIR)
+        command(*(cjc_SO.copy() + ["jni.cj", "registry.cj", "-L" + DIST_DIR, "-lcinteroplib"]), cwd=INTEROPLIB_DIR)
 
-        if args.target:
-            cjc_args += ["--target=" + args.target]
-        if args.target_sysroot:
-            cjc_args += ["--sysroot", args.target_sysroot]
-        if args.target_toolchain:
-            cjc_args += ["-B", args.target_toolchain]
-
-        command(*cjc_args, cwd=INTEROPLIB_DIR)
+        javalib_args = [f"--import-path={DIST_DIR}"] + list(glob.glob(os.path.join(INTEROPLIB_DIR, "javalib") + "/*.cj", recursive=False))
+        command(*(cjc_A.copy() + javalib_args.copy()), cwd=INTEROPLIB_DIR)
+        command(*(cjc_SO.copy() + javalib_args.copy()), cwd=INTEROPLIB_DIR)
 
         command(
             "javac", "-d", DIST_DIR, "-source", "8", "-target", "8", "LibraryLoader.java", "$$NativeConstructorMarker.java", "ClassAnalyser.java", "MethodDef.java",
@@ -420,6 +416,26 @@ def clean(args):
         shutil.rmtree(DIST_DIR, ignore_errors=True)
     LOG.info("end clean interoplib\n")
 
+def prepare_dir(base_path, *relative_path):
+    """
+    Ensure that the directory specified by the arguments exists (create it if it
+    does not) and return its path.
+    """
+    path = os.path.join(base_path, *relative_path)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
+
+def install_file(install_dir, file):
+    if os.path.isfile(file):
+        shutil.copy2(file, install_dir)
+    else:
+        fatal("Cannot find \"" + file + "\" for installing to \"" + install_dir + "\"")
+
+def install_files(install_dir, *files):
+    for file in files:
+        install_file(install_dir, file)
+
 def runtime_name(target):
     return target + "_cjnative"
 
@@ -433,33 +449,31 @@ def install(args):
 
         DYLIB_PREF = dylib_pref(args.target)
         DYLIB_EXT = dylib_ext(args.target)
+        OUT_CINTEROPLIB_O = os.path.join(DIST_DIR, "cinteroplib.o")
         OUT_CINTEROPLIB_SO = os.path.join(DIST_DIR, f"{DYLIB_PREF}cinteroplib.{DYLIB_EXT}")
+        OUT_INTEROPLIB_A = os.path.join(DIST_DIR, f"{DYLIB_PREF}interoplib.interop.a")
         OUT_INTEROPLIB_SO = os.path.join(DIST_DIR, f"{DYLIB_PREF}interoplib.interop.{DYLIB_EXT}")
+        OUT_JAVA_LANG_A = os.path.join(DIST_DIR, f"{DYLIB_PREF}java.lang.a")
         OUT_JAVA_LANG_SO = os.path.join(DIST_DIR, f"{DYLIB_PREF}java.lang.{DYLIB_EXT}")
 
-        DEST_DYLIB = os.path.join(install_path, "runtime", "lib", runtime)
-        DEST_CJO = os.path.join(install_path, "modules", runtime)
-        if not os.path.exists(DEST_DYLIB):
-            os.makedirs(DEST_DYLIB)
-        if not os.path.exists(DEST_CJO):
-            os.makedirs(DEST_CJO)
-        if os.path.isfile(OUT_CINTEROPLIB_SO):
-            shutil.copy2(OUT_CINTEROPLIB_SO, DEST_DYLIB)
-        if os.path.isfile(OUT_INTEROPLIB_SO):
-            shutil.copy2(OUT_INTEROPLIB_SO, DEST_DYLIB)
-        if os.path.isfile(OUT_JAVA_LANG_SO):
-            shutil.copy2(OUT_JAVA_LANG_SO, DEST_DYLIB)
-        if os.path.isfile(OUT_INTEROPLIB_CJO):
-            shutil.copy2(OUT_INTEROPLIB_CJO, DEST_CJO)
-        if os.path.isfile(OUT_JAVA_LANG_CJO):
-            shutil.copy2(OUT_JAVA_LANG_CJO, DEST_CJO)
+        DEST_STLIB = prepare_dir(install_path, "lib", runtime)
+        install_files(DEST_STLIB,
+                      OUT_CINTEROPLIB_O,
+                      OUT_INTEROPLIB_A,
+                      OUT_JAVA_LANG_A)
 
-        lib_loader_dst = os.path.join(install_path, 'lib')
+        DEST_DYLIB = prepare_dir(install_path, "runtime", "lib", runtime)
+        install_files(DEST_DYLIB,
+                      OUT_CINTEROPLIB_SO,
+                      OUT_INTEROPLIB_SO,
+                      OUT_JAVA_LANG_SO)
+
+        DEST_CJO = prepare_dir(install_path, "modules", runtime)
+        install_files(DEST_CJO, OUT_INTEROPLIB_CJO, OUT_JAVA_LANG_CJO)
+
+        lib_loader_dst = prepare_dir(install_path, 'lib')
         lib_loader_jar = os.path.join(DIST_DIR, LIBRARY_LOADER_JAR)
-        if os.path.isfile(lib_loader_jar):
-            if not os.path.exists(lib_loader_dst):
-                os.makedirs(lib_loader_dst)
-            shutil.copy2(lib_loader_jar, lib_loader_dst)
+        install_file(lib_loader_dst, lib_loader_jar)
 
         LOG.info("end install interoplib for " + args.target + "\n")
     else:
@@ -554,4 +568,3 @@ if __name__ == '__main__':
     LOG = init_log('root')
     os.environ['LANG'] = "C.UTF-8"
     main()
-
