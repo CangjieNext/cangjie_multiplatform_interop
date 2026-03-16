@@ -9,14 +9,16 @@
 
 """Cangjie Java interoperability build script"""
 import argparse
+import datetime
 import glob
 import logging
-import multiprocessing
 import os
+import pathlib
 import platform
 import shutil
 import subprocess
 import sys
+import zipfile
 from enum import Enum
 from logging.handlers import TimedRotatingFileHandler
 from subprocess import PIPE
@@ -29,6 +31,9 @@ if 'CANGJIE_HOME' not in os.environ:
     print("CANGJIE_HOME environment variable must be set (are you in Cangjie SDK environment?)", file=sys.stderr)
     exit(1)
 
+# The date used as modification time for all JAR contents
+JAR_CONTENTS_EPOCH = (2023, 1, 2, 3, 4, 5)
+
 IS_DARWIN = platform.system() == "Darwin"
 IS_WINDOWS = platform.system() == "Windows"
 JAVA_HOME = os.environ['JAVA_HOME']
@@ -40,8 +45,10 @@ CJ_RUNTIME_LIB = os.path.join(CJ_HOME, 'runtime', 'lib')
 
 BUILD_DIR = os.path.dirname(os.path.abspath(__file__))
 HOME_DIR = os.path.dirname(BUILD_DIR)
+REPACK_DIR = os.path.join(BUILD_DIR, 'jar-repack')
 
 MIRROR_GEN_DIR = os.path.join(HOME_DIR, 'src', 'java-mirror-gen')
+MIRROR_GEN_JAR = os.path.join(MIRROR_GEN_DIR, 'java-mirror-gen.jar')
 DIST_DIR = os.path.join(HOME_DIR, 'dist')
 DEFAULT_INSTALL_DIR = os.path.join(DIST_DIR, 'install')
 
@@ -127,6 +134,44 @@ def dylib_ext(target):
         return "dll"
     else:
         return "so"
+
+def repack_jar_stable(jar):
+    tmp_dir = os.path.join(REPACK_DIR, f"{pathlib.Path(jar).stem}-unpacked")
+    tmp_jar = os.path.join(REPACK_DIR, pathlib.Path(jar).name)
+    if os.path.isdir(tmp_dir):
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    shutil.unpack_archive(jar, tmp_dir, "zip")
+
+    # (atime, mtime)
+    timestamp = datetime.datetime(*JAR_CONTENTS_EPOCH).timestamp()
+    timestamps = (timestamp, timestamp)
+    for root, dirs, files in os.walk(tmp_dir):
+        for d in dirs:
+            os.utime(os.path.join(root, d), timestamps)
+        for f in files:
+            os.utime(os.path.join(root, f), timestamps)
+
+    # Create a new deterministic zip
+    with zipfile.ZipFile(tmp_jar, 'w', compression=zipfile.ZIP_DEFLATED) as zip:
+        for root, dirs, files in os.walk(tmp_dir):
+            # Sort dirs and files to ensure deterministic order
+            dirs.sort()
+            files.sort()
+
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, tmp_dir)
+
+                # Create ZipInfo with fixed timestamp
+                info = zipfile.ZipInfo(arcname)
+                info.date_time = JAR_CONTENTS_EPOCH
+                info.compress_type = zipfile.ZIP_DEFLATED
+
+                with zip.open(info, 'w') as dest, open(file_path, 'rb') as src:
+                    shutil.copyfileobj(src, dest)
+
+    os.replace(tmp_jar, jar)
+    shutil.rmtree(tmp_dir, ignore_errors=True)
 
 def copy_with_exclusions(src, dst, exclusions):
     """Copy the folder while excluding specified files and folders"""
@@ -338,6 +383,8 @@ def build(args):
             cwd=DIST_DIR,
         )
 
+        repack_jar_stable(os.path.join(DIST_DIR, LIBRARY_LOADER_JAR))
+
         LOG.info('end build interoplib for ' + args.target_lib + '\n')
     else:
         LOG.info('begin build java-binding-gen...\n')
@@ -347,11 +394,15 @@ def build(args):
 
         command("ant", "clean", "build", cwd=MIRROR_GEN_DIR)
 
+        repack_jar_stable(MIRROR_GEN_JAR)
+
         LOG.info('end build java-binding-gen\n')
 
 
 def clean(args):
     """clean build outputs and logs"""
+    if os.path.isdir(REPACK_DIR):
+        shutil.rmtree(REPACK_DIR, ignore_errors=True)
     LOG.info("begin clean java-binding-gen...\n")
     output = subprocess.Popen(
         ["ant", "clean"],
@@ -415,11 +466,10 @@ def install(args):
         LOG.info("begin install java-binding-gen...")
 
         mirror_gen_dst = os.path.join(install_path, 'tools', 'bin')
-        mirror_gen_jar = os.path.join(MIRROR_GEN_DIR, 'java-mirror-gen.jar')
-        if os.path.isfile(mirror_gen_jar):
+        if os.path.isfile(MIRROR_GEN_JAR):
             if not os.path.exists(mirror_gen_dst):
                 os.makedirs(mirror_gen_dst)
-            shutil.copy2(mirror_gen_jar, mirror_gen_dst)
+            shutil.copy2(MIRROR_GEN_JAR, mirror_gen_dst)
 
         LOG.info("end install java-binding-gen")
 
