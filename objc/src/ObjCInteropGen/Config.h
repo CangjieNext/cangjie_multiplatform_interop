@@ -12,11 +12,6 @@
 
 namespace objcgen {
 
-class TomlParseError : public std::runtime_error {
-public:
-    using std::runtime_error::runtime_error;
-};
-
 extern toml::Value config;
 
 void parse_toml_config_file(const std::string& path);

@@ -43,7 +43,7 @@ Universe::Universe()
       uint128_{NamedTypeSymbol::Kind::Struct, "ObjCUInt128"},
       class_{NamedTypeSymbol::Kind::Interface, "ObjCClass"},
       id_{NamedTypeSymbol::Kind::Protocol, "ObjCId"},
-      sel_{NamedTypeSymbol::Kind::Interface, "SEL" /* "ObjCSelector" */}
+      sel_{NamedTypeSymbol::Kind::Interface, "SEL"} // "ObjCSelector"
 {
     for (auto& map : types_) {
         map.reserve(PREALLOCATED_TYPE_COUNT);
@@ -119,8 +119,10 @@ NamedTypeSymbol* Universe::primitive_type(PrimitiveTypeCategory category, size_t
                     return &int32();
                 case 8:
                     return &int64();
+                case 16:
+                    return &int128();
                 default:
-                    return size == 16 ? &int128() : nullptr;
+                    return nullptr;
             }
         case PrimitiveTypeCategory::UnsignedInteger:
             switch (size) {
@@ -132,8 +134,10 @@ NamedTypeSymbol* Universe::primitive_type(PrimitiveTypeCategory category, size_t
                     return &uint32();
                 case 8:
                     return &uint64();
+                case 16:
+                    return &uint128();
                 default:
-                    return size == 16 ? &uint128() : nullptr;
+                    return nullptr;
             }
         case PrimitiveTypeCategory::FloatingPoint:
             switch (size) {

@@ -56,7 +56,7 @@ Symbol::Symbol(std::string name) noexcept : name_(std::move(name))
 {
 }
 
-void Symbol::print(std::ostream& stream, [[maybe_unused]] SymbolPrintFormat format) const
+void Symbol::print(std::ostream& stream, [[maybe_unused]] SymbolPrintFormat format)
 {
     stream << escape_keyword(name_);
 }
@@ -106,7 +106,31 @@ bool NamedTypeSymbol::is_objc_reference() const noexcept
     });
 }
 
-void NamedTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format) const
+static void print_type_arguments(std::ostream& stream, const NamedTypeSymbol& type_symbol, SymbolPrintFormat format)
+{
+    auto no_type_arguments = format != SymbolPrintFormat::Raw;
+    if (no_type_arguments) {
+        stream << "/*";
+    }
+    stream << "<";
+    auto count = type_symbol.parameter_count();
+    assert(count);
+    for (std::size_t i = 0; i < count; ++i) {
+        if (i != 0) {
+            stream << ", ";
+        }
+
+        auto* parameter = type_symbol.parameter(i);
+        assert(parameter);
+        stream << raw(*parameter);
+    }
+    stream << '>';
+    if (no_type_arguments) {
+        stream << "*/";
+    }
+}
+
+void NamedTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     auto name = this->name();
     switch (kind_) {
@@ -124,25 +148,8 @@ void NamedTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format) cons
             break;
         default:
             stream << escape_keyword(name);
-            if (const auto count = parameter_count(); count != 0) {
-                auto no_type_arguments = format != SymbolPrintFormat::Raw;
-                if (no_type_arguments) {
-                    stream << "/*";
-                }
-                stream << "<";
-                for (std::size_t i = 0; i < count; ++i) {
-                    if (i != 0) {
-                        stream << ", ";
-                    }
-
-                    const auto* parameter = this->parameter(i);
-                    assert(parameter);
-                    stream << raw(*parameter);
-                }
-                stream << '>';
-                if (no_type_arguments) {
-                    stream << "*/";
-                }
+            if (parameter_count()) {
+                print_type_arguments(stream, *this, format);
             }
             break;
     }
@@ -173,7 +180,7 @@ TypeLikeSymbol* NamedTypeSymbol::map()
     return this;
 }
 
-NamedTypeSymbol* NamedTypeSymbol::construct(const std::vector<TypeLikeSymbol*>& arguments) const
+NamedTypeSymbol* NamedTypeSymbol::construct(const std::vector<TypeLikeSymbol*>& arguments)
 {
     const auto parameter_count = this->parameter_count();
     assert(parameter_count == arguments.size());
@@ -204,7 +211,7 @@ NamedTypeSymbol* NamedTypeSymbol::construct(const std::vector<TypeLikeSymbol*>& 
         }
     }
 
-    return const_cast<NamedTypeSymbol*>(this);
+    return this;
 }
 
 NamedTypeSymbol& EnumDeclarationSymbol::underlying_type() const noexcept
@@ -212,7 +219,7 @@ NamedTypeSymbol& EnumDeclarationSymbol::underlying_type() const noexcept
     return underlying_type_ ? *underlying_type_ : Universe::get().int32();
 }
 
-void UnexposedTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format) const
+void UnexposedTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     canonical_type().print(stream, format);
     stream << " /*" << name() << "*/";
@@ -454,7 +461,7 @@ TypeParameterSymbol::TypeParameterSymbol(Private, std::string name) : TypeLikeSy
 {
 }
 
-void TypeParameterSymbol::print(std::ostream& stream, SymbolPrintFormat format) const
+void TypeParameterSymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     if (format == SymbolPrintFormat::Raw) {
         stream << name();
@@ -463,7 +470,7 @@ void TypeParameterSymbol::print(std::ostream& stream, SymbolPrintFormat format) 
     }
 }
 
-void NarrowedTypeParameterSymbol::print(std::ostream& stream, SymbolPrintFormat format) const
+void NarrowedTypeParameterSymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     if (format == SymbolPrintFormat::Raw) {
         stream << name() << '<' << protocol_name_ << '>';
@@ -472,7 +479,7 @@ void NarrowedTypeParameterSymbol::print(std::ostream& stream, SymbolPrintFormat 
     }
 }
 
-void PointerTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format) const
+void PointerTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     if (!is_ctype() || format == SymbolPrintFormat::EmitCangjieStrict) {
         stream << "ObjCPointer<";
@@ -490,7 +497,7 @@ void PointerTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format) co
     return new_pointee == pointee_ ? this : new PointerTypeSymbol(*new_pointee);
 }
 
-void VArraySymbol::print(std::ostream& stream, SymbolPrintFormat format) const
+void VArraySymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     stream << name() << '<';
     element_type_->print(stream, format);
@@ -505,7 +512,8 @@ void VArraySymbol::print(std::ostream& stream, SymbolPrintFormat format) const
 
 void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor)
 {
-    // TODO: is infinite recursion possible? With CRTP for example.
+    // It could make sense to analyze if infinite recursion is possible her.  With
+    // CRTP for example.
     if (const auto count = this->parameter_count(); count) {
         for (std::size_t i = 0; i < count; ++i) {
             visitor.visit(this, this->parameter(i), SymbolProperty::TypeArgument);
@@ -541,7 +549,7 @@ TypeLikeSymbol* TupleTypeSymbol::item(const std::size_t index) const
     return items_.at(index);
 }
 
-void TupleTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format) const
+void TupleTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     stream << '(';
     for (std::size_t i = 0; i < items_.size(); ++i) {
@@ -594,7 +602,7 @@ void FuncLikeTypeSymbol::do_print(std::ostream& stream, std::string_view name, S
     stream << '>';
 }
 
-void FuncTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format) const
+void FuncTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     if (!is_ctype() || format == SymbolPrintFormat::EmitCangjieStrict) {
         do_print(stream, "ObjCFunc", SymbolPrintFormat::EmitCangjieStrict);
@@ -603,7 +611,7 @@ void FuncTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format) const
     }
 }
 
-void BlockTypeSymbol::print(std::ostream& stream, SymbolPrintFormat) const
+void BlockTypeSymbol::print(std::ostream& stream, SymbolPrintFormat)
 {
     do_print(stream, "ObjCBlock", SymbolPrintFormat::EmitCangjieStrict);
 }
@@ -663,16 +671,16 @@ void TypeAliasSymbol::visit_impl(SymbolVisitor& visitor)
     visitor.visit(this, this->target(), SymbolProperty::AliasTarget);
 }
 
-void TypeAliasSymbol::print(std::ostream& stream, SymbolPrintFormat format) const
+void TypeAliasSymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
-    const auto* target = this->target();
+    auto* target = this->target();
     if (target && name() == target->name()) {
         // typedef struct S S;
         target->print(stream, format);
         return;
     }
     if (mode != Mode::EXPERIMENTAL && format == SymbolPrintFormat::EmitCangjieStrict) {
-        const auto& canonical_type = this->canonical_type();
+        auto& canonical_type = this->canonical_type();
         if (canonical_type.is_ctype() && canonical_type.contains_pointer_or_func()) {
             stream << emit_cangjie_strict(canonical_type) << " /*" << emit_cangjie(*this) << "*/";
             return;
@@ -681,7 +689,7 @@ void TypeAliasSymbol::print(std::ostream& stream, SymbolPrintFormat format) cons
     NamedTypeSymbol::print(stream, format);
 }
 
-const TypeLikeSymbol& TypeAliasSymbol::canonical_type() const
+TypeLikeSymbol& TypeAliasSymbol::canonical_type()
 {
     auto* target = this->target();
     assert(target);
