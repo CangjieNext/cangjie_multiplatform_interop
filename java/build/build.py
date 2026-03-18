@@ -62,7 +62,7 @@ OUT_JAVA_LANG_CJO = os.path.join(DIST_DIR, "java.lang.cjo")
 LOG_DIR = os.path.join(BUILD_DIR, 'logs')
 LOG_FILE = os.path.join(LOG_DIR, 'JavaInterop.log')
 
-CJC_BASE_ARGS = ["--strip-all", "--link-options", "-z relro", "--link-options", "-z now", "-O2", "--output-type=dylib", "--output-dir=" + DIST_DIR, "--int-overflow=wrapping"]
+CJC_BASE_ARGS = ["--strip-all", "--link-options", "-z relro", "--link-options", "-z now", "-O2", "--output-type=dylib", "--output-dir=" + DIST_DIR, "--int-overflow=wrapping", "--disable-reflection"]
 
 def log_output(output):
     """log command output"""
