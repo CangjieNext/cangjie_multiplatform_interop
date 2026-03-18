@@ -82,16 +82,16 @@ public open class A {
         let fSignature = Java_CFFI_parseComponentSignature("I")
         let fId = Java_CFFI_FieldID.constr(env, clazz, "f", fSignature)
         var superFCached = Java_CFFI_getField(env, obj, fId)
-        println(superFCached.asJInt())
+        println(unsafe{ superFCached.asJInt() })
 
         print("Set super.f field value to ")
         Java_CFFI_setField(env, obj, fId, Java_CFFI_JavaEntity(JINT, 5))
         superFCached = Java_CFFI_getField(env, obj, fId)
-        println(superFCached.asJInt())
+        println(unsafe { superFCached.asJInt() })
         
         // Java memory model allows us to not re-read super.f field here
         // while there's no writes to it since last read and this field is not volatile
-        let g = superFCached.asJInt() + 1
+        let g = unsafe { superFCached.asJInt() } + 1
         println(g)
     }
 }
