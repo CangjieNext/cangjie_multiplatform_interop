@@ -76,7 +76,7 @@ public func Java_A_gooImpl(env: JNIEnv_ptr, _: jclass, self: jlong): Unit {
 
 extend Java_CFFI_JavaEntity {
     func asBool() {
-        asJBoolean() != 0
+        unsafe { asJBoolean() } != 0
     }
 }
 
