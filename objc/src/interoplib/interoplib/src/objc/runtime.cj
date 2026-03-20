@@ -325,6 +325,35 @@ public func objCMsgSendSuper(objCSuper: NativeObjCSuperPtr, sel: NativeObjCSel):
 }
 
 /**
+ * Converts Cangjie String to NSString.
+ */
+public func convertToNSString(str: String): NativeObjCId {
+    unsafe {
+        let cstr = LibC.mallocCString(str)
+        let ptr = CPointer<Unit>(cstr.getChars())
+        let result = CFunc<(NativeObjCId, NativeObjCSel, CPointer<Unit>) -> NativeObjCId>(objCMsgSend())(
+            alloc("NSString"), registerName("initWithUTF8String:"), ptr
+        )
+        LibC.free(cstr)
+        return result
+    }
+}
+
+/**
+ * Gets object description and converts it to Cangjie String.
+ */
+public func descriptionAsString(id: NativeObjCId): String {
+    unsafe {
+        let description = CFunc<(NativeObjCId, NativeObjCSel) -> NativeObjCId>(objCMsgSend())(id, registerName("description"))
+        let result = CFunc<(NativeObjCId, NativeObjCSel) -> CPointer<Unit>>(objCMsgSend())(
+            description, registerName("UTF8String")
+        )
+        let str = CString(CPointer<UInt8>(result)).toString()
+        return str
+    }
+}
+
+/**
  * Autoreleases the argument. Equivalent to [id autorelease].
  */
 public unsafe func objCAutorelease(id: NativeObjCId): NativeObjCId {
