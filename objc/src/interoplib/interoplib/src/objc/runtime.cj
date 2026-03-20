@@ -595,3 +595,27 @@ foreign func sel_registerName(selName: CString): NativeObjCSel
  * Note: nonportable
  */
 foreign func objc_msg_lookup_super(objCSuper: NativeObjCSuperPtr, sel: NativeObjCSel): NativeObjCImp
+
+public func convertToNSString(str: String): NativeObjCId {
+    unsafe {
+        let cstr = LibC.mallocCString(str)
+        let ptr = CPointer<Unit>(CPointer<Unit>(cstr.getChars()))
+        let result = CFunc<(NativeObjCId, NativeObjCSel, CPointer<Unit>) -> NativeObjCId>(objCMsgSend())(
+            alloc("NSString"), registerName("initWithUTF8String:"), ptr
+        )
+        LibC.free(cstr)
+        return result
+    }
+}
+
+public func descriptionAsString(id: NativeObjCId): String {
+    unsafe {
+        let NSUTF8StringEncoding: UInt64 = 4
+        let description = CFunc<(NativeObjCId, NativeObjCSel) -> NativeObjCId>(objCMsgSend())(id, registerName("description"))
+        let result = CFunc<(NativeObjCId, NativeObjCSel, UInt64) -> CPointer<Unit>>(objCMsgSend())(
+            description, registerName("cStringUsingEncoding:"), NSUTF8StringEncoding
+        )
+        let str = CString(CPointer<UInt8>(result)).toString()
+        return str
+    }
+}
