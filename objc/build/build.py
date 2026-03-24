@@ -241,11 +241,23 @@ def build(args):
         LOG.info('begin build objc-interop-gen...\n')
 
         # Add the tinytoml third-party library for acquisition and customize code application.
-        tinytoml_target = os.path.join(HOME_DIR, "third_party", "tinytoml", "toml.h")
-        if not os.path.exists(tinytoml_target):
-            download_and_patch_tinytoml()
+        if args.toml_dir:
+            TOML_DIR = args.toml_dir
+        else:
+            TOML_DIR = os.path.join(HOME_DIR, "third_party", "tinytoml");
+            tinytoml_target = os.path.join(TOML_DIR, "toml.h")
+            if not os.path.exists(tinytoml_target):
+                download_and_patch_tinytoml()
 
-        command("cmake", "-B", CMAKE_BUILD_DIR, '-DCMAKE_BUILD_TYPE=' + args.build_type.value, cwd=OBJC_INTEROP_GEN_DIR)
+        cmake_args = ["-B", CMAKE_BUILD_DIR, "-DCMAKE_BUILD_TYPE=" + args.build_type.value, "-DTOML_DIR=" + TOML_DIR]
+        if (args.llvm_src_dir or args.llvm_build_dir):
+            if (not args.llvm_src_dir or not args.llvm_build_dir):
+                LOG.error("Both directories must be specified: --llvm-src-dir and --llvm-build-dir")
+                sys.exit(1)
+            cmake_args.append("-DLLVM_SRC_DIR=" + args.llvm_src_dir)
+            cmake_args.append("-DLLVM_BUILD_DIR=" + args.llvm_build_dir)
+
+        command("cmake", *cmake_args, cwd=OBJC_INTEROP_GEN_DIR)
 
         command("cmake", "--build", CMAKE_BUILD_DIR, cwd=OBJC_INTEROP_GEN_DIR)
 
@@ -367,7 +379,34 @@ def install(args):
     else:
         LOG.info("begin install objc-interop-gen...")
 
-        install_file(prepare_dir(install_path, "tools", "bin"), os.path.join(CMAKE_BUILD_DIR, "ObjCInteropGen"))
+        tools_bin_dir = prepare_dir(install_path, "tools", "bin")
+        install_file(tools_bin_dir, os.path.join(CMAKE_BUILD_DIR, "ObjCInteropGen"))
+        if IS_DARWIN:
+            # Change the @rpath of the ObjCInteropGen executable to the directory inside the
+            # same Cangjie SDK where the dependent library, libclang.dylib, is located.
+            INSTALLED_OBJC_INTEROP_GEN = os.path.join(tools_bin_dir, "ObjCInteropGen")
+            rpath = find_match(
+                subprocess.run(
+                    ["otool", "-l", INSTALLED_OBJC_INTEROP_GEN],
+                    capture_output=True
+                ).stdout.decode().splitlines(),
+                r"path (.*) \(offset \d*\)"
+            )
+            if rpath:
+                command(
+                    "install_name_tool",
+                    "-rpath",
+                    rpath,
+                    "@loader_path/../../third_party/llvm/lib",
+                    INSTALLED_OBJC_INTEROP_GEN
+                )
+            else:
+                command(
+                    "install_name_tool",
+                    "-add_rpath",
+                    "@loader_path/../../third_party/llvm/lib",
+                    INSTALLED_OBJC_INTEROP_GEN
+                )
 
         LOG.info("end install objc-interop-gen")
 
@@ -411,6 +450,11 @@ def main():
                               default=BuildType.release,
                               choices=list(BuildType),
                               help='select target build type')
+    parser_build.add_argument("--toml-dir", help="location of the toml.h C++ header file")
+    parser_build.add_argument("--llvm-src-dir", help="LLVM source directory")
+    parser_build.add_argument("--llvm-build-dir",
+        help="LLVM build directory that contains generated headers and compiled libraries"
+    )
     parser_build.add_argument(
         "--target", dest="target", type=str,
         help="build interoplib for the specified target"

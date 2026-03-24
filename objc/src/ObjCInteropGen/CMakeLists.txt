@@ -8,13 +8,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-find_package(Clang REQUIRED CONFIG)
-if(CLANG_INSTALL_PREFIX)
-    message(STATUS "Found libclang ${LLVM_PACKAGE_VERSION} in ${CLANG_INSTALL_PREFIX}")
-else()
-    message(STATUS "Found libclang ${LLVM_PACKAGE_VERSION} in ${Clang_DIR}")
-endif()
-
 add_executable(ObjCInteropGen
         CangjieWriter.cpp
         CangjieWriter.h
@@ -56,10 +49,38 @@ add_executable(ObjCInteropGen
         main.cpp
 )
 
-# Aggressive C++ standard library assertions for libstdc++
-#target_compile_options(ObjCInteropGen PRIVATE $<$<CONFIG:Debug>:-ggdb3>)
-#target_compile_definitions(ObjCInteropGen PRIVATE $<$<CONFIG:Debug>:_GLIBCXX_DEBUG;_GLIBCXX_DEBUG_BACKTRACE;_GLIBCXX_DEBUG_PEDANTIC>)
-#target_link_libraries(ObjCInteropGen PRIVATE $<$<CONFIG:Debug>:stdc++exp>)
+if(LLVM_SRC_DIR AND LLVM_BUILD_DIR)
+    target_link_directories(ObjCInteropGen PRIVATE "${LLVM_BUILD_DIR}/lib")
+    target_include_directories(ObjCInteropGen SYSTEM PRIVATE
+      "${LLVM_SRC_DIR}/clang/include"
+      "${LLVM_SRC_DIR}/llvm/include"
+      "${LLVM_BUILD_DIR}/include"
+      "${LLVM_BUILD_DIR}/tools/clang/include"
+    )
+    target_link_libraries(ObjCInteropGen PRIVATE
+      LLVMBinaryFormat
+      LLVMBitstreamReader
+      LLVMCore
+      LLVMFrontendOpenMP
+      LLVMRemarks
+      LLVMSupport
+      clang
+      clangBasic
+      clangLex
+    )
+    if(APPLE)
+        target_link_libraries(ObjCInteropGen PRIVATE ncurses)
+    endif()
+else()
+    find_package(Clang REQUIRED CONFIG)
+    if(CLANG_INSTALL_PREFIX)
+        message(STATUS "Found libclang ${LLVM_PACKAGE_VERSION} in ${CLANG_INSTALL_PREFIX}")
+    else()
+        message(STATUS "Found libclang ${LLVM_PACKAGE_VERSION} in ${Clang_DIR}")
+    endif()
+    target_include_directories(ObjCInteropGen SYSTEM PRIVATE "${CLANG_INCLUDE_DIRS}" "${LLVM_INCLUDE_DIRS}")
+    target_link_libraries(ObjCInteropGen PRIVATE libclang)
+endif()
 
 if(MSVC)
     target_compile_options(ObjCInteropGen PRIVATE /W3)
@@ -75,11 +96,11 @@ if(UNIX AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     endif()
 endif()
 
-# Link ObjCInteropGen to LLVM & Clang
-target_include_directories(ObjCInteropGen SYSTEM PRIVATE
-    ${CLANG_INCLUDE_DIRS}
-    ${LLVM_INCLUDE_DIRS}
-    ../../third_party/tinytoml)
-target_link_libraries(ObjCInteropGen PRIVATE libclang clangAST)
+if(NOT TOML_DIR)
+    set(TOML_DIR, ../../third_party/tinytoml)
+endif()
+
+target_include_directories(ObjCInteropGen SYSTEM PRIVATE "${TOML_DIR}")
+target_link_libraries(ObjCInteropGen PRIVATE clangAST)
 
 install(TARGETS ObjCInteropGen DESTINATION tools/bin)
