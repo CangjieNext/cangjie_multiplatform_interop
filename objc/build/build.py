@@ -65,7 +65,7 @@ def log_output(output):
             output.communicate()
             returncode = output.returncode
             if returncode != 0:
-                LOG.error('build error: %d!\n', returncode)
+                LOG.critical('build error: %d!\n', returncode)
                 sys.exit(1)
             break
         try:
@@ -250,9 +250,9 @@ def build(args):
                 download_and_patch_tinytoml()
 
         cmake_args = ["-B", CMAKE_BUILD_DIR, "-DCMAKE_BUILD_TYPE=" + args.build_type.value, "-DTOML_DIR=" + TOML_DIR]
-        if (args.llvm_src_dir or args.llvm_build_dir):
-            if (not args.llvm_src_dir or not args.llvm_build_dir):
-                LOG.error("Both directories must be specified: --llvm-src-dir and --llvm-build-dir")
+        if args.llvm_src_dir or args.llvm_build_dir:
+            if not args.llvm_src_dir or not args.llvm_build_dir:
+                LOG.critical("Both directories must be specified: --llvm-src-dir and --llvm-build-dir")
                 sys.exit(1)
             cmake_args.append("-DLLVM_SRC_DIR=" + args.llvm_src_dir)
             cmake_args.append("-DLLVM_BUILD_DIR=" + args.llvm_build_dir)
