@@ -2499,12 +2499,18 @@ private func Java_CFFI_wrap_cj_exception(env: JNIEnv_ptr, ex: Exception): JNIExc
 protected func withExceptionHandling<R>(env: JNIEnv_ptr, action: () -> R): R where R <: CType {
     try {
         action()
-    } catch (ex: JNIException) {
-        Java_CFFI_throw_exception(env, ex.jException)
-        unsafe { zeroValue<R>() }
-    } catch (ex: Exception) { // TODO: handle Cangjie Error type?
-        let wrapped = Java_CFFI_wrap_cj_exception(env, ex)
-        Java_CFFI_throw_exception(env, wrapped.jException)
+    } catch (ex: Exception) { // Cangjie Error handling may require separate treatment in the future.
+        let exceptionToThrow = match (ex) {
+            case scopeEx: ExclusiveScopeException => scopeEx.causedBy ?? ex
+            case _ => ex
+        }
+
+        let throwable = match (exceptionToThrow) {
+            case jniEx: JNIException => jniEx.jException
+            case _ => Java_CFFI_wrap_cj_exception(env, ex).jException
+        }
+
+        Java_CFFI_throw_exception(env, throwable)
         unsafe { zeroValue<R>() }
     }
 }
