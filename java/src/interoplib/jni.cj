@@ -2485,15 +2485,27 @@ private func Java_CFFI_wrap_cj_exception(env: JNIEnv_ptr, ex: Exception): JNIExc
     JNIException(ex.message, throwObj)
 }
 
+private func throwAsJavaException(env: JNIEnv_ptr, ex: Exception): Unit {
+    match (ex) {
+        case jniEx: JNIException =>
+            Java_CFFI_throw_exception(env, jniEx.jException)
+        case _ => { =>
+            let wrapped = Java_CFFI_wrap_cj_exception(env, ex)
+            Java_CFFI_throw_exception(env, wrapped.jException)
+        }()
+    }
+}
+
 public func withExceptionHandling<R>(env: JNIEnv_ptr, action: () -> R): R where R <: CType {
     try {
         action()
-    } catch (ex: JNIException) {
-        Java_CFFI_throw_exception(env, ex.jException)
-        unsafe { zeroValue<R>() }
-    } catch (ex: Exception) { // TODO: handle Cangjie Error type?
-        let wrapped = Java_CFFI_wrap_cj_exception(env, ex)
-        Java_CFFI_throw_exception(env, wrapped.jException)
+    } catch (ex: Exception) { // TODO: handle Cangjie Error type separately?
+        let exceptionToThrow = match (ex) {
+            case scopeEx: ExclusiveScopeException =>
+                scopeEx.causedBy.getOrDefault({ => ex })
+            case _ => ex
+        }
+        throwAsJavaException(env, exceptionToThrow)
         unsafe { zeroValue<R>() }
     }
 }
