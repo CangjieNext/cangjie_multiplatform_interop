@@ -110,6 +110,25 @@ def fixedEnv(env=None):
     env["ZERO_AR_DATE"] = "1"
     return env
 
+def check_clang(args):
+    # If user didn't specify --target-toolchain, we search for an available compiler in $PATH.
+    # If user did specify --target-toolchain, we search in user given path ONLY. By doing so
+    # user could see a proper 'compiler not found' error if the given path is incorrect.
+    toolchain_path = args.target_toolchain if args.target_toolchain else None
+    if toolchain_path and (not os.path.exists(toolchain_path)):
+        LOG.error(f"The given toolchain path does not exist: {toolchain_path}")
+
+    c_compiler = shutil.which("clang", path=toolchain_path)
+
+    if c_compiler is None:
+        if toolchain_path:
+            LOG.error(f"Cannot find clang in the given toolchain path: {toolchain_path}")
+        else:
+            LOG.error("Cannot find clang in $PATH")
+        fatal("clang is required to build interop libraries")
+
+    return c_compiler
+
 def command(*args, cwd=None, env=None):
     """Execute a child program via 'subprocess.Popen' and log the output"""
     output = subprocess.Popen(args, stdout=PIPE, cwd=cwd, env=fixedEnv(env))
@@ -224,10 +243,7 @@ def build(args):
         command("cjpm", "build", "--target-dir=" + INTEROPLIB_OUT, CJPM_CONFIG, cwd=INTEROPLIB_DIR, env=cjpm_env)
 
         # objc-code of interoplib is built by clang
-        clang_env = os.environ.copy()
-        if args.target_toolchain:
-            clang_env['PATH'] = f"{args.target_toolchain}:{clang_env['PATH']}"
-
+        clang_compiler = check_clang(args)
         clang_opts = []
         if args.target_lib:
             clang_target = args.target_lib
@@ -243,19 +259,26 @@ def build(args):
 
         OBJCLIB_O = os.path.join(INTEROPLIB_OUT_PREFIX, "objclib.o")
 
-        clang_command_o = ["clang", "-fmodules", "-c", "-fPIC"] + clang_opts.copy() + ["-I.", "cjinterop.m", f"-o{OBJCLIB_O}"]
-        command(*clang_command_o.copy(), env=clang_env, cwd=INTEROPLIB_OBJCLIB_DIR)
+        clang_command_o = [clang_compiler, "-fmodules", "-c", "-fPIC"] + clang_opts.copy() + ["-I.", "cjinterop.m", f"-o{OBJCLIB_O}"]
+        command(*clang_command_o.copy(), cwd=INTEROPLIB_OBJCLIB_DIR)
 
-        command("ar", "rc", OUT_INTEROPLIB_OBJCLIB_A, OBJCLIB_O)
+        command(
+            "ar", "-cr", OUT_INTEROPLIB_OBJCLIB_A, OBJCLIB_O,
+            cwd=INTEROPLIB_OBJCLIB_DIR,
+        )
+        command(
+            "ranlib", "-D", OUT_INTEROPLIB_OBJCLIB_A,
+            cwd=INTEROPLIB_OBJCLIB_DIR,
+        )
 
-        clang_command_so = ["clang", "-shared"] + clang_opts.copy()
+        clang_command_so = [clang_compiler, "-shared"] + clang_opts.copy()
         if IS_DARWIN:
             clang_command_so += ["-lobjc"]
         else:
             clang_command_so += subprocess.run(['gnustep-config', '--objc-libs'], capture_output=True).stdout.decode().split()
         clang_command_so += [f"-L{os.environ['CANGJIE_HOME']}/runtime/lib/{runtime}", "-lcangjie-runtime"]
         clang_command_so += [f"-o{OUT_INTEROPLIB_OBJCLIB_DYLIB}", OBJCLIB_O]
-        command(*clang_command_so.copy(), env=clang_env, cwd=INTEROPLIB_OBJCLIB_DIR)
+        command(*clang_command_so.copy(), cwd=INTEROPLIB_OBJCLIB_DIR)
 
         LOG.info('end build interoplib for ' + runtime + '\n')
     else:
@@ -360,18 +383,23 @@ def install(args):
         LOG.info("begin install interoplib for " + runtime + "\n")
 
         installation_dir_static = prepare_dir(install_path, "lib", runtime)
-        install_files(installation_dir_static,
-                      OUT_INTEROPLIB_COMMON_A,
-                      OUT_INTEROPLIB_OBJC_A,
-                      OUT_OBJC_LANG_A,
-                      OUT_INTEROPLIB_OBJCLIB_A)
+        install_files(
+            installation_dir_static,
+            OUT_INTEROPLIB_COMMON_A,
+            OUT_INTEROPLIB_OBJC_A,
+            OUT_OBJC_LANG_A,
+            OUT_INTEROPLIB_OBJCLIB_A
+        )
 
         installation_dir_dynamic = prepare_dir(install_path, "runtime", "lib", runtime)
-        install_files(installation_dir_dynamic,
-                      OUT_INTEROPLIB_COMMON_DYLIB,
-                      OUT_INTEROPLIB_OBJC_DYLIB,
-                      OUT_OBJC_LANG_DYLIB,
-                      OUT_INTEROPLIB_OBJCLIB_DYLIB)
+        install_files(
+            installation_dir_dynamic,
+            OUT_INTEROPLIB_COMMON_DYLIB,
+            OUT_INTEROPLIB_OBJC_DYLIB,
+            OUT_OBJC_LANG_DYLIB,
+            OUT_INTEROPLIB_OBJCLIB_DYLIB
+        )
+
         if IS_DARWIN:
             change_install_names(os.path.join(installation_dir_dynamic, "libinteroplib.common.dylib"), [])
             change_install_names(
