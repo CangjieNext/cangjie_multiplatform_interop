@@ -19,7 +19,7 @@ public open class NSSortDescriptor <: NSObject & NSSecureCoding & NSCopying {
     @ForeignName["sortDescriptorWithKey:ascending:comparator:"] public static func sortDescriptorWithKeyAscendingComparator(key: ?NSString, ascending: Bool, cmptr: NSComparator): NSSortDescriptor
     @ForeignName["initWithKey:ascending:comparator:"] public init(key: ?NSString, ascending: Bool, cmptr: NSComparator)
     public open prop comparator: NSComparator
-    @ForeignName["compareObject:toObject:"] public open func compareObjectToObject(object1: ObjCId, object2: ObjCId): NSInteger /*NSComparisonResult*/
+    @ForeignName["compareObject:toObject:"] public open func compareObjectToObject(object1: ObjCId, object2: ObjCId): NSComparisonResult
     public open prop reversedSortDescriptor: ObjCId
 }
 

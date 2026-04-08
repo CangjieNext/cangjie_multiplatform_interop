@@ -5,24 +5,9 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSDateComponentsFormatterUnitsStyle {
-    public static const NSDateComponentsFormatterUnitsStylePositional: NSInteger = 0
-    public static const NSDateComponentsFormatterUnitsStyleAbbreviated: NSInteger = 1
-    public static const NSDateComponentsFormatterUnitsStyleShort: NSInteger = 2
-    public static const NSDateComponentsFormatterUnitsStyleFull: NSInteger = 3
-    public static const NSDateComponentsFormatterUnitsStyleSpellOut: NSInteger = 4
-    public static const NSDateComponentsFormatterUnitsStyleBrief: NSInteger = 5
-}
+public type NSDateComponentsFormatterUnitsStyle = NSInteger
 
-public abstract sealed class NSDateComponentsFormatterZeroFormattingBehavior {
-    public static const NSDateComponentsFormatterZeroFormattingBehaviorNone: NSUInteger = 0
-    public static const NSDateComponentsFormatterZeroFormattingBehaviorDefault: NSUInteger = 1
-    public static const NSDateComponentsFormatterZeroFormattingBehaviorDropLeading: NSUInteger = 2
-    public static const NSDateComponentsFormatterZeroFormattingBehaviorDropMiddle: NSUInteger = 4
-    public static const NSDateComponentsFormatterZeroFormattingBehaviorDropTrailing: NSUInteger = 8
-    public static const NSDateComponentsFormatterZeroFormattingBehaviorDropAll: NSUInteger = 14
-    public static const NSDateComponentsFormatterZeroFormattingBehaviorPad: NSUInteger = 65536
-}
+public type NSDateComponentsFormatterZeroFormattingBehavior = NSUInteger
 
 @ObjCMirror
 public open class NSDateComponentsFormatter <: NSFormatter {
@@ -30,10 +15,10 @@ public open class NSDateComponentsFormatter <: NSFormatter {
     @ForeignName["stringFromDateComponents:"] public open func stringFromDateComponents(components: NSDateComponents): ?NSString
     @ForeignName["stringFromDate:toDate:"] public open func stringFromDateToDate(startDate: NSDate, endDate: NSDate): ?NSString
     @ForeignName["stringFromTimeInterval:"] public open func stringFromTimeInterval(ti: NSTimeInterval): ?NSString
-    @ForeignName["localizedStringFromDateComponents:unitsStyle:"] public static func localizedStringFromDateComponentsUnitsStyle(components: NSDateComponents, unitsStyle: NSInteger /*NSDateComponentsFormatterUnitsStyle*/): ?NSString
-    public open mut prop unitsStyle: NSInteger /*NSDateComponentsFormatterUnitsStyle*/
-    public open mut prop allowedUnits: NSUInteger /*NSCalendarUnit*/
-    public open mut prop zeroFormattingBehavior: NSUInteger /*NSDateComponentsFormatterZeroFormattingBehavior*/
+    @ForeignName["localizedStringFromDateComponents:unitsStyle:"] public static func localizedStringFromDateComponentsUnitsStyle(components: NSDateComponents, unitsStyle: NSDateComponentsFormatterUnitsStyle): ?NSString
+    public open mut prop unitsStyle: NSDateComponentsFormatterUnitsStyle
+    public open mut prop allowedUnits: NSCalendarUnit
+    public open mut prop zeroFormattingBehavior: NSDateComponentsFormatterZeroFormattingBehavior
     public open mut prop calendar: ?NSCalendar
     public open mut prop referenceDate: ?NSDate
     public open mut prop allowsFractionalUnits: Bool
@@ -41,7 +26,7 @@ public open class NSDateComponentsFormatter <: NSFormatter {
     public open mut prop collapsesLargestUnit: Bool
     public open mut prop includesApproximationPhrase: Bool
     public open mut prop includesTimeRemainingPhrase: Bool
-    public open mut prop formattingContext: NSInteger /*NSFormattingContext*/
+    public open mut prop formattingContext: NSFormattingContext
     public open func getObjectValueForStringErrorDescription(obj: ObjCPointer<ObjCId>, string: NSString, error: ObjCPointer<NSString>): Bool
 }
 

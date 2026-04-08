@@ -59,15 +59,9 @@ public open class NSLocale <: NSObject & NSCopying & NSSecureCoding {
     @ForeignName["canonicalLanguageIdentifierFromString:"] public static func canonicalLanguageIdentifierFromString(string: NSString): NSString
     @ForeignName["localeIdentifierFromWindowsLocaleCode:"] public static func localeIdentifierFromWindowsLocaleCode(lcid: uint32_t): ?NSString
     @ForeignName["windowsLocaleCodeFromLocaleIdentifier:"] public static func windowsLocaleCodeFromLocaleIdentifier(localeIdentifier: NSString): uint32_t
-    @ForeignName["characterDirectionForLanguage:"] public static func characterDirectionForLanguage(isoLangCode: NSString): NSUInteger /*NSLocaleLanguageDirection*/
-    @ForeignName["lineDirectionForLanguage:"] public static func lineDirectionForLanguage(isoLangCode: NSString): NSUInteger /*NSLocaleLanguageDirection*/
+    @ForeignName["characterDirectionForLanguage:"] public static func characterDirectionForLanguage(isoLangCode: NSString): NSLocaleLanguageDirection
+    @ForeignName["lineDirectionForLanguage:"] public static func lineDirectionForLanguage(isoLangCode: NSString): NSLocaleLanguageDirection
 }
 
-public abstract sealed class NSLocaleLanguageDirection {
-    public static const NSLocaleLanguageDirectionUnknown: NSUInteger = 0
-    public static const NSLocaleLanguageDirectionLeftToRight: NSUInteger = 1
-    public static const NSLocaleLanguageDirectionRightToLeft: NSUInteger = 2
-    public static const NSLocaleLanguageDirectionTopToBottom: NSUInteger = 3
-    public static const NSLocaleLanguageDirectionBottomToTop: NSUInteger = 4
-}
+public type NSLocaleLanguageDirection = NSUInteger
 

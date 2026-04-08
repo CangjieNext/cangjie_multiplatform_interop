@@ -5,10 +5,7 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSDecodingFailurePolicy {
-    public static const NSDecodingFailurePolicyRaiseException: NSInteger = 0
-    public static const NSDecodingFailurePolicySetErrorAndReturn: NSInteger = 1
-}
+public type NSDecodingFailurePolicy = NSInteger
 
 @ObjCMirror
 public open class NSCoder <: NSObject {
@@ -65,7 +62,7 @@ public open class NSCoder <: NSObject {
     @ForeignName["decodePropertyListForKey:"] public open func decodePropertyListForKey(key: NSString): ?ObjCId
     public open prop allowedClasses: ?NSSet/*<ObjCClass>*/
     @ForeignName["failWithError:"] public open func failWithError(error: NSError): Unit
-    public open prop decodingFailurePolicy: NSInteger /*NSDecodingFailurePolicy*/
+    public open prop decodingFailurePolicy: NSDecodingFailurePolicy
     public open prop error: ?NSError
     @ForeignName["decodeValueOfObjCType:at:"] public open func decodeValueOfObjCTypeAt(`type`: ObjCPointer<Int8>, data: ObjCPointer<Unit>): Unit
 }

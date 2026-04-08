@@ -14,7 +14,7 @@ public open class NSDateInterval <: NSObject & NSCopying & NSSecureCoding {
     @ForeignName["initWithCoder:"] public init(coder: NSCoder)
     @ForeignName["initWithStartDate:duration:"] public init(startDate: NSDate, duration: NSTimeInterval)
     @ForeignName["initWithStartDate:endDate:"] public init(startDate: NSDate, endDate: NSDate)
-    @ForeignName["compare:"] public open func compare(dateInterval: NSDateInterval): NSInteger /*NSComparisonResult*/
+    @ForeignName["compare:"] public open func compare(dateInterval: NSDateInterval): NSComparisonResult
     @ForeignName["isEqualToDateInterval:"] public open func isEqualToDateInterval(dateInterval: NSDateInterval): Bool
     @ForeignName["intersectsDateInterval:"] public open func intersectsDateInterval(dateInterval: NSDateInterval): Bool
     @ForeignName["intersectionWithDateInterval:"] public open func intersectionWithDateInterval(dateInterval: NSDateInterval): ?NSDateInterval

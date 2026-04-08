@@ -5,20 +5,9 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSRoundingMode {
-    public static const NSRoundPlain: NSUInteger = 0
-    public static const NSRoundDown: NSUInteger = 1
-    public static const NSRoundUp: NSUInteger = 2
-    public static const NSRoundBankers: NSUInteger = 3
-}
+public type NSRoundingMode = NSUInteger
 
-public abstract sealed class NSCalculationError {
-    public static const NSCalculationNoError: NSUInteger = 0
-    public static const NSCalculationLossOfPrecision: NSUInteger = 1
-    public static const NSCalculationUnderflow: NSUInteger = 2
-    public static const NSCalculationOverflow: NSUInteger = 3
-    public static const NSCalculationDivideByZero: NSUInteger = 4
-}
+public type NSCalculationError = NSUInteger
 
 @C
 public struct NSDecimal {
@@ -34,23 +23,23 @@ foreign func NSDecimalCopy(destination: CPointer<NSDecimal>, source: CPointer<NS
 
 foreign func NSDecimalCompact(number: CPointer<NSDecimal>): Unit
 
-foreign func NSDecimalCompare(leftOperand: CPointer<NSDecimal>, rightOperand: CPointer<NSDecimal>): NSInteger /*NSComparisonResult*/
+foreign func NSDecimalCompare(leftOperand: CPointer<NSDecimal>, rightOperand: CPointer<NSDecimal>): NSComparisonResult
 
-foreign func NSDecimalRound(result: CPointer<NSDecimal>, number: CPointer<NSDecimal>, scale: NSInteger, roundingMode: NSUInteger /*NSRoundingMode*/): Unit
+foreign func NSDecimalRound(result: CPointer<NSDecimal>, number: CPointer<NSDecimal>, scale: NSInteger, roundingMode: NSRoundingMode): Unit
 
-foreign func NSDecimalNormalize(number1: CPointer<NSDecimal>, number2: CPointer<NSDecimal>, roundingMode: NSUInteger /*NSRoundingMode*/): NSUInteger /*NSCalculationError*/
+foreign func NSDecimalNormalize(number1: CPointer<NSDecimal>, number2: CPointer<NSDecimal>, roundingMode: NSRoundingMode): NSCalculationError
 
-foreign func NSDecimalAdd(result: CPointer<NSDecimal>, leftOperand: CPointer<NSDecimal>, rightOperand: CPointer<NSDecimal>, roundingMode: NSUInteger /*NSRoundingMode*/): NSUInteger /*NSCalculationError*/
+foreign func NSDecimalAdd(result: CPointer<NSDecimal>, leftOperand: CPointer<NSDecimal>, rightOperand: CPointer<NSDecimal>, roundingMode: NSRoundingMode): NSCalculationError
 
-foreign func NSDecimalSubtract(result: CPointer<NSDecimal>, leftOperand: CPointer<NSDecimal>, rightOperand: CPointer<NSDecimal>, roundingMode: NSUInteger /*NSRoundingMode*/): NSUInteger /*NSCalculationError*/
+foreign func NSDecimalSubtract(result: CPointer<NSDecimal>, leftOperand: CPointer<NSDecimal>, rightOperand: CPointer<NSDecimal>, roundingMode: NSRoundingMode): NSCalculationError
 
-foreign func NSDecimalMultiply(result: CPointer<NSDecimal>, leftOperand: CPointer<NSDecimal>, rightOperand: CPointer<NSDecimal>, roundingMode: NSUInteger /*NSRoundingMode*/): NSUInteger /*NSCalculationError*/
+foreign func NSDecimalMultiply(result: CPointer<NSDecimal>, leftOperand: CPointer<NSDecimal>, rightOperand: CPointer<NSDecimal>, roundingMode: NSRoundingMode): NSCalculationError
 
-foreign func NSDecimalDivide(result: CPointer<NSDecimal>, leftOperand: CPointer<NSDecimal>, rightOperand: CPointer<NSDecimal>, roundingMode: NSUInteger /*NSRoundingMode*/): NSUInteger /*NSCalculationError*/
+foreign func NSDecimalDivide(result: CPointer<NSDecimal>, leftOperand: CPointer<NSDecimal>, rightOperand: CPointer<NSDecimal>, roundingMode: NSRoundingMode): NSCalculationError
 
-foreign func NSDecimalPower(result: CPointer<NSDecimal>, number: CPointer<NSDecimal>, power: NSUInteger, roundingMode: NSUInteger /*NSRoundingMode*/): NSUInteger /*NSCalculationError*/
+foreign func NSDecimalPower(result: CPointer<NSDecimal>, number: CPointer<NSDecimal>, power: NSUInteger, roundingMode: NSRoundingMode): NSCalculationError
 
-foreign func NSDecimalMultiplyByPowerOf10(result: CPointer<NSDecimal>, number: CPointer<NSDecimal>, power: Int16, roundingMode: NSUInteger /*NSRoundingMode*/): NSUInteger /*NSCalculationError*/
+foreign func NSDecimalMultiplyByPowerOf10(result: CPointer<NSDecimal>, number: CPointer<NSDecimal>, power: Int16, roundingMode: NSRoundingMode): NSCalculationError
 
 @ObjCMirror
 public func NSDecimalString(dcm: ObjCPointer<NSDecimal>, locale: ?ObjCId): NSString

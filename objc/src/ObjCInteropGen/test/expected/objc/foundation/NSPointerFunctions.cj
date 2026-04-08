@@ -5,26 +5,12 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSPointerFunctionsOptions {
-    public static const NSPointerFunctionsStrongMemory: NSUInteger = 0
-    public static const NSPointerFunctionsZeroingWeakMemory: NSUInteger = 1
-    public static const NSPointerFunctionsOpaqueMemory: NSUInteger = 2
-    public static const NSPointerFunctionsMallocMemory: NSUInteger = 3
-    public static const NSPointerFunctionsMachVirtualMemory: NSUInteger = 4
-    public static const NSPointerFunctionsWeakMemory: NSUInteger = 5
-    public static const NSPointerFunctionsObjectPersonality: NSUInteger = 0
-    public static const NSPointerFunctionsOpaquePersonality: NSUInteger = 256
-    public static const NSPointerFunctionsObjectPointerPersonality: NSUInteger = 512
-    public static const NSPointerFunctionsCStringPersonality: NSUInteger = 768
-    public static const NSPointerFunctionsStructPersonality: NSUInteger = 1024
-    public static const NSPointerFunctionsIntegerPersonality: NSUInteger = 1280
-    public static const NSPointerFunctionsCopyIn: NSUInteger = 65536
-}
+public type NSPointerFunctionsOptions = NSUInteger
 
 @ObjCMirror
 public open class NSPointerFunctions <: NSObject & NSCopying {
-    @ForeignName["initWithOptions:"] public init(options: NSUInteger /*NSPointerFunctionsOptions*/)
-    @ForeignName["pointerFunctionsWithOptions:"] public static func pointerFunctionsWithOptions(options: NSUInteger /*NSPointerFunctionsOptions*/): NSPointerFunctions
+    @ForeignName["initWithOptions:"] public init(options: NSPointerFunctionsOptions)
+    @ForeignName["pointerFunctionsWithOptions:"] public static func pointerFunctionsWithOptions(options: NSPointerFunctionsOptions): NSPointerFunctions
     public open mut prop hashFunction: ObjCFunc<(ObjCPointer<Unit>, ObjCFunc<(ObjCPointer<Unit>) -> NSUInteger>) -> NSUInteger>
     public open mut prop isEqualFunction: ObjCFunc<(ObjCPointer<Unit>, ObjCPointer<Unit>, ObjCFunc<(ObjCPointer<Unit>) -> NSUInteger>) -> Bool>
     public open mut prop sizeFunction: ObjCFunc<(ObjCPointer<Unit>) -> NSUInteger>

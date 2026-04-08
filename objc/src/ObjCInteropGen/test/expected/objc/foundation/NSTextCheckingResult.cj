@@ -5,21 +5,7 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSTextCheckingType {
-    public static const NSTextCheckingTypeOrthography: uint64_t = 1
-    public static const NSTextCheckingTypeSpelling: uint64_t = 2
-    public static const NSTextCheckingTypeGrammar: uint64_t = 4
-    public static const NSTextCheckingTypeDate: uint64_t = 8
-    public static const NSTextCheckingTypeAddress: uint64_t = 16
-    public static const NSTextCheckingTypeLink: uint64_t = 32
-    public static const NSTextCheckingTypeQuote: uint64_t = 64
-    public static const NSTextCheckingTypeDash: uint64_t = 128
-    public static const NSTextCheckingTypeReplacement: uint64_t = 256
-    public static const NSTextCheckingTypeCorrection: uint64_t = 512
-    public static const NSTextCheckingTypeRegularExpression: uint64_t = 1024
-    public static const NSTextCheckingTypePhoneNumber: uint64_t = 2048
-    public static const NSTextCheckingTypeTransitInformation: uint64_t = 4096
-}
+public type NSTextCheckingType = uint64_t
 
 public type NSTextCheckingTypes = uint64_t
 
@@ -27,7 +13,7 @@ public type NSTextCheckingKey = NSString
 
 @ObjCMirror
 public open class NSTextCheckingResult <: NSObject & NSCopying & NSSecureCoding {
-    public open prop resultType: uint64_t /*NSTextCheckingType*/
+    public open prop resultType: NSTextCheckingType
     public open prop range: NSRange
     public open prop orthography: ?NSOrthography
     public open prop grammarDetails: ?NSArray/*<NSDictionary<NSString, ObjCId>>*/

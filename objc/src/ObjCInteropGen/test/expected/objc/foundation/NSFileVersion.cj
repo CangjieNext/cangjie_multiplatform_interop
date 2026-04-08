@@ -5,13 +5,9 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSFileVersionAddingOptions {
-    public static const NSFileVersionAddingByMoving: NSUInteger = 1
-}
+public type NSFileVersionAddingOptions = NSUInteger
 
-public abstract sealed class NSFileVersionReplacingOptions {
-    public static const NSFileVersionReplacingByMoving: NSUInteger = 1
-}
+public type NSFileVersionReplacingOptions = NSUInteger
 
 @ObjCMirror
 public open class NSFileVersion <: NSObject {
@@ -20,7 +16,7 @@ public open class NSFileVersion <: NSObject {
     @ForeignName["unresolvedConflictVersionsOfItemAtURL:"] public static func unresolvedConflictVersionsOfItemAtURL(url: NSURL): ?NSArray/*<NSFileVersion>*/
     @ForeignName["getNonlocalVersionsOfItemAtURL:completionHandler:"] public static func getNonlocalVersionsOfItemAtURLCompletionHandler(url: NSURL, completionHandler: ObjCBlock<(NSArray/*<NSFileVersion>*/, NSError) -> Unit>): Unit
     @ForeignName["versionOfItemAtURL:forPersistentIdentifier:"] public static func versionOfItemAtURLForPersistentIdentifier(url: NSURL, persistentIdentifier: ObjCId): ?NSFileVersion
-    @ForeignName["addVersionOfItemAtURL:withContentsOfURL:options:error:"] public static func addVersionOfItemAtURLWithContentsOfURLOptionsError(url: NSURL, contentsURL: NSURL, options: NSUInteger /*NSFileVersionAddingOptions*/, outError: ObjCPointer<NSError>): ?NSFileVersion
+    @ForeignName["addVersionOfItemAtURL:withContentsOfURL:options:error:"] public static func addVersionOfItemAtURLWithContentsOfURLOptionsError(url: NSURL, contentsURL: NSURL, options: NSFileVersionAddingOptions, outError: ObjCPointer<NSError>): ?NSFileVersion
     @ForeignName["temporaryDirectoryURLForNewVersionOfItemAtURL:"] public static func temporaryDirectoryURLForNewVersionOfItemAtURL(url: NSURL): NSURL
     public open prop URL: NSURL
     public open prop localizedName: ?NSString
@@ -33,7 +29,7 @@ public open class NSFileVersion <: NSObject {
     @ForeignGetterName["isDiscardable"] public open mut prop discardable: Bool
     public open prop hasLocalContents: Bool
     public open prop hasThumbnail: Bool
-    @ForeignName["replaceItemAtURL:options:error:"] public open func replaceItemAtURLOptionsError(url: NSURL, options: NSUInteger /*NSFileVersionReplacingOptions*/, error: ObjCPointer<NSError>): ?NSURL
+    @ForeignName["replaceItemAtURL:options:error:"] public open func replaceItemAtURLOptionsError(url: NSURL, options: NSFileVersionReplacingOptions, error: ObjCPointer<NSError>): ?NSURL
     @ForeignName["removeAndReturnError:"] public open func removeAndReturnError(outError: ObjCPointer<NSError>): Bool
     @ForeignName["removeOtherVersionsOfItemAtURL:error:"] public static func removeOtherVersionsOfItemAtURLError(url: NSURL, outError: ObjCPointer<NSError>): Bool
 }

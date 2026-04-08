@@ -7,20 +7,20 @@ import objc.lang.*
 
 @ObjCMirror
 public open class NSDateFormatter <: NSFormatter {
-    public open mut prop formattingContext: NSInteger /*NSFormattingContext*/
+    public open mut prop formattingContext: NSFormattingContext
     @ForeignName["getObjectValue:forString:range:error:"] public open func getObjectValueForStringRangeError(obj: ObjCPointer<ObjCId>, string: NSString, rangep: ObjCPointer<NSRange>, error: ObjCPointer<NSError>): Bool
     @ForeignName["stringFromDate:"] public open func stringFromDate(date: NSDate): NSString
     @ForeignName["dateFromString:"] public open func dateFromString(string: NSString): ?NSDate
-    @ForeignName["localizedStringFromDate:dateStyle:timeStyle:"] public static func localizedStringFromDateDateStyleTimeStyle(date: NSDate, dstyle: NSUInteger /*NSDateFormatterStyle*/, tstyle: NSUInteger /*NSDateFormatterStyle*/): NSString
+    @ForeignName["localizedStringFromDate:dateStyle:timeStyle:"] public static func localizedStringFromDateDateStyleTimeStyle(date: NSDate, dstyle: NSDateFormatterStyle, tstyle: NSDateFormatterStyle): NSString
     @ForeignName["dateFormatFromTemplate:options:locale:"] public static func dateFormatFromTemplateOptionsLocale(tmplate: NSString, opts: NSUInteger, locale: ?NSLocale): ?NSString
-    public static mut prop defaultFormatterBehavior: NSUInteger /*NSDateFormatterBehavior*/
+    public static mut prop defaultFormatterBehavior: NSDateFormatterBehavior
     @ForeignName["setLocalizedDateFormatFromTemplate:"] public open func setLocalizedDateFormatFromTemplate(dateFormatTemplate: NSString): Unit
     public open mut prop dateFormat: NSString
-    public open mut prop dateStyle: NSUInteger /*NSDateFormatterStyle*/
-    public open mut prop timeStyle: NSUInteger /*NSDateFormatterStyle*/
+    public open mut prop dateStyle: NSDateFormatterStyle
+    public open mut prop timeStyle: NSDateFormatterStyle
     public open mut prop locale: NSLocale
     public open mut prop generatesCalendarDates: Bool
-    public open mut prop formatterBehavior: NSUInteger /*NSDateFormatterBehavior*/
+    public open mut prop formatterBehavior: NSDateFormatterBehavior
     public open mut prop timeZone: NSTimeZone
     public open mut prop calendar: NSCalendar
     @ForeignGetterName["isLenient"] public open mut prop lenient: Bool
@@ -50,16 +50,7 @@ public open class NSDateFormatter <: NSFormatter {
     public open mut prop doesRelativeDateFormatting: Bool
 }
 
-public abstract sealed class NSDateFormatterStyle {
-    public static const NSDateFormatterNoStyle: NSUInteger = 0
-    public static const NSDateFormatterShortStyle: NSUInteger = 1
-    public static const NSDateFormatterMediumStyle: NSUInteger = 2
-    public static const NSDateFormatterLongStyle: NSUInteger = 3
-    public static const NSDateFormatterFullStyle: NSUInteger = 4
-}
+public type NSDateFormatterStyle = NSUInteger
 
-public abstract sealed class NSDateFormatterBehavior {
-    public static const NSDateFormatterBehaviorDefault: NSUInteger = 0
-    public static const NSDateFormatterBehavior10_4: NSUInteger = 1040
-}
+public type NSDateFormatterBehavior = NSUInteger
 

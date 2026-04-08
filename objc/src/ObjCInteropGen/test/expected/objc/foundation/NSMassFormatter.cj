@@ -5,23 +5,17 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSMassFormatterUnit {
-    public static const NSMassFormatterUnitGram: NSInteger = 11
-    public static const NSMassFormatterUnitKilogram: NSInteger = 14
-    public static const NSMassFormatterUnitOunce: NSInteger = 1537
-    public static const NSMassFormatterUnitPound: NSInteger = 1538
-    public static const NSMassFormatterUnitStone: NSInteger = 1539
-}
+public type NSMassFormatterUnit = NSInteger
 
 @ObjCMirror
 public open class NSMassFormatter <: NSFormatter {
     public open mut prop numberFormatter: NSNumberFormatter
-    public open mut prop unitStyle: NSInteger /*NSFormattingUnitStyle*/
+    public open mut prop unitStyle: NSFormattingUnitStyle
     @ForeignGetterName["isForPersonMassUse"] public open mut prop forPersonMassUse: Bool
-    @ForeignName["stringFromValue:unit:"] public open func stringFromValueUnit(value: Float64, unit: NSInteger /*NSMassFormatterUnit*/): NSString
+    @ForeignName["stringFromValue:unit:"] public open func stringFromValueUnit(value: Float64, unit: NSMassFormatterUnit): NSString
     @ForeignName["stringFromKilograms:"] public open func stringFromKilograms(numberInKilograms: Float64): NSString
-    @ForeignName["unitStringFromValue:unit:"] public open func unitStringFromValueUnit(value: Float64, unit: NSInteger /*NSMassFormatterUnit*/): NSString
-    @ForeignName["unitStringFromKilograms:usedUnit:"] public open func unitStringFromKilogramsUsedUnit(numberInKilograms: Float64, unitp: ObjCPointer<NSInteger /*NSMassFormatterUnit*/>): NSString
+    @ForeignName["unitStringFromValue:unit:"] public open func unitStringFromValueUnit(value: Float64, unit: NSMassFormatterUnit): NSString
+    @ForeignName["unitStringFromKilograms:usedUnit:"] public open func unitStringFromKilogramsUsedUnit(numberInKilograms: Float64, unitp: ObjCPointer<NSMassFormatterUnit>): NSString
     public open func getObjectValueForStringErrorDescription(obj: ObjCPointer<ObjCId>, string: NSString, error: ObjCPointer<NSString>): Bool
 }
 

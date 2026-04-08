@@ -16,7 +16,7 @@ public open class NSIndexPath <: NSObject & NSCopying & NSSecureCoding {
     @ForeignName["indexAtPosition:"] public open func indexAtPosition(position: NSUInteger): NSUInteger
     public open prop length: NSUInteger
     @ForeignName["getIndexes:range:"] public open func getIndexesRange(indexes: ObjCPointer<NSUInteger>, positionRange: NSRange): Unit
-    @ForeignName["compare:"] public open func compare(otherObject: NSIndexPath): NSInteger /*NSComparisonResult*/
+    @ForeignName["compare:"] public open func compare(otherObject: NSIndexPath): NSComparisonResult
     @ForeignName["getIndexes:"] public open func getIndexes(indexes: ObjCPointer<NSUInteger>): Unit
 }
 

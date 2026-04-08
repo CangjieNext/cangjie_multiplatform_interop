@@ -51,25 +51,14 @@ public interface NSFilePresenter <: NSObjectProtocol {
     @ForeignName["presentedSubitemAtURL:didResolveConflictVersion:"] func presentedSubitemAtURLDidResolveConflictVersion(url: NSURL, version: NSFileVersion): Unit
 }
 
-public abstract sealed class NSFileCoordinatorReadingOptions {
-    public static const NSFileCoordinatorReadingWithoutChanges: NSUInteger = 1
-    public static const NSFileCoordinatorReadingResolvesSymbolicLink: NSUInteger = 2
-    public static const NSFileCoordinatorReadingImmediatelyAvailableMetadataOnly: NSUInteger = 4
-    public static const NSFileCoordinatorReadingForUploading: NSUInteger = 8
-}
+public type NSFileCoordinatorReadingOptions = NSUInteger
 
-public abstract sealed class NSFileCoordinatorWritingOptions {
-    public static const NSFileCoordinatorWritingForDeleting: NSUInteger = 1
-    public static const NSFileCoordinatorWritingForMoving: NSUInteger = 2
-    public static const NSFileCoordinatorWritingForMerging: NSUInteger = 4
-    public static const NSFileCoordinatorWritingForReplacing: NSUInteger = 8
-    public static const NSFileCoordinatorWritingContentIndependentMetadataOnly: NSUInteger = 16
-}
+public type NSFileCoordinatorWritingOptions = NSUInteger
 
 @ObjCMirror
 public open class NSFileAccessIntent <: NSObject {
-    @ForeignName["readingIntentWithURL:options:"] public static func readingIntentWithURLOptions(url: NSURL, options: NSUInteger /*NSFileCoordinatorReadingOptions*/): NSFileAccessIntent
-    @ForeignName["writingIntentWithURL:options:"] public static func writingIntentWithURLOptions(url: NSURL, options: NSUInteger /*NSFileCoordinatorWritingOptions*/): NSFileAccessIntent
+    @ForeignName["readingIntentWithURL:options:"] public static func readingIntentWithURLOptions(url: NSURL, options: NSFileCoordinatorReadingOptions): NSFileAccessIntent
+    @ForeignName["writingIntentWithURL:options:"] public static func writingIntentWithURLOptions(url: NSURL, options: NSFileCoordinatorWritingOptions): NSFileAccessIntent
     public open prop URL: NSURL
 }
 
@@ -81,11 +70,11 @@ public open class NSFileCoordinator <: NSObject {
     @ForeignName["initWithFilePresenter:"] public init(filePresenterOrNil: ?NSFilePresenter)
     public open mut prop purposeIdentifier: NSString
     @ForeignName["coordinateAccessWithIntents:queue:byAccessor:"] public open func coordinateAccessWithIntentsQueueByAccessor(intents: NSArray/*<NSFileAccessIntent>*/, queue: NSOperationQueue, accessor: ObjCBlock<(NSError) -> Unit>): Unit
-    @ForeignName["coordinateReadingItemAtURL:options:error:byAccessor:"] public open func coordinateReadingItemAtURLOptionsErrorByAccessor(url: NSURL, options: NSUInteger /*NSFileCoordinatorReadingOptions*/, outError: ObjCPointer<NSError>, reader: ObjCBlock<(NSURL) -> Unit>): Unit
-    @ForeignName["coordinateWritingItemAtURL:options:error:byAccessor:"] public open func coordinateWritingItemAtURLOptionsErrorByAccessor(url: NSURL, options: NSUInteger /*NSFileCoordinatorWritingOptions*/, outError: ObjCPointer<NSError>, writer: ObjCBlock<(NSURL) -> Unit>): Unit
-    @ForeignName["coordinateReadingItemAtURL:options:writingItemAtURL:options:error:byAccessor:"] public open func coordinateReadingItemAtURLOptionsWritingItemAtURLOptionsErrorByAccessor(readingURL: NSURL, readingOptions: NSUInteger /*NSFileCoordinatorReadingOptions*/, writingURL: NSURL, writingOptions: NSUInteger /*NSFileCoordinatorWritingOptions*/, outError: ObjCPointer<NSError>, readerWriter: ObjCBlock<(NSURL, NSURL) -> Unit>): Unit
-    @ForeignName["coordinateWritingItemAtURL:options:writingItemAtURL:options:error:byAccessor:"] public open func coordinateWritingItemAtURLOptionsWritingItemAtURLOptionsErrorByAccessor(url1: NSURL, options1: NSUInteger /*NSFileCoordinatorWritingOptions*/, url2: NSURL, options2: NSUInteger /*NSFileCoordinatorWritingOptions*/, outError: ObjCPointer<NSError>, writer: ObjCBlock<(NSURL, NSURL) -> Unit>): Unit
-    @ForeignName["prepareForReadingItemsAtURLs:options:writingItemsAtURLs:options:error:byAccessor:"] public open func prepareForReadingItemsAtURLsOptionsWritingItemsAtURLsOptionsErrorByAccessor(readingURLs: NSArray/*<NSURL>*/, readingOptions: NSUInteger /*NSFileCoordinatorReadingOptions*/, writingURLs: NSArray/*<NSURL>*/, writingOptions: NSUInteger /*NSFileCoordinatorWritingOptions*/, outError: ObjCPointer<NSError>, batchAccessor: ObjCBlock<(ObjCBlock<() -> Unit>) -> Unit>): Unit
+    @ForeignName["coordinateReadingItemAtURL:options:error:byAccessor:"] public open func coordinateReadingItemAtURLOptionsErrorByAccessor(url: NSURL, options: NSFileCoordinatorReadingOptions, outError: ObjCPointer<NSError>, reader: ObjCBlock<(NSURL) -> Unit>): Unit
+    @ForeignName["coordinateWritingItemAtURL:options:error:byAccessor:"] public open func coordinateWritingItemAtURLOptionsErrorByAccessor(url: NSURL, options: NSFileCoordinatorWritingOptions, outError: ObjCPointer<NSError>, writer: ObjCBlock<(NSURL) -> Unit>): Unit
+    @ForeignName["coordinateReadingItemAtURL:options:writingItemAtURL:options:error:byAccessor:"] public open func coordinateReadingItemAtURLOptionsWritingItemAtURLOptionsErrorByAccessor(readingURL: NSURL, readingOptions: NSFileCoordinatorReadingOptions, writingURL: NSURL, writingOptions: NSFileCoordinatorWritingOptions, outError: ObjCPointer<NSError>, readerWriter: ObjCBlock<(NSURL, NSURL) -> Unit>): Unit
+    @ForeignName["coordinateWritingItemAtURL:options:writingItemAtURL:options:error:byAccessor:"] public open func coordinateWritingItemAtURLOptionsWritingItemAtURLOptionsErrorByAccessor(url1: NSURL, options1: NSFileCoordinatorWritingOptions, url2: NSURL, options2: NSFileCoordinatorWritingOptions, outError: ObjCPointer<NSError>, writer: ObjCBlock<(NSURL, NSURL) -> Unit>): Unit
+    @ForeignName["prepareForReadingItemsAtURLs:options:writingItemsAtURLs:options:error:byAccessor:"] public open func prepareForReadingItemsAtURLsOptionsWritingItemsAtURLsOptionsErrorByAccessor(readingURLs: NSArray/*<NSURL>*/, readingOptions: NSFileCoordinatorReadingOptions, writingURLs: NSArray/*<NSURL>*/, writingOptions: NSFileCoordinatorWritingOptions, outError: ObjCPointer<NSError>, batchAccessor: ObjCBlock<(ObjCBlock<() -> Unit>) -> Unit>): Unit
     @ForeignName["itemAtURL:willMoveToURL:"] public open func itemAtURLWillMoveToURL(oldURL: NSURL, newURL: NSURL): Unit
     @ForeignName["itemAtURL:didMoveToURL:"] public open func itemAtURLDidMoveToURL(oldURL: NSURL, newURL: NSURL): Unit
     @ForeignName["itemAtURL:didChangeUbiquityAttributes:"] public open func itemAtURLDidChangeUbiquityAttributes(url: NSURL, attributes: NSSet/*<NSURLResourceKey>*/): Unit

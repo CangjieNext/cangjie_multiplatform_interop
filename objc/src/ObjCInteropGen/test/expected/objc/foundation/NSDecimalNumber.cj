@@ -7,9 +7,9 @@ import objc.lang.*
 
 @ObjCMirror
 public interface NSDecimalNumberBehaviors {
-    func roundingMode(): NSUInteger /*NSRoundingMode*/
+    func roundingMode(): NSRoundingMode
     func scale(): Int16
-    @ForeignName["exceptionDuringOperation:error:leftOperand:rightOperand:"] func exceptionDuringOperationErrorLeftOperandRightOperand(operation: SEL, error: NSUInteger /*NSCalculationError*/, leftOperand: NSDecimalNumber, rightOperand: ?NSDecimalNumber): ?NSDecimalNumber
+    @ForeignName["exceptionDuringOperation:error:leftOperand:rightOperand:"] func exceptionDuringOperationErrorLeftOperandRightOperand(operation: SEL, error: NSCalculationError, leftOperand: NSDecimalNumber, rightOperand: ?NSDecimalNumber): ?NSDecimalNumber
 }
 
 @ObjCMirror
@@ -41,14 +41,14 @@ public open class NSDecimalNumber <: NSNumber {
     @ForeignName["decimalNumberByMultiplyingByPowerOf10:"] public open func decimalNumberByMultiplyingByPowerOf10(power: Int16): NSDecimalNumber
     @ForeignName["decimalNumberByMultiplyingByPowerOf10:withBehavior:"] public open func decimalNumberByMultiplyingByPowerOf10WithBehavior(power: Int16, behavior: ?NSDecimalNumberBehaviors): NSDecimalNumber
     @ForeignName["decimalNumberByRoundingAccordingToBehavior:"] public open func decimalNumberByRoundingAccordingToBehavior(behavior: ?NSDecimalNumberBehaviors): NSDecimalNumber
-    public open func compare(decimalNumber: NSNumber): NSInteger /*NSComparisonResult*/
+    public open func compare(decimalNumber: NSNumber): NSComparisonResult
     public static mut prop defaultBehavior: NSDecimalNumberBehaviors
 }
 
 @ObjCMirror
 public open class NSDecimalNumberHandler <: NSObject & NSDecimalNumberBehaviors & NSCoding {
     public static prop defaultDecimalNumberHandler: NSDecimalNumberHandler
-    @ForeignName["initWithRoundingMode:scale:raiseOnExactness:raiseOnOverflow:raiseOnUnderflow:raiseOnDivideByZero:"] public init(roundingMode: NSUInteger /*NSRoundingMode*/, scale: Int16, exact: Bool, overflow: Bool, underflow: Bool, divideByZero: Bool)
-    @ForeignName["decimalNumberHandlerWithRoundingMode:scale:raiseOnExactness:raiseOnOverflow:raiseOnUnderflow:raiseOnDivideByZero:"] public static func decimalNumberHandlerWithRoundingModeScaleRaiseOnExactnessRaiseOnOverflowRaiseOnUnderflowRaiseOnDivideByZero(roundingMode: NSUInteger /*NSRoundingMode*/, scale: Int16, exact: Bool, overflow: Bool, underflow: Bool, divideByZero: Bool): NSDecimalNumberHandler
+    @ForeignName["initWithRoundingMode:scale:raiseOnExactness:raiseOnOverflow:raiseOnUnderflow:raiseOnDivideByZero:"] public init(roundingMode: NSRoundingMode, scale: Int16, exact: Bool, overflow: Bool, underflow: Bool, divideByZero: Bool)
+    @ForeignName["decimalNumberHandlerWithRoundingMode:scale:raiseOnExactness:raiseOnOverflow:raiseOnUnderflow:raiseOnDivideByZero:"] public static func decimalNumberHandlerWithRoundingModeScaleRaiseOnExactnessRaiseOnOverflowRaiseOnUnderflowRaiseOnDivideByZero(roundingMode: NSRoundingMode, scale: Int16, exact: Bool, overflow: Bool, underflow: Bool, divideByZero: Bool): NSDecimalNumberHandler
 }
 

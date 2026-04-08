@@ -102,15 +102,15 @@ public open class NSObject <: NSObjectProtocol {
     @ForeignName["valuesForKeys:"] public open func valuesForKeys(keys: NSArray/*<ObjectType>*/): NSDictionary/*<KeyType, ObjectType>*/
     @ForeignName["takeValuesFromDictionary:"] public open func takeValuesFromDictionary(properties: NSDictionary/*<KeyType, ObjectType>*/): Unit
     @ForeignName["observeValueForKeyPath:ofObject:change:context:"] public open func observeValueForKeyPathOfObjectChangeContext(keyPath: ?NSString, object: ?ObjCId, change: ?NSDictionary/*<NSKeyValueChangeKey, ObjCId>*/, context: ObjCPointer<Unit>): Unit
-    @ForeignName["addObserver:forKeyPath:options:context:"] public open func addObserverForKeyPathOptionsContext(observer: NSObject, keyPath: NSString, options: NSUInteger /*NSKeyValueObservingOptions*/, context: ObjCPointer<Unit>): Unit
+    @ForeignName["addObserver:forKeyPath:options:context:"] public open func addObserverForKeyPathOptionsContext(observer: NSObject, keyPath: NSString, options: NSKeyValueObservingOptions, context: ObjCPointer<Unit>): Unit
     @ForeignName["removeObserver:forKeyPath:context:"] public open func removeObserverForKeyPathContext(observer: NSObject, keyPath: NSString, context: ObjCPointer<Unit>): Unit
     @ForeignName["removeObserver:forKeyPath:"] public open func removeObserverForKeyPath(observer: NSObject, keyPath: NSString): Unit
     @ForeignName["willChangeValueForKey:"] public open func willChangeValueForKey(key: NSString): Unit
     @ForeignName["didChangeValueForKey:"] public open func didChangeValueForKey(key: NSString): Unit
-    @ForeignName["willChange:valuesAtIndexes:forKey:"] public open func willChangeValuesAtIndexesForKey(changeKind: NSUInteger /*NSKeyValueChange*/, indexes: NSIndexSet, key: NSString): Unit
-    @ForeignName["didChange:valuesAtIndexes:forKey:"] public open func didChangeValuesAtIndexesForKey(changeKind: NSUInteger /*NSKeyValueChange*/, indexes: NSIndexSet, key: NSString): Unit
-    @ForeignName["willChangeValueForKey:withSetMutation:usingObjects:"] public open func willChangeValueForKeyWithSetMutationUsingObjects(key: NSString, mutationKind: NSUInteger /*NSKeyValueSetMutationKind*/, objects: NSSet/*<ObjectType>*/): Unit
-    @ForeignName["didChangeValueForKey:withSetMutation:usingObjects:"] public open func didChangeValueForKeyWithSetMutationUsingObjects(key: NSString, mutationKind: NSUInteger /*NSKeyValueSetMutationKind*/, objects: NSSet/*<ObjectType>*/): Unit
+    @ForeignName["willChange:valuesAtIndexes:forKey:"] public open func willChangeValuesAtIndexesForKey(changeKind: NSKeyValueChange, indexes: NSIndexSet, key: NSString): Unit
+    @ForeignName["didChange:valuesAtIndexes:forKey:"] public open func didChangeValuesAtIndexesForKey(changeKind: NSKeyValueChange, indexes: NSIndexSet, key: NSString): Unit
+    @ForeignName["willChangeValueForKey:withSetMutation:usingObjects:"] public open func willChangeValueForKeyWithSetMutationUsingObjects(key: NSString, mutationKind: NSKeyValueSetMutationKind, objects: NSSet/*<ObjectType>*/): Unit
+    @ForeignName["didChangeValueForKey:withSetMutation:usingObjects:"] public open func didChangeValueForKeyWithSetMutationUsingObjects(key: NSString, mutationKind: NSKeyValueSetMutationKind, objects: NSSet/*<ObjectType>*/): Unit
     @ForeignName["keyPathsForValuesAffectingValueForKey:"] public static func keyPathsForValuesAffectingValueForKey(key: NSString): NSSet/*<NSString>*/
     @ForeignName["automaticallyNotifiesObserversForKey:"] public static func automaticallyNotifiesObserversForKey(key: NSString): Bool
     public open mut prop observationInfo: ObjCPointer<Unit>

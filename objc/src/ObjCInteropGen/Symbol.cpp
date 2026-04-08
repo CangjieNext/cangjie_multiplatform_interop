@@ -133,25 +133,13 @@ static void print_type_arguments(std::ostream& stream, const NamedTypeSymbol& ty
 void NamedTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     auto name = this->name();
-    switch (kind_) {
-        case Kind::Enum:
-            if (format == SymbolPrintFormat::Raw) {
-                stream << name;
-            } else {
-                assert(dynamic_cast<const EnumDeclarationSymbol*>(this));
-                static_cast<const EnumDeclarationSymbol&>(*this).underlying_type().print(stream, format);
-                stream << " /*" << name << "*/";
-            }
-            break;
-        case Kind::Primitive:
-            stream << name;
-            break;
-        default:
-            stream << escape_keyword(name);
-            if (parameter_count()) {
-                print_type_arguments(stream, *this, format);
-            }
-            break;
+    if (kind_ == Kind::Primitive) {
+        stream << name;
+    } else {
+        stream << escape_keyword(name);
+        if (parameter_count()) {
+            print_type_arguments(stream, *this, format);
+        }
     }
 }
 
@@ -216,13 +204,20 @@ NamedTypeSymbol* NamedTypeSymbol::construct(const std::vector<TypeLikeSymbol*>& 
 
 NamedTypeSymbol& EnumDeclarationSymbol::underlying_type() const noexcept
 {
-    return underlying_type_ ? *underlying_type_ : Universe::get().int32();
+    assert(underlying_type_);
+    return *underlying_type_;
 }
 
 void UnexposedTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     canonical_type().print(stream, format);
     stream << " /*" << name() << "*/";
+}
+
+void UnexposedTypeSymbol::print_default_value(
+    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+{
+    canonical_type().print_default_value(stream, symbol, format, type_alias);
 }
 
 static bool is_ctype_by_default(NamedTypeSymbol::Kind kind, std::string_view name)
@@ -345,19 +340,39 @@ NonTypeSymbol& TypeDeclarationSymbol::add_instance_variable(std::string name, Ty
     return ivar;
 }
 
-EnumConstantSymbol& EnumDeclarationSymbol::add_constant(
-    std::string name, NamedTypeSymbol& underlying_type, const std::array<uint64_t, 2>& value)
+EnumConstantSymbol& EnumDeclarationSymbol::add_constant(std::string name, const std::array<uint64_t, 2>& value)
 {
-    if (constants_.empty()) {
-        assert(!underlying_type_);
-        underlying_type_ = &underlying_type;
-    } else {
-        assert(underlying_type_);
-        assert(std::all_of(
-            constants_.begin(), constants_.end(), [name](const auto& constant) { return constant.name() != name; }));
-    }
-
+    assert(std::all_of(
+        constants_.begin(), constants_.end(), [name](const auto& constant) { return constant.name() != name; }));
     return constants_.emplace_back(std::move(name), value);
+}
+
+void EnumDeclarationSymbol::print_default_value(
+    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+{
+    assert(underlying_type_);
+    underlying_type_->canonical_type().print_default_value(stream, symbol, format, type_alias);
+}
+
+void PrimitiveTypeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]] const NonTypeSymbol& symbol,
+    [[maybe_unused]] SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
+{
+    switch (category_) {
+        case PrimitiveTypeCategory::Boolean:
+            stream << "false";
+            break;
+        case PrimitiveTypeCategory::SignedInteger:
+        case PrimitiveTypeCategory::UnsignedInteger:
+            stream << '0';
+            break;
+        case PrimitiveTypeCategory::FloatingPoint:
+            stream << "0.0";
+            break;
+        default:
+            assert(category_ == PrimitiveTypeCategory::Unit);
+            stream << "()";
+            break;
+    }
 }
 
 NonTypeSymbol& TypeDeclarationSymbol::add_property(
@@ -457,8 +472,26 @@ void FileLevelSymbol::print_referencing_packages_info() const
     }
 }
 
+void TypeLikeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]] const NonTypeSymbol& symbol,
+    [[maybe_unused]] SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+{
+    stream << emit_cangjie(type_alias) << "()";
+}
+
 TypeParameterSymbol::TypeParameterSymbol(Private, std::string name) : TypeLikeSymbol(std::move(name))
 {
+}
+
+static void print_tricky_default_value(std::ostream& stream, std::string_view type_name, bool is_nullable)
+{
+    if (is_nullable) {
+        stream << "None";
+    } else {
+        // The dirty trick is applied for printing default values of:
+        // - Interface types -- instances of the interface type cannot be created.
+        // - @ObjCMirror classes -- they do not have a primary constructor.
+        stream << "Option<" << type_name << ">.None.getOrThrow()";
+    }
 }
 
 void TypeParameterSymbol::print(std::ostream& stream, SymbolPrintFormat format)
@@ -468,6 +501,12 @@ void TypeParameterSymbol::print(std::ostream& stream, SymbolPrintFormat format)
     } else {
         stream << "ObjCId /*" << name() << "*/";
     }
+}
+
+void TypeParameterSymbol::print_default_value(std::ostream& stream, const NonTypeSymbol& symbol,
+    [[maybe_unused]] SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
+{
+    print_tricky_default_value(stream, "ObjCId", symbol.is_nullable());
 }
 
 void NarrowedTypeParameterSymbol::print(std::ostream& stream, SymbolPrintFormat format)
@@ -497,6 +536,13 @@ void PointerTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
     return new_pointee == pointee_ ? this : new PointerTypeSymbol(*new_pointee);
 }
 
+void PointerTypeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]] const NonTypeSymbol& symbol,
+    SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
+{
+    print(stream, format);
+    stream << (!is_ctype() || format == SymbolPrintFormat::EmitCangjieStrict ? "(CPointer<Unit>())" : "()");
+}
+
 void VArraySymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     stream << name() << '<';
@@ -508,6 +554,20 @@ void VArraySymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     auto* new_element_type = element_type_->map();
     return new_element_type == element_type_ ? this : new VArraySymbol(*new_element_type, size_);
+}
+
+void VArraySymbol::print_default_value(
+    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+{
+    stream << '[';
+    if (size_) {
+        element_type_->print_default_value(stream, symbol, format, type_alias);
+        for (size_t i = 1; i < size_; ++i) {
+            stream << ", ";
+            element_type_->print_default_value(stream, symbol, format, type_alias);
+        }
+    }
+    stream << ']';
 }
 
 void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor)
@@ -528,6 +588,20 @@ void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor)
         for (std::size_t i = 0; i < count; ++i) {
             visitor.visit(this, &this->member(i), SymbolProperty::Member);
         }
+    }
+}
+
+void TypeDeclarationSymbol::print_default_value(
+    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+{
+    switch (kind()) {
+        case Kind::Interface:
+        case Kind::Protocol:
+            print_tricky_default_value(stream, type_alias.name(), symbol.is_nullable());
+            break;
+        default:
+            TypeLikeSymbol::print_default_value(stream, symbol, format, type_alias);
+            break;
     }
 }
 
@@ -626,6 +700,14 @@ FuncTypeSymbol* FuncTypeSymbol::map()
     return changed ? new FuncTypeSymbol(new_parameters, new_return_type) : this;
 }
 
+void FuncTypeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]] const NonTypeSymbol& symbol,
+    SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
+{
+    print(stream, format);
+    stream << (!is_ctype() || format == SymbolPrintFormat::EmitCangjieStrict ? "(CPointer<CFunc<() -> Unit>>())"
+                                                                             : "(CPointer<Unit>())");
+}
+
 BlockTypeSymbol* BlockTypeSymbol::map()
 {
     auto* parameters = this->parameters();
@@ -634,6 +716,13 @@ BlockTypeSymbol* BlockTypeSymbol::map()
     auto* new_return_type = return_type->map();
     const auto changed = parameters != new_parameters || return_type != new_return_type;
     return changed ? new BlockTypeSymbol(new_parameters, new_return_type) : this;
+}
+
+void BlockTypeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]] const NonTypeSymbol& symbol,
+    SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
+{
+    print(stream, format);
+    stream << "(CPointer<NativeBlockABI>())";
 }
 
 void FuncLikeTypeSymbol::visit_impl(SymbolVisitor& visitor)
@@ -651,6 +740,13 @@ ConstructedTypeSymbol::ConstructedTypeSymbol(TypeDeclarationSymbol* original)
 TypeLikeSymbol* ConstructedTypeSymbol::parameter(const std::size_t index) const
 {
     return parameters_.at(index);
+}
+
+void ConstructedTypeSymbol::print_default_value(
+    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+{
+    assert(original_);
+    return original_->print_default_value(stream, symbol, format, type_alias);
 }
 
 void ConstructedTypeSymbol::visit_impl(SymbolVisitor& visitor)
@@ -687,6 +783,12 @@ void TypeAliasSymbol::print(std::ostream& stream, SymbolPrintFormat format)
         }
     }
     NamedTypeSymbol::print(stream, format);
+}
+
+void TypeAliasSymbol::print_default_value(
+    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+{
+    canonical_type().print_default_value(stream, symbol, format, type_alias);
 }
 
 TypeLikeSymbol& TypeAliasSymbol::canonical_type()

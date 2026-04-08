@@ -5,9 +5,5 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSURLErrorNetworkUnavailableReason {
-    public static const NSURLErrorNetworkUnavailableReasonCellular: NSInteger = 0
-    public static const NSURLErrorNetworkUnavailableReasonExpensive: NSInteger = 1
-    public static const NSURLErrorNetworkUnavailableReasonConstrained: NSInteger = 2
-}
+public type NSURLErrorNetworkUnavailableReason = NSInteger
 

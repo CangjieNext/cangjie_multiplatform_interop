@@ -5,30 +5,15 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSISO8601DateFormatOptions {
-    public static const NSISO8601DateFormatWithYear: NSUInteger = 1
-    public static const NSISO8601DateFormatWithMonth: NSUInteger = 2
-    public static const NSISO8601DateFormatWithWeekOfYear: NSUInteger = 4
-    public static const NSISO8601DateFormatWithDay: NSUInteger = 16
-    public static const NSISO8601DateFormatWithTime: NSUInteger = 32
-    public static const NSISO8601DateFormatWithTimeZone: NSUInteger = 64
-    public static const NSISO8601DateFormatWithSpaceBetweenDateAndTime: NSUInteger = 128
-    public static const NSISO8601DateFormatWithDashSeparatorInDate: NSUInteger = 256
-    public static const NSISO8601DateFormatWithColonSeparatorInTime: NSUInteger = 512
-    public static const NSISO8601DateFormatWithColonSeparatorInTimeZone: NSUInteger = 1024
-    public static const NSISO8601DateFormatWithFractionalSeconds: NSUInteger = 2048
-    public static const NSISO8601DateFormatWithFullDate: NSUInteger = 275
-    public static const NSISO8601DateFormatWithFullTime: NSUInteger = 1632
-    public static const NSISO8601DateFormatWithInternetDateTime: NSUInteger = 1907
-}
+public type NSISO8601DateFormatOptions = NSUInteger
 
 @ObjCMirror
 public open class NSISO8601DateFormatter <: NSFormatter & NSSecureCoding {
     public open mut prop timeZone: NSTimeZone
-    public open mut prop formatOptions: NSUInteger /*NSISO8601DateFormatOptions*/
+    public open mut prop formatOptions: NSISO8601DateFormatOptions
     public init()
     @ForeignName["stringFromDate:"] public open func stringFromDate(date: NSDate): NSString
     @ForeignName["dateFromString:"] public open func dateFromString(string: NSString): ?NSDate
-    @ForeignName["stringFromDate:timeZone:formatOptions:"] public static func stringFromDateTimeZoneFormatOptions(date: NSDate, timeZone: NSTimeZone, formatOptions: NSUInteger /*NSISO8601DateFormatOptions*/): NSString
+    @ForeignName["stringFromDate:timeZone:formatOptions:"] public static func stringFromDateTimeZoneFormatOptions(date: NSDate, timeZone: NSTimeZone, formatOptions: NSISO8601DateFormatOptions): NSString
 }
 

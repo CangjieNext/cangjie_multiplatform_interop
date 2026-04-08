@@ -45,22 +45,9 @@ public interface NSNetServiceBrowserDelegate <: NSObjectProtocol {
     @ForeignName["netServiceBrowser:didRemoveService:moreComing:"] func netServiceBrowserDidRemoveServiceMoreComing(browser: NSNetServiceBrowser, service: NSNetService, moreComing: Bool): Unit
 }
 
-public abstract sealed class NSNetServicesError {
-    public static const NSNetServicesUnknownError: NSInteger = -72000
-    public static const NSNetServicesCollisionError: NSInteger = -72001
-    public static const NSNetServicesNotFoundError: NSInteger = -72002
-    public static const NSNetServicesActivityInProgress: NSInteger = -72003
-    public static const NSNetServicesBadArgumentError: NSInteger = -72004
-    public static const NSNetServicesCancelledError: NSInteger = -72005
-    public static const NSNetServicesInvalidError: NSInteger = -72006
-    public static const NSNetServicesTimeoutError: NSInteger = -72007
-    public static const NSNetServicesMissingRequiredConfigurationError: NSInteger = -72008
-}
+public type NSNetServicesError = NSInteger
 
-public abstract sealed class NSNetServiceOptions {
-    public static const NSNetServiceNoAutoRename: NSUInteger = 1
-    public static const NSNetServiceListenForConnections: NSUInteger = 2
-}
+public type NSNetServiceOptions = NSUInteger
 
 @ObjCMirror
 public open class NSNetService <: NSObject {
@@ -77,7 +64,7 @@ public open class NSNetService <: NSObject {
     public open prop addresses: ?NSArray/*<NSData>*/
     public open prop port: NSInteger
     public open func publish(): Unit
-    @ForeignName["publishWithOptions:"] public open func publishWithOptions(options: NSUInteger /*NSNetServiceOptions*/): Unit
+    @ForeignName["publishWithOptions:"] public open func publishWithOptions(options: NSNetServiceOptions): Unit
     public open func resolve(): Unit
     public open func stop(): Unit
     @ForeignName["dictionaryFromTXTRecordData:"] public static func dictionaryFromTXTRecordData(txtData: NSData): NSDictionary/*<NSString, NSData>*/

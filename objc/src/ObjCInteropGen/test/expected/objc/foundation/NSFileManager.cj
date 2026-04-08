@@ -49,45 +49,26 @@ public type NSFileProtectionType = NSString
 
 public type NSFileProviderServiceName = NSString
 
-public abstract sealed class NSVolumeEnumerationOptions {
-    public static const NSVolumeEnumerationSkipHiddenVolumes: NSUInteger = 2
-    public static const NSVolumeEnumerationProduceFileReferenceURLs: NSUInteger = 4
-}
+public type NSVolumeEnumerationOptions = NSUInteger
 
-public abstract sealed class NSDirectoryEnumerationOptions {
-    public static const NSDirectoryEnumerationSkipsSubdirectoryDescendants: NSUInteger = 1
-    public static const NSDirectoryEnumerationSkipsPackageDescendants: NSUInteger = 2
-    public static const NSDirectoryEnumerationSkipsHiddenFiles: NSUInteger = 4
-    public static const NSDirectoryEnumerationIncludesDirectoriesPostOrder: NSUInteger = 8
-    public static const NSDirectoryEnumerationProducesRelativePathURLs: NSUInteger = 16
-}
+public type NSDirectoryEnumerationOptions = NSUInteger
 
-public abstract sealed class NSFileManagerItemReplacementOptions {
-    public static const NSFileManagerItemReplacementUsingNewMetadataOnly: NSUInteger = 1
-    public static const NSFileManagerItemReplacementWithoutDeletingBackupItem: NSUInteger = 2
-}
+public type NSFileManagerItemReplacementOptions = NSUInteger
 
-public abstract sealed class NSURLRelationship {
-    public static const NSURLRelationshipContains: NSInteger = 0
-    public static const NSURLRelationshipSame: NSInteger = 1
-    public static const NSURLRelationshipOther: NSInteger = 2
-}
+public type NSURLRelationship = NSInteger
 
-public abstract sealed class NSFileManagerUnmountOptions {
-    public static const NSFileManagerUnmountAllPartitionsAndEjectDisk: NSUInteger = 1
-    public static const NSFileManagerUnmountWithoutUI: NSUInteger = 2
-}
+public type NSFileManagerUnmountOptions = NSUInteger
 
 @ObjCMirror
 public open class NSFileManager <: NSObject {
     public static prop defaultManager: NSFileManager
-    @ForeignName["mountedVolumeURLsIncludingResourceValuesForKeys:options:"] public open func mountedVolumeURLsIncludingResourceValuesForKeysOptions(propertyKeys: ?NSArray/*<NSURLResourceKey>*/, options: NSUInteger /*NSVolumeEnumerationOptions*/): ?NSArray/*<NSURL>*/
-    @ForeignName["unmountVolumeAtURL:options:completionHandler:"] public open func unmountVolumeAtURLOptionsCompletionHandler(url: NSURL, mask: NSUInteger /*NSFileManagerUnmountOptions*/, completionHandler: ObjCBlock<(NSError) -> Unit>): Unit
-    @ForeignName["contentsOfDirectoryAtURL:includingPropertiesForKeys:options:error:"] public open func contentsOfDirectoryAtURLIncludingPropertiesForKeysOptionsError(url: NSURL, keys: ?NSArray/*<NSURLResourceKey>*/, mask: NSUInteger /*NSDirectoryEnumerationOptions*/, error: ObjCPointer<NSError>): ?NSArray/*<NSURL>*/
-    @ForeignName["URLsForDirectory:inDomains:"] public open func URLsForDirectoryInDomains(directory: NSUInteger /*NSSearchPathDirectory*/, domainMask: NSUInteger /*NSSearchPathDomainMask*/): NSArray/*<NSURL>*/
-    @ForeignName["URLForDirectory:inDomain:appropriateForURL:create:error:"] public open func URLForDirectoryInDomainAppropriateForURLCreateError(directory: NSUInteger /*NSSearchPathDirectory*/, domain: NSUInteger /*NSSearchPathDomainMask*/, url: ?NSURL, shouldCreate: Bool, error: ObjCPointer<NSError>): ?NSURL
-    @ForeignName["getRelationship:ofDirectoryAtURL:toItemAtURL:error:"] public open func getRelationshipOfDirectoryAtURLToItemAtURLError(outRelationship: ObjCPointer<NSInteger /*NSURLRelationship*/>, directoryURL: NSURL, otherURL: NSURL, error: ObjCPointer<NSError>): Bool
-    @ForeignName["getRelationship:ofDirectory:inDomain:toItemAtURL:error:"] public open func getRelationshipOfDirectoryInDomainToItemAtURLError(outRelationship: ObjCPointer<NSInteger /*NSURLRelationship*/>, directory: NSUInteger /*NSSearchPathDirectory*/, domainMask: NSUInteger /*NSSearchPathDomainMask*/, url: NSURL, error: ObjCPointer<NSError>): Bool
+    @ForeignName["mountedVolumeURLsIncludingResourceValuesForKeys:options:"] public open func mountedVolumeURLsIncludingResourceValuesForKeysOptions(propertyKeys: ?NSArray/*<NSURLResourceKey>*/, options: NSVolumeEnumerationOptions): ?NSArray/*<NSURL>*/
+    @ForeignName["unmountVolumeAtURL:options:completionHandler:"] public open func unmountVolumeAtURLOptionsCompletionHandler(url: NSURL, mask: NSFileManagerUnmountOptions, completionHandler: ObjCBlock<(NSError) -> Unit>): Unit
+    @ForeignName["contentsOfDirectoryAtURL:includingPropertiesForKeys:options:error:"] public open func contentsOfDirectoryAtURLIncludingPropertiesForKeysOptionsError(url: NSURL, keys: ?NSArray/*<NSURLResourceKey>*/, mask: NSDirectoryEnumerationOptions, error: ObjCPointer<NSError>): ?NSArray/*<NSURL>*/
+    @ForeignName["URLsForDirectory:inDomains:"] public open func URLsForDirectoryInDomains(directory: NSSearchPathDirectory, domainMask: NSSearchPathDomainMask): NSArray/*<NSURL>*/
+    @ForeignName["URLForDirectory:inDomain:appropriateForURL:create:error:"] public open func URLForDirectoryInDomainAppropriateForURLCreateError(directory: NSSearchPathDirectory, domain: NSSearchPathDomainMask, url: ?NSURL, shouldCreate: Bool, error: ObjCPointer<NSError>): ?NSURL
+    @ForeignName["getRelationship:ofDirectoryAtURL:toItemAtURL:error:"] public open func getRelationshipOfDirectoryAtURLToItemAtURLError(outRelationship: ObjCPointer<NSURLRelationship>, directoryURL: NSURL, otherURL: NSURL, error: ObjCPointer<NSError>): Bool
+    @ForeignName["getRelationship:ofDirectory:inDomain:toItemAtURL:error:"] public open func getRelationshipOfDirectoryInDomainToItemAtURLError(outRelationship: ObjCPointer<NSURLRelationship>, directory: NSSearchPathDirectory, domainMask: NSSearchPathDomainMask, url: NSURL, error: ObjCPointer<NSError>): Bool
     @ForeignName["createDirectoryAtURL:withIntermediateDirectories:attributes:error:"] public open func createDirectoryAtURLWithIntermediateDirectoriesAttributesError(url: NSURL, createIntermediates: Bool, attributes: ?NSDictionary/*<NSFileAttributeKey, ObjCId>*/, error: ObjCPointer<NSError>): Bool
     @ForeignName["createSymbolicLinkAtURL:withDestinationURL:error:"] public open func createSymbolicLinkAtURLWithDestinationURLError(url: NSURL, destURL: NSURL, error: ObjCPointer<NSError>): Bool
     public open mut prop delegate: ?NSFileManagerDelegate
@@ -127,13 +108,13 @@ public open class NSFileManager <: NSObject {
     @ForeignName["displayNameAtPath:"] public open func displayNameAtPath(path: NSString): NSString
     @ForeignName["componentsToDisplayForPath:"] public open func componentsToDisplayForPath(path: NSString): ?NSArray/*<NSString>*/
     @ForeignName["enumeratorAtPath:"] public open func enumeratorAtPath(path: NSString): ?NSDirectoryEnumerator/*<NSString>*/
-    @ForeignName["enumeratorAtURL:includingPropertiesForKeys:options:errorHandler:"] public open func enumeratorAtURLIncludingPropertiesForKeysOptionsErrorHandler(url: NSURL, keys: ?NSArray/*<NSURLResourceKey>*/, mask: NSUInteger /*NSDirectoryEnumerationOptions*/, handler: ObjCBlock<(NSURL, NSError) -> Bool>): ?NSDirectoryEnumerator/*<NSURL>*/
+    @ForeignName["enumeratorAtURL:includingPropertiesForKeys:options:errorHandler:"] public open func enumeratorAtURLIncludingPropertiesForKeysOptionsErrorHandler(url: NSURL, keys: ?NSArray/*<NSURLResourceKey>*/, mask: NSDirectoryEnumerationOptions, handler: ObjCBlock<(NSURL, NSError) -> Bool>): ?NSDirectoryEnumerator/*<NSURL>*/
     @ForeignName["subpathsAtPath:"] public open func subpathsAtPath(path: NSString): ?NSArray/*<NSString>*/
     @ForeignName["contentsAtPath:"] public open func contentsAtPath(path: NSString): ?NSData
     @ForeignName["createFileAtPath:contents:attributes:"] public open func createFileAtPathContentsAttributes(path: NSString, data: ?NSData, attr: ?NSDictionary/*<NSFileAttributeKey, ObjCId>*/): Bool
     @ForeignName["fileSystemRepresentationWithPath:"] public open func fileSystemRepresentationWithPath(path: NSString): ObjCPointer<Int8>
     @ForeignName["stringWithFileSystemRepresentation:length:"] public open func stringWithFileSystemRepresentationLength(str: ObjCPointer<Int8>, len: NSUInteger): NSString
-    @ForeignName["replaceItemAtURL:withItemAtURL:backupItemName:options:resultingItemURL:error:"] public open func replaceItemAtURLWithItemAtURLBackupItemNameOptionsResultingItemURLError(originalItemURL: NSURL, newItemURL: NSURL, backupItemName: ?NSString, options: NSUInteger /*NSFileManagerItemReplacementOptions*/, resultingURL: ObjCPointer<NSURL>, error: ObjCPointer<NSError>): Bool
+    @ForeignName["replaceItemAtURL:withItemAtURL:backupItemName:options:resultingItemURL:error:"] public open func replaceItemAtURLWithItemAtURLBackupItemNameOptionsResultingItemURLError(originalItemURL: NSURL, newItemURL: NSURL, backupItemName: ?NSString, options: NSFileManagerItemReplacementOptions, resultingURL: ObjCPointer<NSURL>, error: ObjCPointer<NSError>): Bool
     @ForeignName["setUbiquitous:itemAtURL:destinationURL:error:"] public open func setUbiquitousItemAtURLDestinationURLError(flag: Bool, url: NSURL, destinationURL: NSURL, error: ObjCPointer<NSError>): Bool
     @ForeignName["isUbiquitousItemAtURL:"] public open func isUbiquitousItemAtURL(url: NSURL): Bool
     @ForeignName["startDownloadingUbiquitousItemAtURL:error:"] public open func startDownloadingUbiquitousItemAtURLError(url: NSURL, error: ObjCPointer<NSError>): Bool

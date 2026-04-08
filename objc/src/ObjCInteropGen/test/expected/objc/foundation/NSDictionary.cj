@@ -27,11 +27,11 @@ public open class NSDictionary/*<KeyType, ObjectType>*/ <: NSObject & NSCopying 
     @ForeignName["getObjects:andKeys:count:"] public open func getObjectsAndKeysCount(objects: ObjCPointer<ObjCId /*ObjectType*/>, keys: ObjCPointer<ObjCId /*KeyType*/>, count: NSUInteger): Unit
     @ForeignName["objectForKeyedSubscript:"] public open func objectForKeyedSubscript(key: ObjCId /*KeyType*/): ?ObjCId /*ObjectType*/
     @ForeignName["enumerateKeysAndObjectsUsingBlock:"] public open func enumerateKeysAndObjectsUsingBlock(block: ObjCBlock<(ObjCId /*KeyType*/, ObjCId /*ObjectType*/, ObjCPointer<Bool>) -> Unit>): Unit
-    @ForeignName["enumerateKeysAndObjectsWithOptions:usingBlock:"] public open func enumerateKeysAndObjectsWithOptionsUsingBlock(opts: NSUInteger /*NSEnumerationOptions*/, block: ObjCBlock<(ObjCId /*KeyType*/, ObjCId /*ObjectType*/, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["enumerateKeysAndObjectsWithOptions:usingBlock:"] public open func enumerateKeysAndObjectsWithOptionsUsingBlock(opts: NSEnumerationOptions, block: ObjCBlock<(ObjCId /*KeyType*/, ObjCId /*ObjectType*/, ObjCPointer<Bool>) -> Unit>): Unit
     @ForeignName["keysSortedByValueUsingComparator:"] public open func keysSortedByValueUsingComparator(cmptr: NSComparator): NSArray/*<KeyType>*/
-    @ForeignName["keysSortedByValueWithOptions:usingComparator:"] public open func keysSortedByValueWithOptionsUsingComparator(opts: NSUInteger /*NSSortOptions*/, cmptr: NSComparator): NSArray/*<KeyType>*/
+    @ForeignName["keysSortedByValueWithOptions:usingComparator:"] public open func keysSortedByValueWithOptionsUsingComparator(opts: NSSortOptions, cmptr: NSComparator): NSArray/*<KeyType>*/
     @ForeignName["keysOfEntriesPassingTest:"] public open func keysOfEntriesPassingTest(predicate: ObjCBlock<(ObjCId /*KeyType*/, ObjCId /*ObjectType*/, ObjCPointer<Bool>) -> Bool>): NSSet/*<KeyType>*/
-    @ForeignName["keysOfEntriesWithOptions:passingTest:"] public open func keysOfEntriesWithOptionsPassingTest(opts: NSUInteger /*NSEnumerationOptions*/, predicate: ObjCBlock<(ObjCId /*KeyType*/, ObjCId /*ObjectType*/, ObjCPointer<Bool>) -> Bool>): NSSet/*<KeyType>*/
+    @ForeignName["keysOfEntriesWithOptions:passingTest:"] public open func keysOfEntriesWithOptionsPassingTest(opts: NSEnumerationOptions, predicate: ObjCBlock<(ObjCId /*KeyType*/, ObjCId /*ObjectType*/, ObjCPointer<Bool>) -> Bool>): NSSet/*<KeyType>*/
     @ForeignName["getObjects:andKeys:"] public open func getObjectsAndKeys(objects: ObjCPointer<ObjCId /*ObjectType*/>, keys: ObjCPointer<ObjCId /*KeyType*/>): Unit
     @ForeignName["dictionaryWithContentsOfFile:"] public static func dictionaryWithContentsOfFile(path: NSString): ?NSDictionary/*<KeyType, ObjectType>*/
     @ForeignName["dictionaryWithContentsOfURL:"] public static func dictionaryWithContentsOfURL(url: NSURL): ?NSDictionary/*<KeyType, ObjectType>*/

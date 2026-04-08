@@ -9,9 +9,9 @@ public type NSHashTableOptions = NSUInteger
 
 @ObjCMirror
 public open class NSHashTable/*<ObjectType>*/ <: NSObject & NSCopying & NSSecureCoding & NSFastEnumeration {
-    @ForeignName["initWithOptions:capacity:"] public init(options: NSUInteger /*NSPointerFunctionsOptions*/, initialCapacity: NSUInteger)
+    @ForeignName["initWithOptions:capacity:"] public init(options: NSPointerFunctionsOptions, initialCapacity: NSUInteger)
     @ForeignName["initWithPointerFunctions:capacity:"] public init(functions: NSPointerFunctions, initialCapacity: NSUInteger)
-    @ForeignName["hashTableWithOptions:"] public static func hashTableWithOptions(options: NSUInteger /*NSPointerFunctionsOptions*/): NSHashTable/*<ObjectType>*/
+    @ForeignName["hashTableWithOptions:"] public static func hashTableWithOptions(options: NSPointerFunctionsOptions): NSHashTable/*<ObjectType>*/
     public static func hashTableWithWeakObjects(): ObjCId
     public static func weakObjectsHashTable(): NSHashTable/*<ObjectType>*/
     public open prop pointerFunctions: NSPointerFunctions

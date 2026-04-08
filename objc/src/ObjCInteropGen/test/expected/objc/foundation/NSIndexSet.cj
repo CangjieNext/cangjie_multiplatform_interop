@@ -30,17 +30,17 @@ public open class NSIndexSet <: NSObject & NSCopying & NSMutableCopying & NSSecu
     @ForeignName["containsIndexes:"] public open func containsIndexes(indexSet: NSIndexSet): Bool
     @ForeignName["intersectsIndexesInRange:"] public open func intersectsIndexesInRange(range: NSRange): Bool
     @ForeignName["enumerateIndexesUsingBlock:"] public open func enumerateIndexesUsingBlock(block: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
-    @ForeignName["enumerateIndexesWithOptions:usingBlock:"] public open func enumerateIndexesWithOptionsUsingBlock(opts: NSUInteger /*NSEnumerationOptions*/, block: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
-    @ForeignName["enumerateIndexesInRange:options:usingBlock:"] public open func enumerateIndexesInRangeOptionsUsingBlock(range: NSRange, opts: NSUInteger /*NSEnumerationOptions*/, block: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["enumerateIndexesWithOptions:usingBlock:"] public open func enumerateIndexesWithOptionsUsingBlock(opts: NSEnumerationOptions, block: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["enumerateIndexesInRange:options:usingBlock:"] public open func enumerateIndexesInRangeOptionsUsingBlock(range: NSRange, opts: NSEnumerationOptions, block: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
     @ForeignName["indexPassingTest:"] public open func indexPassingTest(predicate: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Bool>): NSUInteger
-    @ForeignName["indexWithOptions:passingTest:"] public open func indexWithOptionsPassingTest(opts: NSUInteger /*NSEnumerationOptions*/, predicate: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Bool>): NSUInteger
-    @ForeignName["indexInRange:options:passingTest:"] public open func indexInRangeOptionsPassingTest(range: NSRange, opts: NSUInteger /*NSEnumerationOptions*/, predicate: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Bool>): NSUInteger
+    @ForeignName["indexWithOptions:passingTest:"] public open func indexWithOptionsPassingTest(opts: NSEnumerationOptions, predicate: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Bool>): NSUInteger
+    @ForeignName["indexInRange:options:passingTest:"] public open func indexInRangeOptionsPassingTest(range: NSRange, opts: NSEnumerationOptions, predicate: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Bool>): NSUInteger
     @ForeignName["indexesPassingTest:"] public open func indexesPassingTest(predicate: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Bool>): NSIndexSet
-    @ForeignName["indexesWithOptions:passingTest:"] public open func indexesWithOptionsPassingTest(opts: NSUInteger /*NSEnumerationOptions*/, predicate: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Bool>): NSIndexSet
-    @ForeignName["indexesInRange:options:passingTest:"] public open func indexesInRangeOptionsPassingTest(range: NSRange, opts: NSUInteger /*NSEnumerationOptions*/, predicate: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Bool>): NSIndexSet
+    @ForeignName["indexesWithOptions:passingTest:"] public open func indexesWithOptionsPassingTest(opts: NSEnumerationOptions, predicate: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Bool>): NSIndexSet
+    @ForeignName["indexesInRange:options:passingTest:"] public open func indexesInRangeOptionsPassingTest(range: NSRange, opts: NSEnumerationOptions, predicate: ObjCBlock<(NSUInteger, ObjCPointer<Bool>) -> Bool>): NSIndexSet
     @ForeignName["enumerateRangesUsingBlock:"] public open func enumerateRangesUsingBlock(block: ObjCBlock<(NSRange, ObjCPointer<Bool>) -> Unit>): Unit
-    @ForeignName["enumerateRangesWithOptions:usingBlock:"] public open func enumerateRangesWithOptionsUsingBlock(opts: NSUInteger /*NSEnumerationOptions*/, block: ObjCBlock<(NSRange, ObjCPointer<Bool>) -> Unit>): Unit
-    @ForeignName["enumerateRangesInRange:options:usingBlock:"] public open func enumerateRangesInRangeOptionsUsingBlock(range: NSRange, opts: NSUInteger /*NSEnumerationOptions*/, block: ObjCBlock<(NSRange, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["enumerateRangesWithOptions:usingBlock:"] public open func enumerateRangesWithOptionsUsingBlock(opts: NSEnumerationOptions, block: ObjCBlock<(NSRange, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["enumerateRangesInRange:options:usingBlock:"] public open func enumerateRangesInRangeOptionsUsingBlock(range: NSRange, opts: NSEnumerationOptions, block: ObjCBlock<(NSRange, ObjCPointer<Bool>) -> Unit>): Unit
 }
 
 @C

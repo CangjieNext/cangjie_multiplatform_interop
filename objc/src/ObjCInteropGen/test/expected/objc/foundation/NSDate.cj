@@ -20,7 +20,7 @@ public open class NSDate <: NSObject & NSCopying & NSSecureCoding {
     @ForeignName["dateByAddingTimeInterval:"] public open func dateByAddingTimeInterval(ti: NSTimeInterval): NSDate
     @ForeignName["earlierDate:"] public open func earlierDate(anotherDate: NSDate): NSDate
     @ForeignName["laterDate:"] public open func laterDate(anotherDate: NSDate): NSDate
-    @ForeignName["compare:"] public open func compare(other: NSDate): NSInteger /*NSComparisonResult*/
+    @ForeignName["compare:"] public open func compare(other: NSDate): NSComparisonResult
     @ForeignName["isEqualToDate:"] public open func isEqualToDate(otherDate: NSDate): Bool
     @ForeignName["descriptionWithLocale:"] public open func descriptionWithLocale(locale: ?ObjCId): NSString
     @ForeignGetterName["timeIntervalSinceReferenceDate"] public static prop timeIntervalSinceReferenceDateStatic: NSTimeInterval

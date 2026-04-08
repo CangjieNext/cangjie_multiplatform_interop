@@ -7,9 +7,9 @@ import objc.lang.*
 
 @ObjCMirror
 public open class NSPointerArray <: NSObject & NSFastEnumeration & NSCopying & NSSecureCoding {
-    @ForeignName["initWithOptions:"] public init(options: NSUInteger /*NSPointerFunctionsOptions*/)
+    @ForeignName["initWithOptions:"] public init(options: NSPointerFunctionsOptions)
     @ForeignName["initWithPointerFunctions:"] public init(functions: NSPointerFunctions)
-    @ForeignName["pointerArrayWithOptions:"] public static func pointerArrayWithOptions(options: NSUInteger /*NSPointerFunctionsOptions*/): NSPointerArray
+    @ForeignName["pointerArrayWithOptions:"] public static func pointerArrayWithOptions(options: NSPointerFunctionsOptions): NSPointerArray
     @ForeignName["pointerArrayWithPointerFunctions:"] public static func pointerArrayWithPointerFunctions(functions: NSPointerFunctions): NSPointerArray
     public open prop pointerFunctions: NSPointerFunctions
     @ForeignName["pointerAtIndex:"] public open func pointerAtIndex(index: NSUInteger): ObjCPointer<Unit>

@@ -40,17 +40,17 @@ public open class NSArray/*<ObjectType>*/ <: NSObject & NSCopying & NSMutableCop
     @ForeignName["objectsAtIndexes:"] public open func objectsAtIndexes(indexes: NSIndexSet): NSArray/*<ObjectType>*/
     @ForeignName["objectAtIndexedSubscript:"] public open func objectAtIndexedSubscript(idx: NSUInteger): ObjCId /*ObjectType*/
     @ForeignName["enumerateObjectsUsingBlock:"] public open func enumerateObjectsUsingBlock(block: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
-    @ForeignName["enumerateObjectsWithOptions:usingBlock:"] public open func enumerateObjectsWithOptionsUsingBlock(opts: NSUInteger /*NSEnumerationOptions*/, block: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
-    @ForeignName["enumerateObjectsAtIndexes:options:usingBlock:"] public open func enumerateObjectsAtIndexesOptionsUsingBlock(s: NSIndexSet, opts: NSUInteger /*NSEnumerationOptions*/, block: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["enumerateObjectsWithOptions:usingBlock:"] public open func enumerateObjectsWithOptionsUsingBlock(opts: NSEnumerationOptions, block: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["enumerateObjectsAtIndexes:options:usingBlock:"] public open func enumerateObjectsAtIndexesOptionsUsingBlock(s: NSIndexSet, opts: NSEnumerationOptions, block: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Unit>): Unit
     @ForeignName["indexOfObjectPassingTest:"] public open func indexOfObjectPassingTest(predicate: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Bool>): NSUInteger
-    @ForeignName["indexOfObjectWithOptions:passingTest:"] public open func indexOfObjectWithOptionsPassingTest(opts: NSUInteger /*NSEnumerationOptions*/, predicate: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Bool>): NSUInteger
-    @ForeignName["indexOfObjectAtIndexes:options:passingTest:"] public open func indexOfObjectAtIndexesOptionsPassingTest(s: NSIndexSet, opts: NSUInteger /*NSEnumerationOptions*/, predicate: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Bool>): NSUInteger
+    @ForeignName["indexOfObjectWithOptions:passingTest:"] public open func indexOfObjectWithOptionsPassingTest(opts: NSEnumerationOptions, predicate: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Bool>): NSUInteger
+    @ForeignName["indexOfObjectAtIndexes:options:passingTest:"] public open func indexOfObjectAtIndexesOptionsPassingTest(s: NSIndexSet, opts: NSEnumerationOptions, predicate: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Bool>): NSUInteger
     @ForeignName["indexesOfObjectsPassingTest:"] public open func indexesOfObjectsPassingTest(predicate: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Bool>): NSIndexSet
-    @ForeignName["indexesOfObjectsWithOptions:passingTest:"] public open func indexesOfObjectsWithOptionsPassingTest(opts: NSUInteger /*NSEnumerationOptions*/, predicate: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Bool>): NSIndexSet
-    @ForeignName["indexesOfObjectsAtIndexes:options:passingTest:"] public open func indexesOfObjectsAtIndexesOptionsPassingTest(s: NSIndexSet, opts: NSUInteger /*NSEnumerationOptions*/, predicate: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Bool>): NSIndexSet
+    @ForeignName["indexesOfObjectsWithOptions:passingTest:"] public open func indexesOfObjectsWithOptionsPassingTest(opts: NSEnumerationOptions, predicate: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Bool>): NSIndexSet
+    @ForeignName["indexesOfObjectsAtIndexes:options:passingTest:"] public open func indexesOfObjectsAtIndexesOptionsPassingTest(s: NSIndexSet, opts: NSEnumerationOptions, predicate: ObjCBlock<(ObjCId /*ObjectType*/, NSUInteger, ObjCPointer<Bool>) -> Bool>): NSIndexSet
     @ForeignName["sortedArrayUsingComparator:"] public open func sortedArrayUsingComparator(cmptr: NSComparator): NSArray/*<ObjectType>*/
-    @ForeignName["sortedArrayWithOptions:usingComparator:"] public open func sortedArrayWithOptionsUsingComparator(opts: NSUInteger /*NSSortOptions*/, cmptr: NSComparator): NSArray/*<ObjectType>*/
-    @ForeignName["indexOfObject:inSortedRange:options:usingComparator:"] public open func indexOfObjectInSortedRangeOptionsUsingComparator(obj: ObjCId /*ObjectType*/, r: NSRange, opts: NSUInteger /*NSBinarySearchingOptions*/, cmp: NSComparator): NSUInteger
+    @ForeignName["sortedArrayWithOptions:usingComparator:"] public open func sortedArrayWithOptionsUsingComparator(opts: NSSortOptions, cmptr: NSComparator): NSArray/*<ObjectType>*/
+    @ForeignName["indexOfObject:inSortedRange:options:usingComparator:"] public open func indexOfObjectInSortedRangeOptionsUsingComparator(obj: ObjCId /*ObjectType*/, r: NSRange, opts: NSBinarySearchingOptions, cmp: NSComparator): NSUInteger
     public static func array(): NSArray/*<ObjectType>*/
     @ForeignName["arrayWithObject:"] public static func arrayWithObject(anObject: ObjCId /*ObjectType*/): NSArray/*<ObjectType>*/
     @ForeignName["arrayWithObjects:count:"] public static func arrayWithObjectsCount(objects: ObjCPointer<ObjCId /*ObjectType*/>, cnt: NSUInteger): NSArray/*<ObjectType>*/
@@ -61,8 +61,8 @@ public open class NSArray/*<ObjectType>*/ <: NSObject & NSCopying & NSMutableCop
     @ForeignName["initWithArray:copyItems:"] public init(array: NSArray/*<ObjectType>*/, flag: Bool)
     @ForeignName["initWithContentsOfURL:error:"] public init(url: NSURL, error: ObjCPointer<NSError>)
     @ForeignName["arrayWithContentsOfURL:error:"] public static func arrayWithContentsOfURLError(url: NSURL, error: ObjCPointer<NSError>): ?NSArray/*<ObjectType>*/
-    @ForeignName["differenceFromArray:withOptions:usingEquivalenceTest:"] public open func differenceFromArrayWithOptionsUsingEquivalenceTest(other: NSArray/*<ObjectType>*/, options: NSUInteger /*NSOrderedCollectionDifferenceCalculationOptions*/, block: ObjCBlock<(ObjCId /*ObjectType*/, ObjCId /*ObjectType*/) -> Bool>): NSOrderedCollectionDifference/*<ObjectType>*/
-    @ForeignName["differenceFromArray:withOptions:"] public open func differenceFromArrayWithOptions(other: NSArray/*<ObjectType>*/, options: NSUInteger /*NSOrderedCollectionDifferenceCalculationOptions*/): NSOrderedCollectionDifference/*<ObjectType>*/
+    @ForeignName["differenceFromArray:withOptions:usingEquivalenceTest:"] public open func differenceFromArrayWithOptionsUsingEquivalenceTest(other: NSArray/*<ObjectType>*/, options: NSOrderedCollectionDifferenceCalculationOptions, block: ObjCBlock<(ObjCId /*ObjectType*/, ObjCId /*ObjectType*/) -> Bool>): NSOrderedCollectionDifference/*<ObjectType>*/
+    @ForeignName["differenceFromArray:withOptions:"] public open func differenceFromArrayWithOptions(other: NSArray/*<ObjectType>*/, options: NSOrderedCollectionDifferenceCalculationOptions): NSOrderedCollectionDifference/*<ObjectType>*/
     @ForeignName["differenceFromArray:"] public open func differenceFromArray(other: NSArray/*<ObjectType>*/): NSOrderedCollectionDifference/*<ObjectType>*/
     @ForeignName["arrayByApplyingDifference:"] public open func arrayByApplyingDifference(difference: NSOrderedCollectionDifference/*<ObjectType>*/): ?NSArray/*<ObjectType>*/
     @ForeignName["getObjects:"] public open func getObjects(objects: ObjCPointer<ObjCId /*ObjectType*/>): Unit
@@ -75,21 +75,17 @@ public open class NSArray/*<ObjectType>*/ <: NSObject & NSCopying & NSMutableCop
     @ForeignName["pathsMatchingExtensions:"] public open func pathsMatchingExtensions(filterTypes: NSArray/*<NSString>*/): NSArray/*<NSString>*/
     public open func valueForKey(key: NSString): ?ObjCId
     public open func setValueForKey(value: ?ObjCId, key: NSString): Unit
-    @ForeignName["addObserver:toObjectsAtIndexes:forKeyPath:options:context:"] public open func addObserverToObjectsAtIndexesForKeyPathOptionsContext(observer: NSObject, indexes: NSIndexSet, keyPath: NSString, options: NSUInteger /*NSKeyValueObservingOptions*/, context: ObjCPointer<Unit>): Unit
+    @ForeignName["addObserver:toObjectsAtIndexes:forKeyPath:options:context:"] public open func addObserverToObjectsAtIndexesForKeyPathOptionsContext(observer: NSObject, indexes: NSIndexSet, keyPath: NSString, options: NSKeyValueObservingOptions, context: ObjCPointer<Unit>): Unit
     @ForeignName["removeObserver:fromObjectsAtIndexes:forKeyPath:context:"] public open func removeObserverFromObjectsAtIndexesForKeyPathContext(observer: NSObject, indexes: NSIndexSet, keyPath: NSString, context: ObjCPointer<Unit>): Unit
     @ForeignName["removeObserver:fromObjectsAtIndexes:forKeyPath:"] public open func removeObserverFromObjectsAtIndexesForKeyPath(observer: NSObject, indexes: NSIndexSet, keyPath: NSString): Unit
-    public open func addObserverForKeyPathOptionsContext(observer: NSObject, keyPath: NSString, options: NSUInteger /*NSKeyValueObservingOptions*/, context: ObjCPointer<Unit>): Unit
+    public open func addObserverForKeyPathOptionsContext(observer: NSObject, keyPath: NSString, options: NSKeyValueObservingOptions, context: ObjCPointer<Unit>): Unit
     public open func removeObserverForKeyPathContext(observer: NSObject, keyPath: NSString, context: ObjCPointer<Unit>): Unit
     public open func removeObserverForKeyPath(observer: NSObject, keyPath: NSString): Unit
     @ForeignName["sortedArrayUsingDescriptors:"] public open func sortedArrayUsingDescriptors(sortDescriptors: NSArray/*<NSSortDescriptor>*/): NSArray/*<ObjectType>*/
     @ForeignName["filteredArrayUsingPredicate:"] public open func filteredArrayUsingPredicate(predicate: NSPredicate): NSArray/*<ObjectType>*/
 }
 
-public abstract sealed class NSBinarySearchingOptions {
-    public static const NSBinarySearchingFirstEqual: NSUInteger = 256
-    public static const NSBinarySearchingLastEqual: NSUInteger = 512
-    public static const NSBinarySearchingInsertionIndex: NSUInteger = 1024
-}
+public type NSBinarySearchingOptions = NSUInteger
 
 @ObjCMirror
 public open class NSMutableArray/*<ObjectType>*/ <: NSArray/*<ObjectType>*/ {
@@ -121,7 +117,7 @@ public open class NSMutableArray/*<ObjectType>*/ <: NSArray/*<ObjectType>*/ {
     @ForeignName["replaceObjectsAtIndexes:withObjects:"] public open func replaceObjectsAtIndexesWithObjects(indexes: NSIndexSet, objects: NSArray/*<ObjectType>*/): Unit
     @ForeignName["setObject:atIndexedSubscript:"] public open func setObjectAtIndexedSubscript(obj: ObjCId /*ObjectType*/, idx: NSUInteger): Unit
     @ForeignName["sortUsingComparator:"] public open func sortUsingComparator(cmptr: NSComparator): Unit
-    @ForeignName["sortWithOptions:usingComparator:"] public open func sortWithOptionsUsingComparator(opts: NSUInteger /*NSSortOptions*/, cmptr: NSComparator): Unit
+    @ForeignName["sortWithOptions:usingComparator:"] public open func sortWithOptionsUsingComparator(opts: NSSortOptions, cmptr: NSComparator): Unit
     @ForeignName["arrayWithCapacity:"] public static func arrayWithCapacity(numItems: NSUInteger): NSMutableArray/*<ObjectType>*/
     public static func arrayWithContentsOfFile(path: NSString): ?NSArray/*<ObjectType>*/
     public static func arrayWithContentsOfURL(url: NSURL): ?NSArray/*<ObjectType>*/

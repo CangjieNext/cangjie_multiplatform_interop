@@ -5,11 +5,7 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSOrderedCollectionDifferenceCalculationOptions {
-    public static const NSOrderedCollectionDifferenceCalculationOmitInsertedObjects: NSUInteger = 1
-    public static const NSOrderedCollectionDifferenceCalculationOmitRemovedObjects: NSUInteger = 2
-    public static const NSOrderedCollectionDifferenceCalculationInferMoves: NSUInteger = 4
-}
+public type NSOrderedCollectionDifferenceCalculationOptions = NSUInteger
 
 @ObjCMirror
 public open class NSOrderedCollectionDifference/*<ObjectType>*/ <: NSObject & NSFastEnumeration {

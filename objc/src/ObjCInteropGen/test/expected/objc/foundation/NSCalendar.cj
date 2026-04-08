@@ -7,51 +7,9 @@ import objc.lang.*
 
 public type NSCalendarIdentifier = NSString
 
-public abstract sealed class NSCalendarUnit {
-    public static const NSCalendarUnitEra: NSUInteger = 2
-    public static const NSCalendarUnitYear: NSUInteger = 4
-    public static const NSCalendarUnitMonth: NSUInteger = 8
-    public static const NSCalendarUnitDay: NSUInteger = 16
-    public static const NSCalendarUnitHour: NSUInteger = 32
-    public static const NSCalendarUnitMinute: NSUInteger = 64
-    public static const NSCalendarUnitSecond: NSUInteger = 128
-    public static const NSCalendarUnitWeekday: NSUInteger = 512
-    public static const NSCalendarUnitWeekdayOrdinal: NSUInteger = 1024
-    public static const NSCalendarUnitQuarter: NSUInteger = 2048
-    public static const NSCalendarUnitWeekOfMonth: NSUInteger = 4096
-    public static const NSCalendarUnitWeekOfYear: NSUInteger = 8192
-    public static const NSCalendarUnitYearForWeekOfYear: NSUInteger = 16384
-    public static const NSCalendarUnitNanosecond: NSUInteger = 32768
-    public static const NSCalendarUnitCalendar: NSUInteger = 1048576
-    public static const NSCalendarUnitTimeZone: NSUInteger = 2097152
-    public static const NSEraCalendarUnit: NSUInteger = 2
-    public static const NSYearCalendarUnit: NSUInteger = 4
-    public static const NSMonthCalendarUnit: NSUInteger = 8
-    public static const NSDayCalendarUnit: NSUInteger = 16
-    public static const NSHourCalendarUnit: NSUInteger = 32
-    public static const NSMinuteCalendarUnit: NSUInteger = 64
-    public static const NSSecondCalendarUnit: NSUInteger = 128
-    public static const NSWeekCalendarUnit: NSUInteger = 256
-    public static const NSWeekdayCalendarUnit: NSUInteger = 512
-    public static const NSWeekdayOrdinalCalendarUnit: NSUInteger = 1024
-    public static const NSQuarterCalendarUnit: NSUInteger = 2048
-    public static const NSWeekOfMonthCalendarUnit: NSUInteger = 4096
-    public static const NSWeekOfYearCalendarUnit: NSUInteger = 8192
-    public static const NSYearForWeekOfYearCalendarUnit: NSUInteger = 16384
-    public static const NSCalendarCalendarUnit: NSUInteger = 1048576
-    public static const NSTimeZoneCalendarUnit: NSUInteger = 2097152
-}
+public type NSCalendarUnit = NSUInteger
 
-public abstract sealed class NSCalendarOptions {
-    public static const NSCalendarWrapComponents: NSUInteger = 1
-    public static const NSCalendarMatchStrictly: NSUInteger = 2
-    public static const NSCalendarSearchBackwards: NSUInteger = 4
-    public static const NSCalendarMatchPreviousTimePreservingSmallerUnits: NSUInteger = 256
-    public static const NSCalendarMatchNextTimePreservingSmallerUnits: NSUInteger = 512
-    public static const NSCalendarMatchNextTime: NSUInteger = 1024
-    public static const NSCalendarMatchFirst: NSUInteger = 4096
-    public static const NSCalendarMatchLast: NSUInteger = 8192
-}
+public type NSCalendarOptions = NSUInteger
 
 @ObjCMirror
 public open class NSCalendar <: NSObject & NSCopying & NSSecureCoding {
@@ -85,40 +43,40 @@ public open class NSCalendar <: NSObject & NSCopying & NSSecureCoding {
     public open prop shortStandaloneQuarterSymbols: NSArray/*<NSString>*/
     public open prop AMSymbol: NSString
     public open prop PMSymbol: NSString
-    @ForeignName["minimumRangeOfUnit:"] public open func minimumRangeOfUnit(unit: NSUInteger /*NSCalendarUnit*/): NSRange
-    @ForeignName["maximumRangeOfUnit:"] public open func maximumRangeOfUnit(unit: NSUInteger /*NSCalendarUnit*/): NSRange
-    @ForeignName["rangeOfUnit:inUnit:forDate:"] public open func rangeOfUnitInUnitForDate(smaller: NSUInteger /*NSCalendarUnit*/, larger: NSUInteger /*NSCalendarUnit*/, date: NSDate): NSRange
-    @ForeignName["ordinalityOfUnit:inUnit:forDate:"] public open func ordinalityOfUnitInUnitForDate(smaller: NSUInteger /*NSCalendarUnit*/, larger: NSUInteger /*NSCalendarUnit*/, date: NSDate): NSUInteger
-    @ForeignName["rangeOfUnit:startDate:interval:forDate:"] public open func rangeOfUnitStartDateIntervalForDate(unit: NSUInteger /*NSCalendarUnit*/, datep: ObjCPointer<NSDate>, tip: ObjCPointer<NSTimeInterval>, date: NSDate): Bool
+    @ForeignName["minimumRangeOfUnit:"] public open func minimumRangeOfUnit(unit: NSCalendarUnit): NSRange
+    @ForeignName["maximumRangeOfUnit:"] public open func maximumRangeOfUnit(unit: NSCalendarUnit): NSRange
+    @ForeignName["rangeOfUnit:inUnit:forDate:"] public open func rangeOfUnitInUnitForDate(smaller: NSCalendarUnit, larger: NSCalendarUnit, date: NSDate): NSRange
+    @ForeignName["ordinalityOfUnit:inUnit:forDate:"] public open func ordinalityOfUnitInUnitForDate(smaller: NSCalendarUnit, larger: NSCalendarUnit, date: NSDate): NSUInteger
+    @ForeignName["rangeOfUnit:startDate:interval:forDate:"] public open func rangeOfUnitStartDateIntervalForDate(unit: NSCalendarUnit, datep: ObjCPointer<NSDate>, tip: ObjCPointer<NSTimeInterval>, date: NSDate): Bool
     @ForeignName["dateFromComponents:"] public open func dateFromComponents(comps: NSDateComponents): ?NSDate
-    @ForeignName["components:fromDate:"] public open func componentsFromDate(unitFlags: NSUInteger /*NSCalendarUnit*/, date: NSDate): NSDateComponents
-    @ForeignName["dateByAddingComponents:toDate:options:"] public open func dateByAddingComponentsToDateOptions(comps: NSDateComponents, date: NSDate, opts: NSUInteger /*NSCalendarOptions*/): ?NSDate
-    @ForeignName["components:fromDate:toDate:options:"] public open func componentsFromDateToDateOptions(unitFlags: NSUInteger /*NSCalendarUnit*/, startingDate: NSDate, resultDate: NSDate, opts: NSUInteger /*NSCalendarOptions*/): NSDateComponents
+    @ForeignName["components:fromDate:"] public open func componentsFromDate(unitFlags: NSCalendarUnit, date: NSDate): NSDateComponents
+    @ForeignName["dateByAddingComponents:toDate:options:"] public open func dateByAddingComponentsToDateOptions(comps: NSDateComponents, date: NSDate, opts: NSCalendarOptions): ?NSDate
+    @ForeignName["components:fromDate:toDate:options:"] public open func componentsFromDateToDateOptions(unitFlags: NSCalendarUnit, startingDate: NSDate, resultDate: NSDate, opts: NSCalendarOptions): NSDateComponents
     @ForeignName["getEra:year:month:day:fromDate:"] public open func getEraYearMonthDayFromDate(eraValuePointer: ObjCPointer<NSInteger>, yearValuePointer: ObjCPointer<NSInteger>, monthValuePointer: ObjCPointer<NSInteger>, dayValuePointer: ObjCPointer<NSInteger>, date: NSDate): Unit
     @ForeignName["getEra:yearForWeekOfYear:weekOfYear:weekday:fromDate:"] public open func getEraYearForWeekOfYearWeekOfYearWeekdayFromDate(eraValuePointer: ObjCPointer<NSInteger>, yearValuePointer: ObjCPointer<NSInteger>, weekValuePointer: ObjCPointer<NSInteger>, weekdayValuePointer: ObjCPointer<NSInteger>, date: NSDate): Unit
     @ForeignName["getHour:minute:second:nanosecond:fromDate:"] public open func getHourMinuteSecondNanosecondFromDate(hourValuePointer: ObjCPointer<NSInteger>, minuteValuePointer: ObjCPointer<NSInteger>, secondValuePointer: ObjCPointer<NSInteger>, nanosecondValuePointer: ObjCPointer<NSInteger>, date: NSDate): Unit
-    @ForeignName["component:fromDate:"] public open func componentFromDate(unit: NSUInteger /*NSCalendarUnit*/, date: NSDate): NSInteger
+    @ForeignName["component:fromDate:"] public open func componentFromDate(unit: NSCalendarUnit, date: NSDate): NSInteger
     @ForeignName["dateWithEra:year:month:day:hour:minute:second:nanosecond:"] public open func dateWithEraYearMonthDayHourMinuteSecondNanosecond(eraValue: NSInteger, yearValue: NSInteger, monthValue: NSInteger, dayValue: NSInteger, hourValue: NSInteger, minuteValue: NSInteger, secondValue: NSInteger, nanosecondValue: NSInteger): ?NSDate
     @ForeignName["dateWithEra:yearForWeekOfYear:weekOfYear:weekday:hour:minute:second:nanosecond:"] public open func dateWithEraYearForWeekOfYearWeekOfYearWeekdayHourMinuteSecondNanosecond(eraValue: NSInteger, yearValue: NSInteger, weekValue: NSInteger, weekdayValue: NSInteger, hourValue: NSInteger, minuteValue: NSInteger, secondValue: NSInteger, nanosecondValue: NSInteger): ?NSDate
     @ForeignName["startOfDayForDate:"] public open func startOfDayForDate(date: NSDate): NSDate
     @ForeignName["componentsInTimeZone:fromDate:"] public open func componentsInTimeZoneFromDate(timezone: NSTimeZone, date: NSDate): NSDateComponents
-    @ForeignName["compareDate:toDate:toUnitGranularity:"] public open func compareDateToDateToUnitGranularity(date1: NSDate, date2: NSDate, unit: NSUInteger /*NSCalendarUnit*/): NSInteger /*NSComparisonResult*/
-    @ForeignName["isDate:equalToDate:toUnitGranularity:"] public open func isDateEqualToDateToUnitGranularity(date1: NSDate, date2: NSDate, unit: NSUInteger /*NSCalendarUnit*/): Bool
+    @ForeignName["compareDate:toDate:toUnitGranularity:"] public open func compareDateToDateToUnitGranularity(date1: NSDate, date2: NSDate, unit: NSCalendarUnit): NSComparisonResult
+    @ForeignName["isDate:equalToDate:toUnitGranularity:"] public open func isDateEqualToDateToUnitGranularity(date1: NSDate, date2: NSDate, unit: NSCalendarUnit): Bool
     @ForeignName["isDate:inSameDayAsDate:"] public open func isDateInSameDayAsDate(date1: NSDate, date2: NSDate): Bool
     @ForeignName["isDateInToday:"] public open func isDateInToday(date: NSDate): Bool
     @ForeignName["isDateInYesterday:"] public open func isDateInYesterday(date: NSDate): Bool
     @ForeignName["isDateInTomorrow:"] public open func isDateInTomorrow(date: NSDate): Bool
     @ForeignName["isDateInWeekend:"] public open func isDateInWeekend(date: NSDate): Bool
     @ForeignName["rangeOfWeekendStartDate:interval:containingDate:"] public open func rangeOfWeekendStartDateIntervalContainingDate(datep: ObjCPointer<NSDate>, tip: ObjCPointer<NSTimeInterval>, date: NSDate): Bool
-    @ForeignName["nextWeekendStartDate:interval:options:afterDate:"] public open func nextWeekendStartDateIntervalOptionsAfterDate(datep: ObjCPointer<NSDate>, tip: ObjCPointer<NSTimeInterval>, options: NSUInteger /*NSCalendarOptions*/, date: NSDate): Bool
-    @ForeignName["components:fromDateComponents:toDateComponents:options:"] public open func componentsFromDateComponentsToDateComponentsOptions(unitFlags: NSUInteger /*NSCalendarUnit*/, startingDateComp: NSDateComponents, resultDateComp: NSDateComponents, options: NSUInteger /*NSCalendarOptions*/): NSDateComponents
-    @ForeignName["dateByAddingUnit:value:toDate:options:"] public open func dateByAddingUnitValueToDateOptions(unit: NSUInteger /*NSCalendarUnit*/, value: NSInteger, date: NSDate, options: NSUInteger /*NSCalendarOptions*/): ?NSDate
-    @ForeignName["enumerateDatesStartingAfterDate:matchingComponents:options:usingBlock:"] public open func enumerateDatesStartingAfterDateMatchingComponentsOptionsUsingBlock(start: NSDate, comps: NSDateComponents, opts: NSUInteger /*NSCalendarOptions*/, block: ObjCBlock<(NSDate, Bool, ObjCPointer<Bool>) -> Unit>): Unit
-    @ForeignName["nextDateAfterDate:matchingComponents:options:"] public open func nextDateAfterDateMatchingComponentsOptions(date: NSDate, comps: NSDateComponents, options: NSUInteger /*NSCalendarOptions*/): ?NSDate
-    @ForeignName["nextDateAfterDate:matchingUnit:value:options:"] public open func nextDateAfterDateMatchingUnitValueOptions(date: NSDate, unit: NSUInteger /*NSCalendarUnit*/, value: NSInteger, options: NSUInteger /*NSCalendarOptions*/): ?NSDate
-    @ForeignName["nextDateAfterDate:matchingHour:minute:second:options:"] public open func nextDateAfterDateMatchingHourMinuteSecondOptions(date: NSDate, hourValue: NSInteger, minuteValue: NSInteger, secondValue: NSInteger, options: NSUInteger /*NSCalendarOptions*/): ?NSDate
-    @ForeignName["dateBySettingUnit:value:ofDate:options:"] public open func dateBySettingUnitValueOfDateOptions(unit: NSUInteger /*NSCalendarUnit*/, v: NSInteger, date: NSDate, opts: NSUInteger /*NSCalendarOptions*/): ?NSDate
-    @ForeignName["dateBySettingHour:minute:second:ofDate:options:"] public open func dateBySettingHourMinuteSecondOfDateOptions(h: NSInteger, m: NSInteger, s: NSInteger, date: NSDate, opts: NSUInteger /*NSCalendarOptions*/): ?NSDate
+    @ForeignName["nextWeekendStartDate:interval:options:afterDate:"] public open func nextWeekendStartDateIntervalOptionsAfterDate(datep: ObjCPointer<NSDate>, tip: ObjCPointer<NSTimeInterval>, options: NSCalendarOptions, date: NSDate): Bool
+    @ForeignName["components:fromDateComponents:toDateComponents:options:"] public open func componentsFromDateComponentsToDateComponentsOptions(unitFlags: NSCalendarUnit, startingDateComp: NSDateComponents, resultDateComp: NSDateComponents, options: NSCalendarOptions): NSDateComponents
+    @ForeignName["dateByAddingUnit:value:toDate:options:"] public open func dateByAddingUnitValueToDateOptions(unit: NSCalendarUnit, value: NSInteger, date: NSDate, options: NSCalendarOptions): ?NSDate
+    @ForeignName["enumerateDatesStartingAfterDate:matchingComponents:options:usingBlock:"] public open func enumerateDatesStartingAfterDateMatchingComponentsOptionsUsingBlock(start: NSDate, comps: NSDateComponents, opts: NSCalendarOptions, block: ObjCBlock<(NSDate, Bool, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["nextDateAfterDate:matchingComponents:options:"] public open func nextDateAfterDateMatchingComponentsOptions(date: NSDate, comps: NSDateComponents, options: NSCalendarOptions): ?NSDate
+    @ForeignName["nextDateAfterDate:matchingUnit:value:options:"] public open func nextDateAfterDateMatchingUnitValueOptions(date: NSDate, unit: NSCalendarUnit, value: NSInteger, options: NSCalendarOptions): ?NSDate
+    @ForeignName["nextDateAfterDate:matchingHour:minute:second:options:"] public open func nextDateAfterDateMatchingHourMinuteSecondOptions(date: NSDate, hourValue: NSInteger, minuteValue: NSInteger, secondValue: NSInteger, options: NSCalendarOptions): ?NSDate
+    @ForeignName["dateBySettingUnit:value:ofDate:options:"] public open func dateBySettingUnitValueOfDateOptions(unit: NSCalendarUnit, v: NSInteger, date: NSDate, opts: NSCalendarOptions): ?NSDate
+    @ForeignName["dateBySettingHour:minute:second:ofDate:options:"] public open func dateBySettingHourMinuteSecondOfDateOptions(h: NSInteger, m: NSInteger, s: NSInteger, date: NSDate, opts: NSCalendarOptions): ?NSDate
     @ForeignName["date:matchesComponents:"] public open func dateMatchesComponents(date: NSDate, components: NSDateComponents): Bool
 }
 
@@ -144,8 +102,8 @@ public open class NSDateComponents <: NSObject & NSCopying & NSSecureCoding {
     public open prop date: ?NSDate
     public open func week(): NSInteger
     @ForeignName["setWeek:"] public open func setWeek(v: NSInteger): Unit
-    @ForeignName["setValue:forComponent:"] public open func setValueForComponent(value: NSInteger, unit: NSUInteger /*NSCalendarUnit*/): Unit
-    @ForeignName["valueForComponent:"] public open func valueForComponent(unit: NSUInteger /*NSCalendarUnit*/): NSInteger
+    @ForeignName["setValue:forComponent:"] public open func setValueForComponent(value: NSInteger, unit: NSCalendarUnit): Unit
+    @ForeignName["valueForComponent:"] public open func valueForComponent(unit: NSCalendarUnit): NSInteger
     @ForeignGetterName["isValidDate"] public open prop validDate: Bool
     @ForeignName["isValidDateInCalendar:"] public open func isValidDateInCalendar(calendar: NSCalendar): Bool
 }

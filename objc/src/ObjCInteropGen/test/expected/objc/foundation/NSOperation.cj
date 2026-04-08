@@ -19,21 +19,15 @@ public open class NSOperation <: NSObject {
     @ForeignName["addDependency:"] public open func addDependency(op: NSOperation): Unit
     @ForeignName["removeDependency:"] public open func removeDependency(op: NSOperation): Unit
     public open prop dependencies: NSArray/*<NSOperation>*/
-    public open mut prop queuePriority: NSInteger /*NSOperationQueuePriority*/
+    public open mut prop queuePriority: NSOperationQueuePriority
     public open mut prop completionBlock: ObjCBlock<() -> Unit>
     public open func waitUntilFinished(): Unit
     public open mut prop threadPriority: Float64
-    public open mut prop qualityOfService: NSInteger /*NSQualityOfService*/
+    public open mut prop qualityOfService: NSQualityOfService
     public open mut prop name: ?NSString
 }
 
-public abstract sealed class NSOperationQueuePriority {
-    public static const NSOperationQueuePriorityVeryLow: NSInteger = -8
-    public static const NSOperationQueuePriorityLow: NSInteger = -4
-    public static const NSOperationQueuePriorityNormal: NSInteger = 0
-    public static const NSOperationQueuePriorityHigh: NSInteger = 4
-    public static const NSOperationQueuePriorityVeryHigh: NSInteger = 8
-}
+public type NSOperationQueuePriority = NSInteger
 
 @ObjCMirror
 public open class NSBlockOperation <: NSOperation {
@@ -59,7 +53,7 @@ public open class NSOperationQueue <: NSObject & NSProgressReporting {
     public open mut prop maxConcurrentOperationCount: NSInteger
     @ForeignGetterName["isSuspended"] public open mut prop suspended: Bool
     public open mut prop name: ?NSString
-    public open mut prop qualityOfService: NSInteger /*NSQualityOfService*/
+    public open mut prop qualityOfService: NSQualityOfService
     public open mut prop underlyingQueue: dispatch_queue_t
     public open func cancelAllOperations(): Unit
     public open func waitUntilAllOperationsAreFinished(): Unit

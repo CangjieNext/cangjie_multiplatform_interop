@@ -35,36 +35,19 @@ public open class NSProcessInfo <: NSObject {
     @ForeignName["disableAutomaticTermination:"] public open func disableAutomaticTermination(reason: NSString): Unit
     @ForeignName["enableAutomaticTermination:"] public open func enableAutomaticTermination(reason: NSString): Unit
     public open mut prop automaticTerminationSupportEnabled: Bool
-    @ForeignName["beginActivityWithOptions:reason:"] public open func beginActivityWithOptionsReason(options: uint64_t /*NSActivityOptions*/, reason: NSString): NSObjectProtocol
+    @ForeignName["beginActivityWithOptions:reason:"] public open func beginActivityWithOptionsReason(options: NSActivityOptions, reason: NSString): NSObjectProtocol
     @ForeignName["endActivity:"] public open func endActivity(activity: NSObjectProtocol): Unit
-    @ForeignName["performActivityWithOptions:reason:usingBlock:"] public open func performActivityWithOptionsReasonUsingBlock(options: uint64_t /*NSActivityOptions*/, reason: NSString, block: ObjCBlock<() -> Unit>): Unit
+    @ForeignName["performActivityWithOptions:reason:usingBlock:"] public open func performActivityWithOptionsReasonUsingBlock(options: NSActivityOptions, reason: NSString, block: ObjCBlock<() -> Unit>): Unit
     @ForeignName["performExpiringActivityWithReason:usingBlock:"] public open func performExpiringActivityWithReasonUsingBlock(reason: NSString, block: ObjCBlock<(Bool) -> Unit>): Unit
     public open prop userName: NSString
     public open prop fullUserName: NSString
-    public open prop thermalState: NSInteger /*NSProcessInfoThermalState*/
+    public open prop thermalState: NSProcessInfoThermalState
     @ForeignGetterName["isLowPowerModeEnabled"] public open prop lowPowerModeEnabled: Bool
     @ForeignGetterName["isMacCatalystApp"] public open prop macCatalystApp: Bool
     @ForeignGetterName["isiOSAppOnMac"] public open prop iOSAppOnMac: Bool
 }
 
-public abstract sealed class NSActivityOptions {
-    public static const NSActivityIdleDisplaySleepDisabled: uint64_t = 1099511627776
-    public static const NSActivityIdleSystemSleepDisabled: uint64_t = 1048576
-    public static const NSActivitySuddenTerminationDisabled: uint64_t = 16384
-    public static const NSActivityAutomaticTerminationDisabled: uint64_t = 32768
-    public static const NSActivityAnimationTrackingEnabled: uint64_t = 35184372088832
-    public static const NSActivityTrackingEnabled: uint64_t = 70368744177664
-    public static const NSActivityUserInitiated: uint64_t = 16777215
-    public static const NSActivityUserInitiatedAllowingIdleSystemSleep: uint64_t = 15728639
-    public static const NSActivityBackground: uint64_t = 255
-    public static const NSActivityLatencyCritical: uint64_t = 1095216660480
-    public static const NSActivityUserInteractive: uint64_t = 1095233437695
-}
+public type NSActivityOptions = uint64_t
 
-public abstract sealed class NSProcessInfoThermalState {
-    public static const NSProcessInfoThermalStateNominal: NSInteger = 0
-    public static const NSProcessInfoThermalStateFair: NSInteger = 1
-    public static const NSProcessInfoThermalStateSerious: NSInteger = 2
-    public static const NSProcessInfoThermalStateCritical: NSInteger = 3
-}
+public type NSProcessInfoThermalState = NSInteger
 

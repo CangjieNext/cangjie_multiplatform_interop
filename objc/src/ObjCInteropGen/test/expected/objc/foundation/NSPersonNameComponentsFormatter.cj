@@ -5,24 +5,16 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSPersonNameComponentsFormatterStyle {
-    public static const NSPersonNameComponentsFormatterStyleDefault: NSInteger = 0
-    public static const NSPersonNameComponentsFormatterStyleShort: NSInteger = 1
-    public static const NSPersonNameComponentsFormatterStyleMedium: NSInteger = 2
-    public static const NSPersonNameComponentsFormatterStyleLong: NSInteger = 3
-    public static const NSPersonNameComponentsFormatterStyleAbbreviated: NSInteger = 4
-}
+public type NSPersonNameComponentsFormatterStyle = NSInteger
 
-public abstract sealed class NSPersonNameComponentsFormatterOptions {
-    public static const NSPersonNameComponentsFormatterPhonetic: NSUInteger = 2
-}
+public type NSPersonNameComponentsFormatterOptions = NSUInteger
 
 @ObjCMirror
 public open class NSPersonNameComponentsFormatter <: NSFormatter {
-    public open mut prop style: NSInteger /*NSPersonNameComponentsFormatterStyle*/
+    public open mut prop style: NSPersonNameComponentsFormatterStyle
     @ForeignGetterName["isPhonetic"] public open mut prop phonetic: Bool
     public open mut prop locale: NSLocale
-    @ForeignName["localizedStringFromPersonNameComponents:style:options:"] public static func localizedStringFromPersonNameComponentsStyleOptions(components: NSPersonNameComponents, nameFormatStyle: NSInteger /*NSPersonNameComponentsFormatterStyle*/, nameOptions: NSUInteger /*NSPersonNameComponentsFormatterOptions*/): NSString
+    @ForeignName["localizedStringFromPersonNameComponents:style:options:"] public static func localizedStringFromPersonNameComponentsStyleOptions(components: NSPersonNameComponents, nameFormatStyle: NSPersonNameComponentsFormatterStyle, nameOptions: NSPersonNameComponentsFormatterOptions): NSString
     @ForeignName["stringFromPersonNameComponents:"] public open func stringFromPersonNameComponents(components: NSPersonNameComponents): NSString
     @ForeignName["annotatedStringFromPersonNameComponents:"] public open func annotatedStringFromPersonNameComponents(components: NSPersonNameComponents): NSAttributedString
     @ForeignName["personNameComponentsFromString:"] public open func personNameComponentsFromString(string: NSString): ?NSPersonNameComponents

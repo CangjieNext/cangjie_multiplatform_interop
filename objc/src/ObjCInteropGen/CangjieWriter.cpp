@@ -308,185 +308,13 @@ static DefaultValuePrinter default_value(const NonTypeSymbol& symbol, TypeLikeSy
     return DefaultValuePrinter(symbol, SymbolPrinter(type, format));
 }
 
-static void print_tricky_default_value(std::ostream& stream, std::string_view type_name, bool is_nullable)
-{
-    if (is_nullable) {
-        stream << "None";
-    } else {
-        // The dirty trick is applied for printing default values of:
-        // - Interface types -- instances of the interface type cannot be created.
-        // - @ObjCMirror classes -- they do not have a primary constructor.
-        stream << "Option<" << type_name << ">.None.getOrThrow()";
-    }
-}
-
-static void print_alias_default_value(std::ostream& stream, NamedTypeSymbol& named_type, const DefaultValuePrinter& op)
-{
-    assert(dynamic_cast<TypeAliasSymbol*>(&named_type));
-    auto& target = named_type.canonical_type();
-    const auto* named_target = dynamic_cast<const NamedTypeSymbol*>(&target);
-    if (named_target && named_target->is(NamedTypeSymbol::Kind::Primitive)) {
-        assert(dynamic_cast<const PrimitiveTypeSymbol*>(named_target));
-        const auto& primitive_target = static_cast<const PrimitiveTypeSymbol&>(*named_target);
-        switch (primitive_target.category()) {
-            case PrimitiveTypeCategory::SignedInteger:
-            case PrimitiveTypeCategory::UnsignedInteger:
-                stream << "unsafe{zeroValue<" << named_type.name() << ">()}";
-                return;
-            default:
-                break;
-        }
-    }
-    stream << default_value(op.symbol(), target, op.type_printer().format());
-}
-
 static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter& op)
 {
     const auto& type_printer = op.type_printer();
-    auto& type = type_printer.symbol();
-    if (dynamic_cast<const TypeParameterSymbol*>(&type)) {
-        print_tricky_default_value(stream, "ObjCId", op.symbol().is_nullable());
-        return stream;
-    }
-    const auto* ptr = dynamic_cast<const PointerTypeSymbol*>(&type);
-    if (ptr) {
-        return stream << type_printer
-                      << (!ptr->is_ctype() || type_printer.format() == SymbolPrintFormat::EmitCangjieStrict
-                                 ? "(CPointer<Unit>())"
-                                 : "()");
-    }
-    const auto* func = dynamic_cast<const FuncTypeSymbol*>(&type);
-    if (func) {
-        return stream << type_printer
-                      << (!func->is_ctype() || type_printer.format() == SymbolPrintFormat::EmitCangjieStrict
-                                 ? "(CPointer<CFunc<() -> Unit>>())"
-                                 : "(CPointer<Unit>())");
-    }
-    if (dynamic_cast<const BlockTypeSymbol*>(&type)) {
-        return stream << type_printer << "(CPointer<NativeBlockABI>())";
-    }
-    auto* named_type = dynamic_cast<NamedTypeSymbol*>(&type);
-    if (named_type) {
-        switch (named_type->kind()) {
-            case NamedTypeSymbol::Kind::Primitive: {
-                assert(dynamic_cast<const PrimitiveTypeSymbol*>(named_type));
-                const auto& primitive_type = static_cast<const PrimitiveTypeSymbol&>(*named_type);
-                switch (primitive_type.category()) {
-                    case PrimitiveTypeCategory::Boolean:
-                        return stream << "false";
-
-                    case PrimitiveTypeCategory::SignedInteger:
-                    case PrimitiveTypeCategory::UnsignedInteger:
-                        return stream << '0';
-
-                    case PrimitiveTypeCategory::FloatingPoint:
-                        return stream << "0.0";
-
-                    case PrimitiveTypeCategory::Unit:
-                        return stream << "()";
-
-                    default:
-                        break;
-                }
-                break;
-            }
-            case NamedTypeSymbol::Kind::TypeDef: {
-                assert(dynamic_cast<const TypeAliasSymbol*>(named_type));
-                print_alias_default_value(stream, *named_type, op);
-                return stream;
-            }
-            case NamedTypeSymbol::Kind::Unexposed:
-                assert(dynamic_cast<const UnexposedTypeSymbol*>(named_type));
-                return stream << default_value(op.symbol(), named_type->canonical_type(), type_printer.format());
-            case NamedTypeSymbol::Kind::Enum:
-                assert(dynamic_cast<const EnumDeclarationSymbol*>(named_type));
-                return stream << default_value(op.symbol(),
-                           static_cast<const EnumDeclarationSymbol&>(*named_type).underlying_type(),
-                           type_printer.format());
-            case NamedTypeSymbol::Kind::Interface:
-            case NamedTypeSymbol::Kind::Protocol:
-                print_tricky_default_value(stream, named_type->name(), op.symbol().is_nullable());
-                return stream;
-            default:
-                break;
-        }
-    } else {
-        const auto* varray = dynamic_cast<const VArraySymbol*>(&type);
-        if (varray) {
-            stream << '[';
-            if (varray->size_) {
-                auto value = default_value(op.symbol(), *varray->element_type_, type_printer.format());
-                stream << value;
-                for (size_t i = 1; i < varray->size_; ++i) {
-                    stream << ", " << value;
-                }
-            }
-            return stream << ']';
-        }
-    }
-    return stream << emit_cangjie(type) << "()";
-}
-
-static void print_enum_constant_value(
-    std::ostream& output, NamedTypeSymbol& underlying_type, const EnumConstantSymbol& constant)
-{
-    const auto& canonical_type = underlying_type.canonical_type();
-    const auto* primitive_type = dynamic_cast<const PrimitiveTypeSymbol*>(&canonical_type);
-    if (primitive_type) {
-        // Avoid the "number exceeds the value range of type" Cangjie compiler error by
-        // printing the value in a type-specific way.
-        switch (primitive_type->category()) {
-            case PrimitiveTypeCategory::SignedInteger:
-                switch (primitive_type->size()) {
-                    case PrimitiveSize::One:
-                        output << static_cast<int>(constant.value<int8_t>());
-                        return;
-                    case PrimitiveSize::Two:
-                        output << constant.value<int16_t>();
-                        return;
-                    case PrimitiveSize::Four:
-                        output << constant.value<int32_t>();
-                        return;
-                    case PrimitiveSize::Eight:
-                        output << constant.value<int64_t>();
-                        return;
-                    default:
-                        break;
-                }
-                break;
-            case PrimitiveTypeCategory::UnsignedInteger:
-                switch (primitive_type->size()) {
-                    case PrimitiveSize::One:
-                        output << static_cast<uint32_t>(constant.value<uint8_t>());
-                        return;
-                    case PrimitiveSize::Two:
-                        output << constant.value<uint16_t>();
-                        return;
-                    case PrimitiveSize::Four:
-                        output << constant.value<uint32_t>();
-                        return;
-                    // PrimitiveSize::Eight is handled properly by fallback case.
-                    default:
-                        break;
-                }
-                break;
-            default:
-                break;
-        }
-    } else {
-        auto& universe = Universe::get();
-        if (&canonical_type == &universe.int128()) {
-            output << "ObjCInt128(" << constant.value128_lo<int64_t>() << ", " << constant.value128_hi<int64_t>()
-                   << ')';
-            return;
-        }
-        if (&canonical_type == &universe.uint128()) {
-            output << "ObjCUInt128(" << constant.value128_lo<uint64_t>() << ", " << constant.value128_hi<uint64_t>()
-                   << ')';
-            return;
-        }
-    }
-    output << constant.value<uint64_t>();
+    assert(dynamic_cast<const TypeLikeSymbol*>(&type_printer.symbol()));
+    auto& type = static_cast<TypeLikeSymbol&>(type_printer.symbol());
+    type.print_default_value(stream, op.symbol(), type_printer.format(), type);
+    return stream;
 }
 
 static bool is_objc_compatible_parameters(NonTypeSymbol& method) noexcept
@@ -1178,23 +1006,11 @@ void TypeDeclarationWriter::write()
     output_ << "}" << std::endl;
 }
 
-static void write_enum_declaration(IndentingStringStream& output, const EnumDeclarationSymbol& enum_decl)
+static void write_enum_declaration(IndentingStringStream& output, EnumDeclarationSymbol& enum_decl)
 {
-    // Can be EmitCangjieStrict, does not matter here
-    auto format = SymbolPrintFormat::EmitCangjie;
-
-    output << "public abstract sealed class " << escape_keyword(enum_decl.name()) << " {\n";
     auto& underlying_type = enum_decl.underlying_type();
     collect_import(underlying_type);
-    output.indent();
-    enum_decl.for_each_constant([&output, format, &underlying_type](const auto& constant) {
-        output << "public static const " << escape_keyword(constant.name()) << ": "
-               << SymbolPrinter(underlying_type, format) << " = ";
-        print_enum_constant_value(output, underlying_type, constant);
-        output << '\n';
-    });
-    output.dedent();
-    output << '}' << std::endl;
+    output << "public type " << emit_cangjie(enum_decl) << " = " << emit_cangjie(underlying_type) << '\n';
 }
 
 static void add_package_dependencies(const FileLevelSymbol& symbol)
@@ -1231,7 +1047,7 @@ void write_cangjie()
                     }
                 } else if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(symbol)) {
                     TypeDeclarationWriter(output, *type).write();
-                } else if (const auto* enum_decl = dynamic_cast<const EnumDeclarationSymbol*>(symbol)) {
+                } else if (auto* enum_decl = dynamic_cast<EnumDeclarationSymbol*>(symbol)) {
                     write_enum_declaration(output, *enum_decl);
                 } else {
                     assert(dynamic_cast<NonTypeSymbol*>(symbol));

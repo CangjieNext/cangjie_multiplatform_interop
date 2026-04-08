@@ -5,42 +5,15 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSDataReadingOptions {
-    public static const NSDataReadingMappedIfSafe: NSUInteger = 1
-    public static const NSDataReadingUncached: NSUInteger = 2
-    public static const NSDataReadingMappedAlways: NSUInteger = 8
-    public static const NSDataReadingMapped: NSUInteger = 1
-    public static const NSMappedRead: NSUInteger = 1
-    public static const NSUncachedRead: NSUInteger = 2
-}
+public type NSDataReadingOptions = NSUInteger
 
-public abstract sealed class NSDataWritingOptions {
-    public static const NSDataWritingAtomic: NSUInteger = 1
-    public static const NSDataWritingWithoutOverwriting: NSUInteger = 2
-    public static const NSDataWritingFileProtectionNone: NSUInteger = 268435456
-    public static const NSDataWritingFileProtectionComplete: NSUInteger = 536870912
-    public static const NSDataWritingFileProtectionCompleteUnlessOpen: NSUInteger = 805306368
-    public static const NSDataWritingFileProtectionCompleteUntilFirstUserAuthentication: NSUInteger = 1073741824
-    public static const NSDataWritingFileProtectionCompleteWhenUserInactive: NSUInteger = 1342177280
-    public static const NSDataWritingFileProtectionMask: NSUInteger = 4026531840
-    public static const NSAtomicWrite: NSUInteger = 1
-}
+public type NSDataWritingOptions = NSUInteger
 
-public abstract sealed class NSDataSearchOptions {
-    public static const NSDataSearchBackwards: NSUInteger = 1
-    public static const NSDataSearchAnchored: NSUInteger = 2
-}
+public type NSDataSearchOptions = NSUInteger
 
-public abstract sealed class NSDataBase64EncodingOptions {
-    public static const NSDataBase64Encoding64CharacterLineLength: NSUInteger = 1
-    public static const NSDataBase64Encoding76CharacterLineLength: NSUInteger = 2
-    public static const NSDataBase64EncodingEndLineWithCarriageReturn: NSUInteger = 16
-    public static const NSDataBase64EncodingEndLineWithLineFeed: NSUInteger = 32
-}
+public type NSDataBase64EncodingOptions = NSUInteger
 
-public abstract sealed class NSDataBase64DecodingOptions {
-    public static const NSDataBase64DecodingIgnoreUnknownCharacters: NSUInteger = 1
-}
+public type NSDataBase64DecodingOptions = NSUInteger
 
 @ObjCMirror
 public open class NSData <: NSObject & NSCopying & NSMutableCopying & NSSecureCoding {
@@ -52,34 +25,34 @@ public open class NSData <: NSObject & NSCopying & NSMutableCopying & NSSecureCo
     @ForeignName["subdataWithRange:"] public open func subdataWithRange(range: NSRange): NSData
     @ForeignName["writeToFile:atomically:"] public open func writeToFileAtomically(path: NSString, useAuxiliaryFile: Bool): Bool
     @ForeignName["writeToURL:atomically:"] public open func writeToURLAtomically(url: NSURL, atomically: Bool): Bool
-    @ForeignName["writeToFile:options:error:"] public open func writeToFileOptionsError(path: NSString, writeOptionsMask: NSUInteger /*NSDataWritingOptions*/, errorPtr: ObjCPointer<NSError>): Bool
-    @ForeignName["writeToURL:options:error:"] public open func writeToURLOptionsError(url: NSURL, writeOptionsMask: NSUInteger /*NSDataWritingOptions*/, errorPtr: ObjCPointer<NSError>): Bool
-    @ForeignName["rangeOfData:options:range:"] public open func rangeOfDataOptionsRange(dataToFind: NSData, mask: NSUInteger /*NSDataSearchOptions*/, searchRange: NSRange): NSRange
+    @ForeignName["writeToFile:options:error:"] public open func writeToFileOptionsError(path: NSString, writeOptionsMask: NSDataWritingOptions, errorPtr: ObjCPointer<NSError>): Bool
+    @ForeignName["writeToURL:options:error:"] public open func writeToURLOptionsError(url: NSURL, writeOptionsMask: NSDataWritingOptions, errorPtr: ObjCPointer<NSError>): Bool
+    @ForeignName["rangeOfData:options:range:"] public open func rangeOfDataOptionsRange(dataToFind: NSData, mask: NSDataSearchOptions, searchRange: NSRange): NSRange
     @ForeignName["enumerateByteRangesUsingBlock:"] public open func enumerateByteRangesUsingBlock(block: ObjCBlock<(ObjCPointer<Unit>, NSRange, ObjCPointer<Bool>) -> Unit>): Unit
     public static func data(): NSData
     @ForeignName["dataWithBytes:length:"] public static func dataWithBytesLength(bytes: ObjCPointer<Unit>, length: NSUInteger): NSData
     @ForeignName["dataWithBytesNoCopy:length:"] public static func dataWithBytesNoCopyLength(bytes: ObjCPointer<Unit>, length: NSUInteger): NSData
     @ForeignName["dataWithBytesNoCopy:length:freeWhenDone:"] public static func dataWithBytesNoCopyLengthFreeWhenDone(bytes: ObjCPointer<Unit>, length: NSUInteger, b: Bool): NSData
-    @ForeignName["dataWithContentsOfFile:options:error:"] public static func dataWithContentsOfFileOptionsError(path: NSString, readOptionsMask: NSUInteger /*NSDataReadingOptions*/, errorPtr: ObjCPointer<NSError>): NSData
-    @ForeignName["dataWithContentsOfURL:options:error:"] public static func dataWithContentsOfURLOptionsError(url: NSURL, readOptionsMask: NSUInteger /*NSDataReadingOptions*/, errorPtr: ObjCPointer<NSError>): NSData
+    @ForeignName["dataWithContentsOfFile:options:error:"] public static func dataWithContentsOfFileOptionsError(path: NSString, readOptionsMask: NSDataReadingOptions, errorPtr: ObjCPointer<NSError>): NSData
+    @ForeignName["dataWithContentsOfURL:options:error:"] public static func dataWithContentsOfURLOptionsError(url: NSURL, readOptionsMask: NSDataReadingOptions, errorPtr: ObjCPointer<NSError>): NSData
     @ForeignName["dataWithContentsOfFile:"] public static func dataWithContentsOfFile(path: NSString): NSData
     @ForeignName["dataWithContentsOfURL:"] public static func dataWithContentsOfURL(url: NSURL): NSData
     @ObjCInit @ForeignName["initWithBytes:length:"] public static func initWithBytesLength(bytes: ObjCPointer<Unit>, length: NSUInteger): NSData
     @ObjCInit @ForeignName["initWithBytesNoCopy:length:"] public static func initWithBytesNoCopyLength(bytes: ObjCPointer<Unit>, length: NSUInteger): NSData
     @ForeignName["initWithBytesNoCopy:length:freeWhenDone:"] public init(bytes: ObjCPointer<Unit>, length: NSUInteger, b: Bool)
     @ForeignName["initWithBytesNoCopy:length:deallocator:"] public init(bytes: ObjCPointer<Unit>, length: NSUInteger, deallocator: ObjCBlock<(ObjCPointer<Unit>, NSUInteger) -> Unit>)
-    @ForeignName["initWithContentsOfFile:options:error:"] public init(path: NSString, readOptionsMask: NSUInteger /*NSDataReadingOptions*/, errorPtr: ObjCPointer<NSError>)
-    @ForeignName["initWithContentsOfURL:options:error:"] public init(url: NSURL, readOptionsMask: NSUInteger /*NSDataReadingOptions*/, errorPtr: ObjCPointer<NSError>)
+    @ForeignName["initWithContentsOfFile:options:error:"] public init(path: NSString, readOptionsMask: NSDataReadingOptions, errorPtr: ObjCPointer<NSError>)
+    @ForeignName["initWithContentsOfURL:options:error:"] public init(url: NSURL, readOptionsMask: NSDataReadingOptions, errorPtr: ObjCPointer<NSError>)
     @ObjCInit @ForeignName["initWithContentsOfFile:"] public static func initWithContentsOfFile(path: NSString): NSData
     @ForeignName["initWithContentsOfURL:"] public init(url: NSURL)
     @ForeignName["initWithData:"] public init(data: NSData)
     @ForeignName["dataWithData:"] public static func dataWithData(data: NSData): NSData
-    @ForeignName["initWithBase64EncodedString:options:"] public init(base64String: NSString, options: NSUInteger /*NSDataBase64DecodingOptions*/)
-    @ForeignName["base64EncodedStringWithOptions:"] public open func base64EncodedStringWithOptions(options: NSUInteger /*NSDataBase64EncodingOptions*/): NSString
-    @ForeignName["initWithBase64EncodedData:options:"] public init(base64Data: NSData, options: NSUInteger /*NSDataBase64DecodingOptions*/)
-    @ForeignName["base64EncodedDataWithOptions:"] public open func base64EncodedDataWithOptions(options: NSUInteger /*NSDataBase64EncodingOptions*/): NSData
-    @ForeignName["decompressedDataUsingAlgorithm:error:"] public open func decompressedDataUsingAlgorithmError(algorithm: NSInteger /*NSDataCompressionAlgorithm*/, error: ObjCPointer<NSError>): NSData
-    @ForeignName["compressedDataUsingAlgorithm:error:"] public open func compressedDataUsingAlgorithmError(algorithm: NSInteger /*NSDataCompressionAlgorithm*/, error: ObjCPointer<NSError>): NSData
+    @ForeignName["initWithBase64EncodedString:options:"] public init(base64String: NSString, options: NSDataBase64DecodingOptions)
+    @ForeignName["base64EncodedStringWithOptions:"] public open func base64EncodedStringWithOptions(options: NSDataBase64EncodingOptions): NSString
+    @ForeignName["initWithBase64EncodedData:options:"] public init(base64Data: NSData, options: NSDataBase64DecodingOptions)
+    @ForeignName["base64EncodedDataWithOptions:"] public open func base64EncodedDataWithOptions(options: NSDataBase64EncodingOptions): NSData
+    @ForeignName["decompressedDataUsingAlgorithm:error:"] public open func decompressedDataUsingAlgorithmError(algorithm: NSDataCompressionAlgorithm, error: ObjCPointer<NSError>): NSData
+    @ForeignName["compressedDataUsingAlgorithm:error:"] public open func compressedDataUsingAlgorithmError(algorithm: NSDataCompressionAlgorithm, error: ObjCPointer<NSError>): NSData
     @ForeignName["getBytes:"] public open func getBytes(buffer: ObjCPointer<Unit>): Unit
     @ForeignName["dataWithContentsOfMappedFile:"] public static func dataWithContentsOfMappedFile(path: NSString): ?ObjCId
     @ObjCInit @ForeignName["initWithContentsOfMappedFile:"] public static func initWithContentsOfMappedFile(path: NSString): ObjCId
@@ -87,12 +60,7 @@ public open class NSData <: NSObject & NSCopying & NSMutableCopying & NSSecureCo
     public open func base64Encoding(): NSString
 }
 
-public abstract sealed class NSDataCompressionAlgorithm {
-    public static const NSDataCompressionAlgorithmLZFSE: NSInteger = 0
-    public static const NSDataCompressionAlgorithmLZ4: NSInteger = 1
-    public static const NSDataCompressionAlgorithmLZMA: NSInteger = 2
-    public static const NSDataCompressionAlgorithmZlib: NSInteger = 3
-}
+public type NSDataCompressionAlgorithm = NSInteger
 
 @ObjCMirror
 public open class NSMutableData <: NSData {
@@ -108,8 +76,8 @@ public open class NSMutableData <: NSData {
     @ForeignName["dataWithLength:"] public static func dataWithLength(length: NSUInteger): NSMutableData
     @ObjCInit @ForeignName["initWithCapacity:"] public static func initWithCapacity(capacity: NSUInteger): NSMutableData
     @ObjCInit @ForeignName["initWithLength:"] public static func initWithLength(length: NSUInteger): NSMutableData
-    @ForeignName["decompressUsingAlgorithm:error:"] public open func decompressUsingAlgorithmError(algorithm: NSInteger /*NSDataCompressionAlgorithm*/, error: ObjCPointer<NSError>): Bool
-    @ForeignName["compressUsingAlgorithm:error:"] public open func compressUsingAlgorithmError(algorithm: NSInteger /*NSDataCompressionAlgorithm*/, error: ObjCPointer<NSError>): Bool
+    @ForeignName["decompressUsingAlgorithm:error:"] public open func decompressUsingAlgorithmError(algorithm: NSDataCompressionAlgorithm, error: ObjCPointer<NSError>): Bool
+    @ForeignName["compressUsingAlgorithm:error:"] public open func compressUsingAlgorithmError(algorithm: NSDataCompressionAlgorithm, error: ObjCPointer<NSError>): Bool
 }
 
 @ObjCMirror

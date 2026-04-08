@@ -5,24 +5,21 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSNumberFormatterBehavior {
-    public static const NSNumberFormatterBehaviorDefault: NSUInteger = 0
-    public static const NSNumberFormatterBehavior10_4: NSUInteger = 1040
-}
+public type NSNumberFormatterBehavior = NSUInteger
 
 @ObjCMirror
 public open class NSNumberFormatter <: NSFormatter {
-    public open mut prop formattingContext: NSInteger /*NSFormattingContext*/
+    public open mut prop formattingContext: NSFormattingContext
     @ForeignName["getObjectValue:forString:range:error:"] public open func getObjectValueForStringRangeError(obj: ObjCPointer<ObjCId>, string: NSString, rangep: ObjCPointer<NSRange>, error: ObjCPointer<NSError>): Bool
     @ForeignName["stringFromNumber:"] public open func stringFromNumber(number: NSNumber): ?NSString
     @ForeignName["numberFromString:"] public open func numberFromString(string: NSString): ?NSNumber
-    @ForeignName["localizedStringFromNumber:numberStyle:"] public static func localizedStringFromNumberNumberStyle(num: NSNumber, nstyle: NSUInteger /*NSNumberFormatterStyle*/): NSString
-    public static func defaultFormatterBehavior(): NSUInteger /*NSNumberFormatterBehavior*/
-    @ForeignName["setDefaultFormatterBehavior:"] public static func setDefaultFormatterBehavior(behavior: NSUInteger /*NSNumberFormatterBehavior*/): Unit
-    public open mut prop numberStyle: NSUInteger /*NSNumberFormatterStyle*/
+    @ForeignName["localizedStringFromNumber:numberStyle:"] public static func localizedStringFromNumberNumberStyle(num: NSNumber, nstyle: NSNumberFormatterStyle): NSString
+    public static func defaultFormatterBehavior(): NSNumberFormatterBehavior
+    @ForeignName["setDefaultFormatterBehavior:"] public static func setDefaultFormatterBehavior(behavior: NSNumberFormatterBehavior): Unit
+    public open mut prop numberStyle: NSNumberFormatterStyle
     public open mut prop locale: NSLocale
     public open mut prop generatesDecimalNumbers: Bool
-    public open mut prop formatterBehavior: NSUInteger /*NSNumberFormatterBehavior*/
+    public open mut prop formatterBehavior: NSNumberFormatterBehavior
     public open mut prop negativeFormat: NSString
     public open mut prop textAttributesForNegativeValues: ?NSDictionary/*<NSString, ObjCId>*/
     public open mut prop positiveFormat: NSString
@@ -60,8 +57,8 @@ public open class NSNumberFormatter <: NSFormatter {
     public open mut prop multiplier: ?NSNumber
     public open mut prop formatWidth: NSUInteger
     public open mut prop paddingCharacter: NSString
-    public open mut prop paddingPosition: NSUInteger /*NSNumberFormatterPadPosition*/
-    public open mut prop roundingMode: NSUInteger /*NSNumberFormatterRoundingMode*/
+    public open mut prop paddingPosition: NSNumberFormatterPadPosition
+    public open mut prop roundingMode: NSNumberFormatterRoundingMode
     public open mut prop roundingIncrement: NSNumber
     public open mut prop minimumIntegerDigits: NSUInteger
     public open mut prop maximumIntegerDigits: NSUInteger
@@ -77,33 +74,9 @@ public open class NSNumberFormatter <: NSFormatter {
     @ForeignGetterName["isPartialStringValidationEnabled"] public open mut prop partialStringValidationEnabled: Bool
 }
 
-public abstract sealed class NSNumberFormatterStyle {
-    public static const NSNumberFormatterNoStyle: NSUInteger = 0
-    public static const NSNumberFormatterDecimalStyle: NSUInteger = 1
-    public static const NSNumberFormatterCurrencyStyle: NSUInteger = 2
-    public static const NSNumberFormatterPercentStyle: NSUInteger = 3
-    public static const NSNumberFormatterScientificStyle: NSUInteger = 4
-    public static const NSNumberFormatterSpellOutStyle: NSUInteger = 5
-    public static const NSNumberFormatterOrdinalStyle: NSUInteger = 6
-    public static const NSNumberFormatterCurrencyISOCodeStyle: NSUInteger = 8
-    public static const NSNumberFormatterCurrencyPluralStyle: NSUInteger = 9
-    public static const NSNumberFormatterCurrencyAccountingStyle: NSUInteger = 10
-}
+public type NSNumberFormatterStyle = NSUInteger
 
-public abstract sealed class NSNumberFormatterPadPosition {
-    public static const NSNumberFormatterPadBeforePrefix: NSUInteger = 0
-    public static const NSNumberFormatterPadAfterPrefix: NSUInteger = 1
-    public static const NSNumberFormatterPadBeforeSuffix: NSUInteger = 2
-    public static const NSNumberFormatterPadAfterSuffix: NSUInteger = 3
-}
+public type NSNumberFormatterPadPosition = NSUInteger
 
-public abstract sealed class NSNumberFormatterRoundingMode {
-    public static const NSNumberFormatterRoundCeiling: NSUInteger = 0
-    public static const NSNumberFormatterRoundFloor: NSUInteger = 1
-    public static const NSNumberFormatterRoundDown: NSUInteger = 2
-    public static const NSNumberFormatterRoundUp: NSUInteger = 3
-    public static const NSNumberFormatterRoundHalfEven: NSUInteger = 4
-    public static const NSNumberFormatterRoundHalfDown: NSUInteger = 5
-    public static const NSNumberFormatterRoundHalfUp: NSUInteger = 6
-}
+public type NSNumberFormatterRoundingMode = NSUInteger
 

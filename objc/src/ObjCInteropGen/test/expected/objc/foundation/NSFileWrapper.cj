@@ -5,19 +5,13 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSFileWrapperReadingOptions {
-    public static const NSFileWrapperReadingImmediate: NSUInteger = 1
-    public static const NSFileWrapperReadingWithoutMapping: NSUInteger = 2
-}
+public type NSFileWrapperReadingOptions = NSUInteger
 
-public abstract sealed class NSFileWrapperWritingOptions {
-    public static const NSFileWrapperWritingAtomic: NSUInteger = 1
-    public static const NSFileWrapperWritingWithNameUpdating: NSUInteger = 2
-}
+public type NSFileWrapperWritingOptions = NSUInteger
 
 @ObjCMirror
 public open class NSFileWrapper <: NSObject & NSSecureCoding {
-    @ForeignName["initWithURL:options:error:"] public init(url: NSURL, options: NSUInteger /*NSFileWrapperReadingOptions*/, outError: ObjCPointer<NSError>)
+    @ForeignName["initWithURL:options:error:"] public init(url: NSURL, options: NSFileWrapperReadingOptions, outError: ObjCPointer<NSError>)
     @ForeignName["initDirectoryWithFileWrappers:"] public init(childrenByPreferredName: NSDictionary/*<NSString, NSFileWrapper>*/)
     @ObjCInit @ForeignName["initRegularFileWithContents:"] public static func initRegularFileWithContents(contents: NSData): NSFileWrapper
     @ForeignName["initSymbolicLinkWithDestinationURL:"] public init(url: NSURL)
@@ -30,8 +24,8 @@ public open class NSFileWrapper <: NSObject & NSSecureCoding {
     public open mut prop filename: ?NSString
     public open mut prop fileAttributes: NSDictionary/*<NSString, ObjCId>*/
     @ForeignName["matchesContentsOfURL:"] public open func matchesContentsOfURL(url: NSURL): Bool
-    @ForeignName["readFromURL:options:error:"] public open func readFromURLOptionsError(url: NSURL, options: NSUInteger /*NSFileWrapperReadingOptions*/, outError: ObjCPointer<NSError>): Bool
-    @ForeignName["writeToURL:options:originalContentsURL:error:"] public open func writeToURLOptionsOriginalContentsURLError(url: NSURL, options: NSUInteger /*NSFileWrapperWritingOptions*/, originalContentsURL: ?NSURL, outError: ObjCPointer<NSError>): Bool
+    @ForeignName["readFromURL:options:error:"] public open func readFromURLOptionsError(url: NSURL, options: NSFileWrapperReadingOptions, outError: ObjCPointer<NSError>): Bool
+    @ForeignName["writeToURL:options:originalContentsURL:error:"] public open func writeToURLOptionsOriginalContentsURLError(url: NSURL, options: NSFileWrapperWritingOptions, originalContentsURL: ?NSURL, outError: ObjCPointer<NSError>): Bool
     public open prop serializedRepresentation: ?NSData
     @ForeignName["addFileWrapper:"] public open func addFileWrapper(child: NSFileWrapper): NSString
     @ForeignName["addRegularFileWithContents:preferredFilename:"] public open func addRegularFileWithContentsPreferredFilename(data: NSData, fileName: NSString): NSString

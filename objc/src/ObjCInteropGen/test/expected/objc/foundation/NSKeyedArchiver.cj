@@ -42,7 +42,7 @@ public open class NSKeyedArchiver <: NSCoder {
     @ForeignName["archivedDataWithRootObject:"] public static func archivedDataWithRootObject(rootObject: ObjCId): NSData
     @ForeignName["archiveRootObject:toFile:"] public static func archiveRootObjectToFile(rootObject: ObjCId, path: NSString): Bool
     public open mut prop delegate: ?NSKeyedArchiverDelegate
-    public open mut prop outputFormat: NSUInteger /*NSPropertyListFormat*/
+    public open mut prop outputFormat: NSPropertyListFormat
     public open prop encodedData: NSData
     public open func finishEncoding(): Unit
     @ForeignName["setClassName:forClass:"] public static func setClassNameForClassStatic(codedName: ?NSString, cls: ObjCClass): Unit

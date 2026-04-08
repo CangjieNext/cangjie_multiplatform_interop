@@ -10,7 +10,7 @@ public interface NSURLSessionDelegate <: NSObjectProtocol {
     @ObjCOptional
     @ForeignName["URLSession:didBecomeInvalidWithError:"] func URLSessionDidBecomeInvalidWithError(session: NSURLSession, error: ?NSError): Unit
     @ObjCOptional
-    @ForeignName["URLSession:didReceiveChallenge:completionHandler:"] func URLSessionDidReceiveChallengeCompletionHandler(session: NSURLSession, challenge: NSURLAuthenticationChallenge, completionHandler: ObjCBlock<(NSInteger /*NSURLSessionAuthChallengeDisposition*/, NSURLCredential) -> Unit>): Unit
+    @ForeignName["URLSession:didReceiveChallenge:completionHandler:"] func URLSessionDidReceiveChallengeCompletionHandler(session: NSURLSession, challenge: NSURLAuthenticationChallenge, completionHandler: ObjCBlock<(NSURLSessionAuthChallengeDisposition, NSURLCredential) -> Unit>): Unit
     @ObjCOptional
     @ForeignName["URLSessionDidFinishEventsForBackgroundURLSession:"] func URLSessionDidFinishEventsForBackgroundURLSession(session: NSURLSession): Unit
 }
@@ -20,13 +20,13 @@ public interface NSURLSessionTaskDelegate <: NSURLSessionDelegate {
     @ObjCOptional
     @ForeignName["URLSession:didCreateTask:"] func URLSessionDidCreateTask(session: NSURLSession, task: NSURLSessionTask): Unit
     @ObjCOptional
-    @ForeignName["URLSession:task:willBeginDelayedRequest:completionHandler:"] func URLSessionTaskWillBeginDelayedRequestCompletionHandler(session: NSURLSession, task: NSURLSessionTask, request: NSURLRequest, completionHandler: ObjCBlock<(NSInteger /*NSURLSessionDelayedRequestDisposition*/, NSURLRequest) -> Unit>): Unit
+    @ForeignName["URLSession:task:willBeginDelayedRequest:completionHandler:"] func URLSessionTaskWillBeginDelayedRequestCompletionHandler(session: NSURLSession, task: NSURLSessionTask, request: NSURLRequest, completionHandler: ObjCBlock<(NSURLSessionDelayedRequestDisposition, NSURLRequest) -> Unit>): Unit
     @ObjCOptional
     @ForeignName["URLSession:taskIsWaitingForConnectivity:"] func URLSessionTaskIsWaitingForConnectivity(session: NSURLSession, task: NSURLSessionTask): Unit
     @ObjCOptional
     @ForeignName["URLSession:task:willPerformHTTPRedirection:newRequest:completionHandler:"] func URLSessionTaskWillPerformHTTPRedirectionNewRequestCompletionHandler(session: NSURLSession, task: NSURLSessionTask, response: NSHTTPURLResponse, request: NSURLRequest, completionHandler: ObjCBlock<(NSURLRequest) -> Unit>): Unit
     @ObjCOptional
-    @ForeignName["URLSession:task:didReceiveChallenge:completionHandler:"] func URLSessionTaskDidReceiveChallengeCompletionHandler(session: NSURLSession, task: NSURLSessionTask, challenge: NSURLAuthenticationChallenge, completionHandler: ObjCBlock<(NSInteger /*NSURLSessionAuthChallengeDisposition*/, NSURLCredential) -> Unit>): Unit
+    @ForeignName["URLSession:task:didReceiveChallenge:completionHandler:"] func URLSessionTaskDidReceiveChallengeCompletionHandler(session: NSURLSession, task: NSURLSessionTask, challenge: NSURLAuthenticationChallenge, completionHandler: ObjCBlock<(NSURLSessionAuthChallengeDisposition, NSURLCredential) -> Unit>): Unit
     @ObjCOptional
     @ForeignName["URLSession:task:needNewBodyStream:"] func URLSessionTaskNeedNewBodyStream(session: NSURLSession, task: NSURLSessionTask, completionHandler: ObjCBlock<(NSInputStream) -> Unit>): Unit
     @ObjCOptional
@@ -82,12 +82,7 @@ public open class NSURLSession <: NSObject {
     @ForeignName["downloadTaskWithResumeData:completionHandler:"] public open func downloadTaskWithResumeDataCompletionHandler(resumeData: NSData, completionHandler: ObjCBlock<(NSURL, NSURLResponse, NSError) -> Unit>): NSURLSessionDownloadTask
 }
 
-public abstract sealed class NSURLSessionTaskState {
-    public static const NSURLSessionTaskStateRunning: NSInteger = 0
-    public static const NSURLSessionTaskStateSuspended: NSInteger = 1
-    public static const NSURLSessionTaskStateCanceling: NSInteger = 2
-    public static const NSURLSessionTaskStateCompleted: NSInteger = 3
-}
+public type NSURLSessionTaskState = NSInteger
 
 @ObjCMirror
 public open class NSURLSessionTask <: NSObject & NSCopying & NSProgressReporting {
@@ -105,7 +100,7 @@ public open class NSURLSessionTask <: NSObject & NSCopying & NSProgressReporting
     public open prop countOfBytesExpectedToReceive: int64_t
     public open mut prop taskDescription: ?NSString
     public open func cancel(): Unit
-    public open prop state: NSInteger /*NSURLSessionTaskState*/
+    public open prop state: NSURLSessionTaskState
     public open prop error: ?NSError
     public open func suspend(): Unit
     public open func `resume`(): Unit
@@ -148,53 +143,31 @@ public open class NSURLSessionStreamTask <: NSURLSessionTask {
     public static func new(): NSURLSessionStreamTask
 }
 
-public abstract sealed class NSURLSessionWebSocketMessageType {
-    public static const NSURLSessionWebSocketMessageTypeData: NSInteger = 0
-    public static const NSURLSessionWebSocketMessageTypeString: NSInteger = 1
-}
+public type NSURLSessionWebSocketMessageType = NSInteger
 
 @ObjCMirror
 public open class NSURLSessionWebSocketMessage <: NSObject {
     @ForeignName["initWithData:"] public init(data: NSData)
     @ForeignName["initWithString:"] public init(string: NSString)
-    public open prop `type`: NSInteger /*NSURLSessionWebSocketMessageType*/
+    public open prop `type`: NSURLSessionWebSocketMessageType
     public open prop data: ?NSData
     public open prop string: ?NSString
 }
 
-public abstract sealed class NSURLSessionWebSocketCloseCode {
-    public static const NSURLSessionWebSocketCloseCodeInvalid: NSInteger = 0
-    public static const NSURLSessionWebSocketCloseCodeNormalClosure: NSInteger = 1000
-    public static const NSURLSessionWebSocketCloseCodeGoingAway: NSInteger = 1001
-    public static const NSURLSessionWebSocketCloseCodeProtocolError: NSInteger = 1002
-    public static const NSURLSessionWebSocketCloseCodeUnsupportedData: NSInteger = 1003
-    public static const NSURLSessionWebSocketCloseCodeNoStatusReceived: NSInteger = 1005
-    public static const NSURLSessionWebSocketCloseCodeAbnormalClosure: NSInteger = 1006
-    public static const NSURLSessionWebSocketCloseCodeInvalidFramePayloadData: NSInteger = 1007
-    public static const NSURLSessionWebSocketCloseCodePolicyViolation: NSInteger = 1008
-    public static const NSURLSessionWebSocketCloseCodeMessageTooBig: NSInteger = 1009
-    public static const NSURLSessionWebSocketCloseCodeMandatoryExtensionMissing: NSInteger = 1010
-    public static const NSURLSessionWebSocketCloseCodeInternalServerError: NSInteger = 1011
-    public static const NSURLSessionWebSocketCloseCodeTLSHandshakeFailure: NSInteger = 1015
-}
+public type NSURLSessionWebSocketCloseCode = NSInteger
 
 @ObjCMirror
 public open class NSURLSessionWebSocketTask <: NSURLSessionTask {
     @ForeignName["sendMessage:completionHandler:"] public open func sendMessageCompletionHandler(message: NSURLSessionWebSocketMessage, completionHandler: ObjCBlock<(NSError) -> Unit>): Unit
     @ForeignName["receiveMessageWithCompletionHandler:"] public open func receiveMessageWithCompletionHandler(completionHandler: ObjCBlock<(NSURLSessionWebSocketMessage, NSError) -> Unit>): Unit
     @ForeignName["sendPingWithPongReceiveHandler:"] public open func sendPingWithPongReceiveHandler(pongReceiveHandler: ObjCBlock<(NSError) -> Unit>): Unit
-    @ForeignName["cancelWithCloseCode:reason:"] public open func cancelWithCloseCodeReason(closeCode: NSInteger /*NSURLSessionWebSocketCloseCode*/, reason: ?NSData): Unit
+    @ForeignName["cancelWithCloseCode:reason:"] public open func cancelWithCloseCodeReason(closeCode: NSURLSessionWebSocketCloseCode, reason: ?NSData): Unit
     public open mut prop maximumMessageSize: NSInteger
-    public open prop closeCode: NSInteger /*NSURLSessionWebSocketCloseCode*/
+    public open prop closeCode: NSURLSessionWebSocketCloseCode
     public open prop closeReason: ?NSData
 }
 
-public abstract sealed class NSURLSessionMultipathServiceType {
-    public static const NSURLSessionMultipathServiceTypeNone: NSInteger = 0
-    public static const NSURLSessionMultipathServiceTypeHandover: NSInteger = 1
-    public static const NSURLSessionMultipathServiceTypeInteractive: NSInteger = 2
-    public static const NSURLSessionMultipathServiceTypeAggregate: NSInteger = 3
-}
+public type NSURLSessionMultipathServiceType = NSInteger
 
 @ObjCMirror
 public open class NSURLSessionConfiguration <: NSObject & NSCopying {
@@ -202,10 +175,10 @@ public open class NSURLSessionConfiguration <: NSObject & NSCopying {
     public static prop ephemeralSessionConfiguration: NSURLSessionConfiguration
     @ForeignName["backgroundSessionConfigurationWithIdentifier:"] public static func backgroundSessionConfigurationWithIdentifier(identifier: NSString): NSURLSessionConfiguration
     public open prop identifier: ?NSString
-    public open mut prop requestCachePolicy: NSUInteger /*NSURLRequestCachePolicy*/
+    public open mut prop requestCachePolicy: NSURLRequestCachePolicy
     public open mut prop timeoutIntervalForRequest: NSTimeInterval
     public open mut prop timeoutIntervalForResource: NSTimeInterval
-    public open mut prop networkServiceType: NSUInteger /*NSURLRequestNetworkServiceType*/
+    public open mut prop networkServiceType: NSURLRequestNetworkServiceType
     public open mut prop allowsCellularAccess: Bool
     public open mut prop allowsExpensiveNetworkAccess: Bool
     public open mut prop allowsConstrainedNetworkAccess: Bool
@@ -215,13 +188,13 @@ public open class NSURLSessionConfiguration <: NSObject & NSCopying {
     public open mut prop sharedContainerIdentifier: ?NSString
     public open mut prop sessionSendsLaunchEvents: Bool
     public open mut prop connectionProxyDictionary: ?NSDictionary/*<KeyType, ObjectType>*/
-    public open mut prop TLSMinimumSupportedProtocol: Int32 /*SSLProtocol*/
-    public open mut prop TLSMaximumSupportedProtocol: Int32 /*SSLProtocol*/
-    public open mut prop TLSMinimumSupportedProtocolVersion: uint16_t /*tls_protocol_version_t*/
-    public open mut prop TLSMaximumSupportedProtocolVersion: uint16_t /*tls_protocol_version_t*/
+    public open mut prop TLSMinimumSupportedProtocol: SSLProtocol
+    public open mut prop TLSMaximumSupportedProtocol: SSLProtocol
+    public open mut prop TLSMinimumSupportedProtocolVersion: tls_protocol_version_t
+    public open mut prop TLSMaximumSupportedProtocolVersion: tls_protocol_version_t
     public open mut prop HTTPShouldUsePipelining: Bool
     public open mut prop HTTPShouldSetCookies: Bool
-    public open mut prop HTTPCookieAcceptPolicy: NSUInteger /*NSHTTPCookieAcceptPolicy*/
+    public open mut prop HTTPCookieAcceptPolicy: NSHTTPCookieAcceptPolicy
     public open mut prop HTTPAdditionalHeaders: ?NSDictionary/*<KeyType, ObjectType>*/
     public open mut prop HTTPMaximumConnectionsPerHost: NSInteger
     public open mut prop HTTPCookieStorage: ?NSHTTPCookieStorage
@@ -229,36 +202,22 @@ public open class NSURLSessionConfiguration <: NSObject & NSCopying {
     public open mut prop URLCache: ?NSURLCache
     public open mut prop shouldUseExtendedBackgroundIdleMode: Bool
     public open mut prop protocolClasses: ?NSArray/*<ObjCClass>*/
-    public open mut prop multipathServiceType: NSInteger /*NSURLSessionMultipathServiceType*/
+    public open mut prop multipathServiceType: NSURLSessionMultipathServiceType
     public init()
     public static func new(): NSURLSessionConfiguration
     @ForeignName["backgroundSessionConfiguration:"] public static func backgroundSessionConfiguration(identifier: NSString): NSURLSessionConfiguration
 }
 
-public abstract sealed class NSURLSessionDelayedRequestDisposition {
-    public static const NSURLSessionDelayedRequestContinueLoading: NSInteger = 0
-    public static const NSURLSessionDelayedRequestUseNewRequest: NSInteger = 1
-    public static const NSURLSessionDelayedRequestCancel: NSInteger = 2
-}
+public type NSURLSessionDelayedRequestDisposition = NSInteger
 
-public abstract sealed class NSURLSessionAuthChallengeDisposition {
-    public static const NSURLSessionAuthChallengeUseCredential: NSInteger = 0
-    public static const NSURLSessionAuthChallengePerformDefaultHandling: NSInteger = 1
-    public static const NSURLSessionAuthChallengeCancelAuthenticationChallenge: NSInteger = 2
-    public static const NSURLSessionAuthChallengeRejectProtectionSpace: NSInteger = 3
-}
+public type NSURLSessionAuthChallengeDisposition = NSInteger
 
-public abstract sealed class NSURLSessionResponseDisposition {
-    public static const NSURLSessionResponseCancel: NSInteger = 0
-    public static const NSURLSessionResponseAllow: NSInteger = 1
-    public static const NSURLSessionResponseBecomeDownload: NSInteger = 2
-    public static const NSURLSessionResponseBecomeStream: NSInteger = 3
-}
+public type NSURLSessionResponseDisposition = NSInteger
 
 @ObjCMirror
 public interface NSURLSessionDataDelegate <: NSURLSessionTaskDelegate {
     @ObjCOptional
-    @ForeignName["URLSession:dataTask:didReceiveResponse:completionHandler:"] func URLSessionDataTaskDidReceiveResponseCompletionHandler(session: NSURLSession, dataTask: NSURLSessionDataTask, response: NSURLResponse, completionHandler: ObjCBlock<(NSInteger /*NSURLSessionResponseDisposition*/) -> Unit>): Unit
+    @ForeignName["URLSession:dataTask:didReceiveResponse:completionHandler:"] func URLSessionDataTaskDidReceiveResponseCompletionHandler(session: NSURLSession, dataTask: NSURLSessionDataTask, response: NSURLResponse, completionHandler: ObjCBlock<(NSURLSessionResponseDisposition) -> Unit>): Unit
     @ObjCOptional
     @ForeignName["URLSession:dataTask:didBecomeDownloadTask:"] func URLSessionDataTaskDidBecomeDownloadTask(session: NSURLSession, dataTask: NSURLSessionDataTask, downloadTask: NSURLSessionDownloadTask): Unit
     @ObjCOptional
@@ -295,23 +254,12 @@ public interface NSURLSessionWebSocketDelegate <: NSURLSessionTaskDelegate {
     @ObjCOptional
     @ForeignName["URLSession:webSocketTask:didOpenWithProtocol:"] func URLSessionWebSocketTaskDidOpenWithProtocol(session: NSURLSession, webSocketTask: NSURLSessionWebSocketTask, protocol: ?NSString): Unit
     @ObjCOptional
-    @ForeignName["URLSession:webSocketTask:didCloseWithCode:reason:"] func URLSessionWebSocketTaskDidCloseWithCodeReason(session: NSURLSession, webSocketTask: NSURLSessionWebSocketTask, closeCode: NSInteger /*NSURLSessionWebSocketCloseCode*/, reason: ?NSData): Unit
+    @ForeignName["URLSession:webSocketTask:didCloseWithCode:reason:"] func URLSessionWebSocketTaskDidCloseWithCodeReason(session: NSURLSession, webSocketTask: NSURLSessionWebSocketTask, closeCode: NSURLSessionWebSocketCloseCode, reason: ?NSData): Unit
 }
 
-public abstract sealed class NSURLSessionTaskMetricsResourceFetchType {
-    public static const NSURLSessionTaskMetricsResourceFetchTypeUnknown: NSInteger = 0
-    public static const NSURLSessionTaskMetricsResourceFetchTypeNetworkLoad: NSInteger = 1
-    public static const NSURLSessionTaskMetricsResourceFetchTypeServerPush: NSInteger = 2
-    public static const NSURLSessionTaskMetricsResourceFetchTypeLocalCache: NSInteger = 3
-}
+public type NSURLSessionTaskMetricsResourceFetchType = NSInteger
 
-public abstract sealed class NSURLSessionTaskMetricsDomainResolutionProtocol {
-    public static const NSURLSessionTaskMetricsDomainResolutionProtocolUnknown: NSInteger = 0
-    public static const NSURLSessionTaskMetricsDomainResolutionProtocolUDP: NSInteger = 1
-    public static const NSURLSessionTaskMetricsDomainResolutionProtocolTCP: NSInteger = 2
-    public static const NSURLSessionTaskMetricsDomainResolutionProtocolTLS: NSInteger = 3
-    public static const NSURLSessionTaskMetricsDomainResolutionProtocolHTTPS: NSInteger = 4
-}
+public type NSURLSessionTaskMetricsDomainResolutionProtocol = NSInteger
 
 @ObjCMirror
 public open class NSURLSessionTaskTransactionMetrics <: NSObject {
@@ -331,7 +279,7 @@ public open class NSURLSessionTaskTransactionMetrics <: NSObject {
     public open prop networkProtocolName: ?NSString
     @ForeignGetterName["isProxyConnection"] public open prop proxyConnection: Bool
     @ForeignGetterName["isReusedConnection"] public open prop reusedConnection: Bool
-    public open prop resourceFetchType: NSInteger /*NSURLSessionTaskMetricsResourceFetchType*/
+    public open prop resourceFetchType: NSURLSessionTaskMetricsResourceFetchType
     public open prop countOfRequestHeaderBytesSent: int64_t
     public open prop countOfRequestBodyBytesSent: int64_t
     public open prop countOfRequestBodyBytesBeforeEncoding: int64_t
@@ -348,7 +296,7 @@ public open class NSURLSessionTaskTransactionMetrics <: NSObject {
     @ForeignGetterName["isExpensive"] public open prop expensive: Bool
     @ForeignGetterName["isConstrained"] public open prop constrained: Bool
     @ForeignGetterName["isMultipath"] public open prop multipath: Bool
-    public open prop domainResolutionProtocol: NSInteger /*NSURLSessionTaskMetricsDomainResolutionProtocol*/
+    public open prop domainResolutionProtocol: NSURLSessionTaskMetricsDomainResolutionProtocol
     public init()
     public static func new(): NSURLSessionTaskTransactionMetrics
 }

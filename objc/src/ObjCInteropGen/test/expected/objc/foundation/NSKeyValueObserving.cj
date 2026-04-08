@@ -5,26 +5,11 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSKeyValueObservingOptions {
-    public static const NSKeyValueObservingOptionNew: NSUInteger = 1
-    public static const NSKeyValueObservingOptionOld: NSUInteger = 2
-    public static const NSKeyValueObservingOptionInitial: NSUInteger = 4
-    public static const NSKeyValueObservingOptionPrior: NSUInteger = 8
-}
+public type NSKeyValueObservingOptions = NSUInteger
 
-public abstract sealed class NSKeyValueChange {
-    public static const NSKeyValueChangeSetting: NSUInteger = 1
-    public static const NSKeyValueChangeInsertion: NSUInteger = 2
-    public static const NSKeyValueChangeRemoval: NSUInteger = 3
-    public static const NSKeyValueChangeReplacement: NSUInteger = 4
-}
+public type NSKeyValueChange = NSUInteger
 
-public abstract sealed class NSKeyValueSetMutationKind {
-    public static const NSKeyValueUnionSetMutation: NSUInteger = 1
-    public static const NSKeyValueMinusSetMutation: NSUInteger = 2
-    public static const NSKeyValueIntersectSetMutation: NSUInteger = 3
-    public static const NSKeyValueSetSetMutation: NSUInteger = 4
-}
+public type NSKeyValueSetMutationKind = NSUInteger
 
 public type NSKeyValueChangeKey = NSString
 

@@ -18,7 +18,7 @@ public open class NSThread <: NSObject {
     @ForeignName["threadPriority"] public static func threadPriorityStatic(): Float64
     @ForeignName["setThreadPriority:"] public static func setThreadPriorityStatic(p: Float64): Bool
     public open mut prop threadPriority: Float64
-    public open mut prop qualityOfService: NSInteger /*NSQualityOfService*/
+    public open mut prop qualityOfService: NSQualityOfService
     public static prop callStackReturnAddresses: NSArray/*<NSNumber>*/
     public static prop callStackSymbols: NSArray/*<NSString>*/
     public open mut prop name: ?NSString

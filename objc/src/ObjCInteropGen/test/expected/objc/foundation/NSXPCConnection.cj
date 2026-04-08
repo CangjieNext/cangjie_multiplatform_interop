@@ -19,15 +19,13 @@ public interface NSXPCProxyCreating {
     @ForeignName["synchronousRemoteObjectProxyWithErrorHandler:"] func synchronousRemoteObjectProxyWithErrorHandler(handler: ObjCBlock<(NSError) -> Unit>): ObjCId
 }
 
-public abstract sealed class NSXPCConnectionOptions {
-    public static const NSXPCConnectionPrivileged: NSUInteger = 4096
-}
+public type NSXPCConnectionOptions = NSUInteger
 
 @ObjCMirror
 public open class NSXPCConnection <: NSObject & NSXPCProxyCreating {
     @ForeignName["initWithServiceName:"] public init(serviceName: NSString)
     public open prop serviceName: ?NSString
-    @ForeignName["initWithMachServiceName:options:"] public init(name: NSString, options: NSUInteger /*NSXPCConnectionOptions*/)
+    @ForeignName["initWithMachServiceName:options:"] public init(name: NSString, options: NSXPCConnectionOptions)
     @ForeignName["initWithListenerEndpoint:"] public init(endpoint: NSXPCListenerEndpoint)
     public open prop endpoint: NSXPCListenerEndpoint
     public open mut prop exportedInterface: ?NSXPCInterface

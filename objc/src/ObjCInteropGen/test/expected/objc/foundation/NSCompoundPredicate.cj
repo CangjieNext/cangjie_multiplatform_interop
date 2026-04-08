@@ -5,17 +5,13 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSCompoundPredicateType {
-    public static const NSNotPredicateType: NSUInteger = 0
-    public static const NSAndPredicateType: NSUInteger = 1
-    public static const NSOrPredicateType: NSUInteger = 2
-}
+public type NSCompoundPredicateType = NSUInteger
 
 @ObjCMirror
 public open class NSCompoundPredicate <: NSPredicate {
-    @ForeignName["initWithType:subpredicates:"] public init(`type`: NSUInteger /*NSCompoundPredicateType*/, subpredicates: NSArray/*<NSPredicate>*/)
+    @ForeignName["initWithType:subpredicates:"] public init(`type`: NSCompoundPredicateType, subpredicates: NSArray/*<NSPredicate>*/)
     @ForeignName["initWithCoder:"] public init(coder: NSCoder)
-    public open prop compoundPredicateType: NSUInteger /*NSCompoundPredicateType*/
+    public open prop compoundPredicateType: NSCompoundPredicateType
     public open prop subpredicates: NSArray/*<ObjectType>*/
     @ForeignName["andPredicateWithSubpredicates:"] public static func andPredicateWithSubpredicates(subpredicates: NSArray/*<NSPredicate>*/): NSCompoundPredicate
     @ForeignName["orPredicateWithSubpredicates:"] public static func orPredicateWithSubpredicates(subpredicates: NSArray/*<NSPredicate>*/): NSCompoundPredicate

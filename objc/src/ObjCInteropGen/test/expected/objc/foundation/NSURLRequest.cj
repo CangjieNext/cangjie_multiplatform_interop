@@ -5,49 +5,28 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSURLRequestCachePolicy {
-    public static const NSURLRequestUseProtocolCachePolicy: NSUInteger = 0
-    public static const NSURLRequestReloadIgnoringLocalCacheData: NSUInteger = 1
-    public static const NSURLRequestReloadIgnoringLocalAndRemoteCacheData: NSUInteger = 4
-    public static const NSURLRequestReloadIgnoringCacheData: NSUInteger = 1
-    public static const NSURLRequestReturnCacheDataElseLoad: NSUInteger = 2
-    public static const NSURLRequestReturnCacheDataDontLoad: NSUInteger = 3
-    public static const NSURLRequestReloadRevalidatingCacheData: NSUInteger = 5
-}
+public type NSURLRequestCachePolicy = NSUInteger
 
-public abstract sealed class NSURLRequestNetworkServiceType {
-    public static const NSURLNetworkServiceTypeDefault: NSUInteger = 0
-    public static const NSURLNetworkServiceTypeVoIP: NSUInteger = 1
-    public static const NSURLNetworkServiceTypeVideo: NSUInteger = 2
-    public static const NSURLNetworkServiceTypeBackground: NSUInteger = 3
-    public static const NSURLNetworkServiceTypeVoice: NSUInteger = 4
-    public static const NSURLNetworkServiceTypeResponsiveData: NSUInteger = 6
-    public static const NSURLNetworkServiceTypeAVStreaming: NSUInteger = 8
-    public static const NSURLNetworkServiceTypeResponsiveAV: NSUInteger = 9
-    public static const NSURLNetworkServiceTypeCallSignaling: NSUInteger = 11
-}
+public type NSURLRequestNetworkServiceType = NSUInteger
 
-public abstract sealed class NSURLRequestAttribution {
-    public static const NSURLRequestAttributionDeveloper: NSUInteger = 0
-    public static const NSURLRequestAttributionUser: NSUInteger = 1
-}
+public type NSURLRequestAttribution = NSUInteger
 
 @ObjCMirror
 public open class NSURLRequest <: NSObject & NSSecureCoding & NSCopying & NSMutableCopying {
     @ForeignName["requestWithURL:"] public static func requestWithURL(URL: NSURL): NSURLRequest
-    @ForeignName["requestWithURL:cachePolicy:timeoutInterval:"] public static func requestWithURLCachePolicyTimeoutInterval(URL: NSURL, cachePolicy: NSUInteger /*NSURLRequestCachePolicy*/, timeoutInterval: NSTimeInterval): NSURLRequest
+    @ForeignName["requestWithURL:cachePolicy:timeoutInterval:"] public static func requestWithURLCachePolicyTimeoutInterval(URL: NSURL, cachePolicy: NSURLRequestCachePolicy, timeoutInterval: NSTimeInterval): NSURLRequest
     @ForeignName["initWithURL:"] public init(URL: NSURL)
-    @ForeignName["initWithURL:cachePolicy:timeoutInterval:"] public init(URL: NSURL, cachePolicy: NSUInteger /*NSURLRequestCachePolicy*/, timeoutInterval: NSTimeInterval)
+    @ForeignName["initWithURL:cachePolicy:timeoutInterval:"] public init(URL: NSURL, cachePolicy: NSURLRequestCachePolicy, timeoutInterval: NSTimeInterval)
     public open prop URL: ?NSURL
-    public open prop cachePolicy: NSUInteger /*NSURLRequestCachePolicy*/
+    public open prop cachePolicy: NSURLRequestCachePolicy
     public open prop timeoutInterval: NSTimeInterval
     public open prop mainDocumentURL: ?NSURL
-    public open prop networkServiceType: NSUInteger /*NSURLRequestNetworkServiceType*/
+    public open prop networkServiceType: NSURLRequestNetworkServiceType
     public open prop allowsCellularAccess: Bool
     public open prop allowsExpensiveNetworkAccess: Bool
     public open prop allowsConstrainedNetworkAccess: Bool
     public open prop assumesHTTP3Capable: Bool
-    public open prop attribution: NSUInteger /*NSURLRequestAttribution*/
+    public open prop attribution: NSURLRequestAttribution
     public open prop requiresDNSSECValidation: Bool
     public open prop HTTPMethod: ?NSString
     public open prop allHTTPHeaderFields: ?NSDictionary/*<NSString, NSString>*/

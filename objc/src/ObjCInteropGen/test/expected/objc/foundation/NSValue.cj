@@ -57,7 +57,7 @@ public open class NSNumber <: NSValue {
     public open prop integerValue: NSInteger
     public open prop unsignedIntegerValue: NSUInteger
     public open prop stringValue: NSString
-    @ForeignName["compare:"] public open func compare(otherNumber: NSNumber): NSInteger /*NSComparisonResult*/
+    @ForeignName["compare:"] public open func compare(otherNumber: NSNumber): NSComparisonResult
     @ForeignName["isEqualToNumber:"] public open func isEqualToNumber(number: NSNumber): Bool
     @ForeignName["descriptionWithLocale:"] public open func descriptionWithLocale(locale: ?ObjCId): NSString
     @ForeignName["numberWithChar:"] public static func numberWithChar(value: Int8): NSNumber

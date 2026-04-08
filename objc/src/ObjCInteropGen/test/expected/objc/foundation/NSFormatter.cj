@@ -5,20 +5,9 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSFormattingContext {
-    public static const NSFormattingContextUnknown: NSInteger = 0
-    public static const NSFormattingContextDynamic: NSInteger = 1
-    public static const NSFormattingContextStandalone: NSInteger = 2
-    public static const NSFormattingContextListItem: NSInteger = 3
-    public static const NSFormattingContextBeginningOfSentence: NSInteger = 4
-    public static const NSFormattingContextMiddleOfSentence: NSInteger = 5
-}
+public type NSFormattingContext = NSInteger
 
-public abstract sealed class NSFormattingUnitStyle {
-    public static const NSFormattingUnitStyleShort: NSInteger = 1
-    public static const NSFormattingUnitStyleMedium: NSInteger = 2
-    public static const NSFormattingUnitStyleLong: NSInteger = 3
-}
+public type NSFormattingUnitStyle = NSInteger
 
 @ObjCMirror
 public open class NSFormatter <: NSObject & NSCopying & NSCoding {

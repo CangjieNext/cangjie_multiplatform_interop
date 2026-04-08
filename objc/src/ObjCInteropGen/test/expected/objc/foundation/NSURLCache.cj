@@ -5,20 +5,16 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSURLCacheStoragePolicy {
-    public static const NSURLCacheStorageAllowed: NSUInteger = 0
-    public static const NSURLCacheStorageAllowedInMemoryOnly: NSUInteger = 1
-    public static const NSURLCacheStorageNotAllowed: NSUInteger = 2
-}
+public type NSURLCacheStoragePolicy = NSUInteger
 
 @ObjCMirror
 public open class NSCachedURLResponse <: NSObject & NSSecureCoding & NSCopying {
     @ForeignName["initWithResponse:data:"] public init(response: NSURLResponse, data: NSData)
-    @ForeignName["initWithResponse:data:userInfo:storagePolicy:"] public init(response: NSURLResponse, data: NSData, userInfo: ?NSDictionary/*<KeyType, ObjectType>*/, storagePolicy: NSUInteger /*NSURLCacheStoragePolicy*/)
+    @ForeignName["initWithResponse:data:userInfo:storagePolicy:"] public init(response: NSURLResponse, data: NSData, userInfo: ?NSDictionary/*<KeyType, ObjectType>*/, storagePolicy: NSURLCacheStoragePolicy)
     public open prop response: NSURLResponse
     public open prop data: NSData
     public open prop userInfo: ?NSDictionary/*<KeyType, ObjectType>*/
-    public open prop storagePolicy: NSUInteger /*NSURLCacheStoragePolicy*/
+    public open prop storagePolicy: NSURLCacheStoragePolicy
 }
 
 @ObjCMirror

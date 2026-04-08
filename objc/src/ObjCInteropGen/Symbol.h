@@ -356,6 +356,9 @@ public:
         return false;
     }
 
+    virtual void print_default_value(
+        std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias);
+
 protected:
     explicit TypeLikeSymbol(std::string name) : FileLevelSymbol(std::move(name))
     {
@@ -389,6 +392,10 @@ protected:
     void visit_impl(SymbolVisitor&) override
     {
     }
+
+private:
+    void print_default_value(std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+        TypeLikeSymbol& type_alias) override;
 };
 
 /**
@@ -463,6 +470,9 @@ public:
 
 private:
     TypeLikeSymbol* const pointee_;
+
+    void print_default_value(std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+        TypeLikeSymbol& type_alias) override;
 };
 
 class VArraySymbol final : public TypeLikeSymbol {
@@ -508,6 +518,10 @@ public:
     {
         return false;
     }
+
+private:
+    void print_default_value(std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+        TypeLikeSymbol& type_alias) override;
 };
 
 class NamedTypeSymbol : public TypeLikeSymbol {
@@ -637,8 +651,12 @@ public:
 
     NamedTypeSymbol& underlying_type() const noexcept;
 
-    EnumConstantSymbol& add_constant(
-        std::string name, NamedTypeSymbol& underlying_type, const std::array<uint64_t, 2>& value);
+    void set_underlying_type(NamedTypeSymbol& underlying_type) noexcept
+    {
+        underlying_type_ = &underlying_type;
+    }
+
+    EnumConstantSymbol& add_constant(std::string name, const std::array<uint64_t, 2>& value);
 
     template <class Proc>
     void for_each_constant(Proc proc) const noexcept(noexcept(proc(std::declval<EnumConstantSymbol>())))
@@ -684,6 +702,9 @@ private:
     {
         return true;
     }
+
+    void print_default_value(std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+        TypeLikeSymbol& type_alias) override;
 };
 
 enum class PrimitiveTypeCategory : std::uint8_t {
@@ -751,6 +772,9 @@ private:
     {
         return true;
     }
+
+    void print_default_value(std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+        TypeLikeSymbol& type_alias) override;
 };
 
 /**
@@ -809,6 +833,9 @@ private:
     }
 
     void print(std::ostream& stream, SymbolPrintFormat format) override;
+
+    void print_default_value(std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+        TypeLikeSymbol& type_alias) override;
 
     TypeLikeSymbol& type_;
 };
@@ -987,6 +1014,9 @@ public:
         static_instance_clashes_resolved_ = true;
     }
 
+    void print_default_value(std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+        TypeLikeSymbol& type_alias) override;
+
 protected:
     void visit_impl(SymbolVisitor& visitor) override;
 };
@@ -1122,6 +1152,10 @@ public:
     void print(std::ostream& stream, SymbolPrintFormat format) override;
 
     [[nodiscard]] FuncTypeSymbol* map() override;
+
+private:
+    void print_default_value(std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+        TypeLikeSymbol& type_alias) override;
 };
 
 class BlockTypeSymbol final : public FuncLikeTypeSymbol {
@@ -1138,6 +1172,10 @@ public:
     void print(std::ostream& stream, SymbolPrintFormat) override;
 
     [[nodiscard]] BlockTypeSymbol* map() override;
+
+private:
+    void print_default_value(std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+        TypeLikeSymbol& type_alias) override;
 };
 
 class ConstructedTypeSymbol final : public NamedTypeSymbol {
@@ -1187,6 +1225,10 @@ public:
 
 protected:
     void visit_impl(SymbolVisitor& visitor) override;
+
+private:
+    void print_default_value(std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+        TypeLikeSymbol& type_alias) override;
 };
 
 class TypeAliasSymbol final : public NamedTypeSymbol {
@@ -1248,7 +1290,11 @@ public:
 
 protected:
     void visit_impl(SymbolVisitor& visitor) override;
+
     void print(std::ostream& stream, SymbolPrintFormat format) override;
+
+    void print_default_value(std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+        TypeLikeSymbol& type_alias) override;
 };
 
 class NonTypeSymbol final : public FileLevelSymbol {

@@ -5,30 +5,22 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSPropertyListMutabilityOptions {
-    public static const NSPropertyListImmutable: NSUInteger = 0
-    public static const NSPropertyListMutableContainers: NSUInteger = 1
-    public static const NSPropertyListMutableContainersAndLeaves: NSUInteger = 2
-}
+public type NSPropertyListMutabilityOptions = NSUInteger
 
-public abstract sealed class NSPropertyListFormat {
-    public static const NSPropertyListOpenStepFormat: NSUInteger = 1
-    public static const NSPropertyListXMLFormat_v1_0: NSUInteger = 100
-    public static const NSPropertyListBinaryFormat_v1_0: NSUInteger = 200
-}
+public type NSPropertyListFormat = NSUInteger
 
-public type NSPropertyListReadOptions = NSUInteger /*NSPropertyListMutabilityOptions*/
+public type NSPropertyListReadOptions = NSPropertyListMutabilityOptions
 
 public type NSPropertyListWriteOptions = NSUInteger
 
 @ObjCMirror
 public open class NSPropertyListSerialization <: NSObject {
-    @ForeignName["propertyList:isValidForFormat:"] public static func propertyListIsValidForFormat(plist: ObjCId, format: NSUInteger /*NSPropertyListFormat*/): Bool
-    @ForeignName["dataWithPropertyList:format:options:error:"] public static func dataWithPropertyListFormatOptionsError(plist: ObjCId, format: NSUInteger /*NSPropertyListFormat*/, opt: NSPropertyListWriteOptions, error: ObjCPointer<NSError>): ?NSData
-    @ForeignName["writePropertyList:toStream:format:options:error:"] public static func writePropertyListToStreamFormatOptionsError(plist: ObjCId, stream: NSOutputStream, format: NSUInteger /*NSPropertyListFormat*/, opt: NSPropertyListWriteOptions, error: ObjCPointer<NSError>): NSInteger
-    @ForeignName["propertyListWithData:options:format:error:"] public static func propertyListWithDataOptionsFormatError(data: NSData, opt: NSPropertyListReadOptions, format: ObjCPointer<NSUInteger /*NSPropertyListFormat*/>, error: ObjCPointer<NSError>): ?ObjCId
-    @ForeignName["propertyListWithStream:options:format:error:"] public static func propertyListWithStreamOptionsFormatError(stream: NSInputStream, opt: NSPropertyListReadOptions, format: ObjCPointer<NSUInteger /*NSPropertyListFormat*/>, error: ObjCPointer<NSError>): ?ObjCId
-    @ForeignName["dataFromPropertyList:format:errorDescription:"] public static func dataFromPropertyListFormatErrorDescription(plist: ObjCId, format: NSUInteger /*NSPropertyListFormat*/, errorString: ObjCPointer<NSString>): ?NSData
-    @ForeignName["propertyListFromData:mutabilityOption:format:errorDescription:"] public static func propertyListFromDataMutabilityOptionFormatErrorDescription(data: NSData, opt: NSUInteger /*NSPropertyListMutabilityOptions*/, format: ObjCPointer<NSUInteger /*NSPropertyListFormat*/>, errorString: ObjCPointer<NSString>): ?ObjCId
+    @ForeignName["propertyList:isValidForFormat:"] public static func propertyListIsValidForFormat(plist: ObjCId, format: NSPropertyListFormat): Bool
+    @ForeignName["dataWithPropertyList:format:options:error:"] public static func dataWithPropertyListFormatOptionsError(plist: ObjCId, format: NSPropertyListFormat, opt: NSPropertyListWriteOptions, error: ObjCPointer<NSError>): ?NSData
+    @ForeignName["writePropertyList:toStream:format:options:error:"] public static func writePropertyListToStreamFormatOptionsError(plist: ObjCId, stream: NSOutputStream, format: NSPropertyListFormat, opt: NSPropertyListWriteOptions, error: ObjCPointer<NSError>): NSInteger
+    @ForeignName["propertyListWithData:options:format:error:"] public static func propertyListWithDataOptionsFormatError(data: NSData, opt: NSPropertyListReadOptions, format: ObjCPointer<NSPropertyListFormat>, error: ObjCPointer<NSError>): ?ObjCId
+    @ForeignName["propertyListWithStream:options:format:error:"] public static func propertyListWithStreamOptionsFormatError(stream: NSInputStream, opt: NSPropertyListReadOptions, format: ObjCPointer<NSPropertyListFormat>, error: ObjCPointer<NSError>): ?ObjCId
+    @ForeignName["dataFromPropertyList:format:errorDescription:"] public static func dataFromPropertyListFormatErrorDescription(plist: ObjCId, format: NSPropertyListFormat, errorString: ObjCPointer<NSString>): ?NSData
+    @ForeignName["propertyListFromData:mutabilityOption:format:errorDescription:"] public static func propertyListFromDataMutabilityOptionFormatErrorDescription(data: NSData, opt: NSPropertyListMutabilityOptions, format: ObjCPointer<NSPropertyListFormat>, errorString: ObjCPointer<NSString>): ?ObjCId
 }
 

@@ -5,16 +5,12 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSMeasurementFormatterUnitOptions {
-    public static const NSMeasurementFormatterUnitOptionsProvidedUnit: NSUInteger = 1
-    public static const NSMeasurementFormatterUnitOptionsNaturalScale: NSUInteger = 2
-    public static const NSMeasurementFormatterUnitOptionsTemperatureWithoutUnit: NSUInteger = 4
-}
+public type NSMeasurementFormatterUnitOptions = NSUInteger
 
 @ObjCMirror
 public open class NSMeasurementFormatter <: NSFormatter & NSSecureCoding {
-    public open mut prop unitOptions: NSUInteger /*NSMeasurementFormatterUnitOptions*/
-    public open mut prop unitStyle: NSInteger /*NSFormattingUnitStyle*/
+    public open mut prop unitOptions: NSMeasurementFormatterUnitOptions
+    public open mut prop unitStyle: NSFormattingUnitStyle
     public open mut prop locale: NSLocale
     public open mut prop numberFormatter: NSNumberFormatter
     @ForeignName["stringFromMeasurement:"] public open func stringFromMeasurement(measurement: NSMeasurement/*<UnitType>*/): NSString

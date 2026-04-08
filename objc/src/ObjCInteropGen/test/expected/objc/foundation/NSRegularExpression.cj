@@ -5,15 +5,7 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSRegularExpressionOptions {
-    public static const NSRegularExpressionCaseInsensitive: NSUInteger = 1
-    public static const NSRegularExpressionAllowCommentsAndWhitespace: NSUInteger = 2
-    public static const NSRegularExpressionIgnoreMetacharacters: NSUInteger = 4
-    public static const NSRegularExpressionDotMatchesLineSeparators: NSUInteger = 8
-    public static const NSRegularExpressionAnchorsMatchLines: NSUInteger = 16
-    public static const NSRegularExpressionUseUnixLineSeparators: NSUInteger = 32
-    public static const NSRegularExpressionUseUnicodeWordBoundaries: NSUInteger = 64
-}
+public type NSRegularExpressionOptions = NSUInteger
 
 @ObjCMirror
 public open class NSRegularExpression <: NSObject & NSCopying & NSSecureCoding {
@@ -21,38 +13,26 @@ public open class NSRegularExpression <: NSObject & NSCopying & NSSecureCoding {
     protected var _options: NSUInteger
     protected var _internal: ObjCPointer<Unit>
     protected var _checkout: int32_t
-    @ForeignName["regularExpressionWithPattern:options:error:"] public static func regularExpressionWithPatternOptionsError(pattern: NSString, options: NSUInteger /*NSRegularExpressionOptions*/, error: ObjCPointer<NSError>): ?NSRegularExpression
-    @ForeignName["initWithPattern:options:error:"] public init(pattern: NSString, options: NSUInteger /*NSRegularExpressionOptions*/, error: ObjCPointer<NSError>)
+    @ForeignName["regularExpressionWithPattern:options:error:"] public static func regularExpressionWithPatternOptionsError(pattern: NSString, options: NSRegularExpressionOptions, error: ObjCPointer<NSError>): ?NSRegularExpression
+    @ForeignName["initWithPattern:options:error:"] public init(pattern: NSString, options: NSRegularExpressionOptions, error: ObjCPointer<NSError>)
     public open prop pattern: NSString
-    public open prop options: NSUInteger /*NSRegularExpressionOptions*/
+    public open prop options: NSRegularExpressionOptions
     public open prop numberOfCaptureGroups: NSUInteger
     @ForeignName["escapedPatternForString:"] public static func escapedPatternForString(string: NSString): NSString
-    @ForeignName["enumerateMatchesInString:options:range:usingBlock:"] public open func enumerateMatchesInStringOptionsRangeUsingBlock(string: NSString, options: NSUInteger /*NSMatchingOptions*/, range: NSRange, block: ObjCBlock<(NSTextCheckingResult, NSUInteger /*NSMatchingFlags*/, ObjCPointer<Bool>) -> Unit>): Unit
-    @ForeignName["matchesInString:options:range:"] public open func matchesInStringOptionsRange(string: NSString, options: NSUInteger /*NSMatchingOptions*/, range: NSRange): NSArray/*<NSTextCheckingResult>*/
-    @ForeignName["numberOfMatchesInString:options:range:"] public open func numberOfMatchesInStringOptionsRange(string: NSString, options: NSUInteger /*NSMatchingOptions*/, range: NSRange): NSUInteger
-    @ForeignName["firstMatchInString:options:range:"] public open func firstMatchInStringOptionsRange(string: NSString, options: NSUInteger /*NSMatchingOptions*/, range: NSRange): ?NSTextCheckingResult
-    @ForeignName["rangeOfFirstMatchInString:options:range:"] public open func rangeOfFirstMatchInStringOptionsRange(string: NSString, options: NSUInteger /*NSMatchingOptions*/, range: NSRange): NSRange
-    @ForeignName["stringByReplacingMatchesInString:options:range:withTemplate:"] public open func stringByReplacingMatchesInStringOptionsRangeWithTemplate(string: NSString, options: NSUInteger /*NSMatchingOptions*/, range: NSRange, templ: NSString): NSString
-    @ForeignName["replaceMatchesInString:options:range:withTemplate:"] public open func replaceMatchesInStringOptionsRangeWithTemplate(string: NSMutableString, options: NSUInteger /*NSMatchingOptions*/, range: NSRange, templ: NSString): NSUInteger
+    @ForeignName["enumerateMatchesInString:options:range:usingBlock:"] public open func enumerateMatchesInStringOptionsRangeUsingBlock(string: NSString, options: NSMatchingOptions, range: NSRange, block: ObjCBlock<(NSTextCheckingResult, NSMatchingFlags, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["matchesInString:options:range:"] public open func matchesInStringOptionsRange(string: NSString, options: NSMatchingOptions, range: NSRange): NSArray/*<NSTextCheckingResult>*/
+    @ForeignName["numberOfMatchesInString:options:range:"] public open func numberOfMatchesInStringOptionsRange(string: NSString, options: NSMatchingOptions, range: NSRange): NSUInteger
+    @ForeignName["firstMatchInString:options:range:"] public open func firstMatchInStringOptionsRange(string: NSString, options: NSMatchingOptions, range: NSRange): ?NSTextCheckingResult
+    @ForeignName["rangeOfFirstMatchInString:options:range:"] public open func rangeOfFirstMatchInStringOptionsRange(string: NSString, options: NSMatchingOptions, range: NSRange): NSRange
+    @ForeignName["stringByReplacingMatchesInString:options:range:withTemplate:"] public open func stringByReplacingMatchesInStringOptionsRangeWithTemplate(string: NSString, options: NSMatchingOptions, range: NSRange, templ: NSString): NSString
+    @ForeignName["replaceMatchesInString:options:range:withTemplate:"] public open func replaceMatchesInStringOptionsRangeWithTemplate(string: NSMutableString, options: NSMatchingOptions, range: NSRange, templ: NSString): NSUInteger
     @ForeignName["replacementStringForResult:inString:offset:template:"] public open func replacementStringForResultInStringOffsetTemplate(result: NSTextCheckingResult, string: NSString, offset: NSInteger, templ: NSString): NSString
     @ForeignName["escapedTemplateForString:"] public static func escapedTemplateForString(string: NSString): NSString
 }
 
-public abstract sealed class NSMatchingOptions {
-    public static const NSMatchingReportProgress: NSUInteger = 1
-    public static const NSMatchingReportCompletion: NSUInteger = 2
-    public static const NSMatchingAnchored: NSUInteger = 4
-    public static const NSMatchingWithTransparentBounds: NSUInteger = 8
-    public static const NSMatchingWithoutAnchoringBounds: NSUInteger = 16
-}
+public type NSMatchingOptions = NSUInteger
 
-public abstract sealed class NSMatchingFlags {
-    public static const NSMatchingProgress: NSUInteger = 1
-    public static const NSMatchingCompleted: NSUInteger = 2
-    public static const NSMatchingHitEnd: NSUInteger = 4
-    public static const NSMatchingRequiredEnd: NSUInteger = 8
-    public static const NSMatchingInternalError: NSUInteger = 16
-}
+public type NSMatchingFlags = NSUInteger
 
 @ObjCMirror
 public open class NSDataDetector <: NSRegularExpression {

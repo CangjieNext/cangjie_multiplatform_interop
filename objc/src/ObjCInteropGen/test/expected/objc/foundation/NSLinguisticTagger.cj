@@ -9,44 +9,33 @@ public type NSLinguisticTagScheme = NSString
 
 public type NSLinguisticTag = NSString
 
-public abstract sealed class NSLinguisticTaggerUnit {
-    public static const NSLinguisticTaggerUnitWord: NSInteger = 0
-    public static const NSLinguisticTaggerUnitSentence: NSInteger = 1
-    public static const NSLinguisticTaggerUnitParagraph: NSInteger = 2
-    public static const NSLinguisticTaggerUnitDocument: NSInteger = 3
-}
+public type NSLinguisticTaggerUnit = NSInteger
 
-public abstract sealed class NSLinguisticTaggerOptions {
-    public static const NSLinguisticTaggerOmitWords: NSUInteger = 1
-    public static const NSLinguisticTaggerOmitPunctuation: NSUInteger = 2
-    public static const NSLinguisticTaggerOmitWhitespace: NSUInteger = 4
-    public static const NSLinguisticTaggerOmitOther: NSUInteger = 8
-    public static const NSLinguisticTaggerJoinNames: NSUInteger = 16
-}
+public type NSLinguisticTaggerOptions = NSUInteger
 
 @ObjCMirror
 public open class NSLinguisticTagger <: NSObject {
     @ForeignName["initWithTagSchemes:options:"] public init(tagSchemes: NSArray/*<NSLinguisticTagScheme>*/, opts: NSUInteger)
     public open prop tagSchemes: NSArray/*<NSLinguisticTagScheme>*/
     public open mut prop string: ?NSString
-    @ForeignName["availableTagSchemesForUnit:language:"] public static func availableTagSchemesForUnitLanguage(unit: NSInteger /*NSLinguisticTaggerUnit*/, language: NSString): NSArray/*<NSLinguisticTagScheme>*/
+    @ForeignName["availableTagSchemesForUnit:language:"] public static func availableTagSchemesForUnitLanguage(unit: NSLinguisticTaggerUnit, language: NSString): NSArray/*<NSLinguisticTagScheme>*/
     @ForeignName["availableTagSchemesForLanguage:"] public static func availableTagSchemesForLanguage(language: NSString): NSArray/*<NSLinguisticTagScheme>*/
     @ForeignName["setOrthography:range:"] public open func setOrthographyRange(orthography: ?NSOrthography, range: NSRange): Unit
     @ForeignName["orthographyAtIndex:effectiveRange:"] public open func orthographyAtIndexEffectiveRange(charIndex: NSUInteger, effectiveRange: NSRangePointer): ?NSOrthography
     @ForeignName["stringEditedInRange:changeInLength:"] public open func stringEditedInRangeChangeInLength(newRange: NSRange, delta: NSInteger): Unit
-    @ForeignName["tokenRangeAtIndex:unit:"] public open func tokenRangeAtIndexUnit(charIndex: NSUInteger, unit: NSInteger /*NSLinguisticTaggerUnit*/): NSRange
+    @ForeignName["tokenRangeAtIndex:unit:"] public open func tokenRangeAtIndexUnit(charIndex: NSUInteger, unit: NSLinguisticTaggerUnit): NSRange
     @ForeignName["sentenceRangeForRange:"] public open func sentenceRangeForRange(range: NSRange): NSRange
-    @ForeignName["enumerateTagsInRange:unit:scheme:options:usingBlock:"] public open func enumerateTagsInRangeUnitSchemeOptionsUsingBlock(range: NSRange, unit: NSInteger /*NSLinguisticTaggerUnit*/, scheme: NSLinguisticTagScheme, options: NSUInteger /*NSLinguisticTaggerOptions*/, block: ObjCBlock<(NSLinguisticTag, NSRange, ObjCPointer<Bool>) -> Unit>): Unit
-    @ForeignName["tagAtIndex:unit:scheme:tokenRange:"] public open func tagAtIndexUnitSchemeTokenRange(charIndex: NSUInteger, unit: NSInteger /*NSLinguisticTaggerUnit*/, scheme: NSLinguisticTagScheme, tokenRange: NSRangePointer): NSLinguisticTag
-    @ForeignName["tagsInRange:unit:scheme:options:tokenRanges:"] public open func tagsInRangeUnitSchemeOptionsTokenRanges(range: NSRange, unit: NSInteger /*NSLinguisticTaggerUnit*/, scheme: NSLinguisticTagScheme, options: NSUInteger /*NSLinguisticTaggerOptions*/, tokenRanges: ObjCPointer<NSArray/*<NSValue>*/>): NSArray/*<NSLinguisticTag>*/
-    @ForeignName["enumerateTagsInRange:scheme:options:usingBlock:"] public open func enumerateTagsInRangeSchemeOptionsUsingBlock(range: NSRange, tagScheme: NSLinguisticTagScheme, opts: NSUInteger /*NSLinguisticTaggerOptions*/, block: ObjCBlock<(NSLinguisticTag, NSRange, NSRange, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["enumerateTagsInRange:unit:scheme:options:usingBlock:"] public open func enumerateTagsInRangeUnitSchemeOptionsUsingBlock(range: NSRange, unit: NSLinguisticTaggerUnit, scheme: NSLinguisticTagScheme, options: NSLinguisticTaggerOptions, block: ObjCBlock<(NSLinguisticTag, NSRange, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["tagAtIndex:unit:scheme:tokenRange:"] public open func tagAtIndexUnitSchemeTokenRange(charIndex: NSUInteger, unit: NSLinguisticTaggerUnit, scheme: NSLinguisticTagScheme, tokenRange: NSRangePointer): NSLinguisticTag
+    @ForeignName["tagsInRange:unit:scheme:options:tokenRanges:"] public open func tagsInRangeUnitSchemeOptionsTokenRanges(range: NSRange, unit: NSLinguisticTaggerUnit, scheme: NSLinguisticTagScheme, options: NSLinguisticTaggerOptions, tokenRanges: ObjCPointer<NSArray/*<NSValue>*/>): NSArray/*<NSLinguisticTag>*/
+    @ForeignName["enumerateTagsInRange:scheme:options:usingBlock:"] public open func enumerateTagsInRangeSchemeOptionsUsingBlock(range: NSRange, tagScheme: NSLinguisticTagScheme, opts: NSLinguisticTaggerOptions, block: ObjCBlock<(NSLinguisticTag, NSRange, NSRange, ObjCPointer<Bool>) -> Unit>): Unit
     @ForeignName["tagAtIndex:scheme:tokenRange:sentenceRange:"] public open func tagAtIndexSchemeTokenRangeSentenceRange(charIndex: NSUInteger, scheme: NSLinguisticTagScheme, tokenRange: NSRangePointer, sentenceRange: NSRangePointer): NSLinguisticTag
-    @ForeignName["tagsInRange:scheme:options:tokenRanges:"] public open func tagsInRangeSchemeOptionsTokenRanges(range: NSRange, tagScheme: NSString, opts: NSUInteger /*NSLinguisticTaggerOptions*/, tokenRanges: ObjCPointer<NSArray/*<NSValue>*/>): NSArray/*<NSString>*/
+    @ForeignName["tagsInRange:scheme:options:tokenRanges:"] public open func tagsInRangeSchemeOptionsTokenRanges(range: NSRange, tagScheme: NSString, opts: NSLinguisticTaggerOptions, tokenRanges: ObjCPointer<NSArray/*<NSValue>*/>): NSArray/*<NSString>*/
     public open prop dominantLanguage: ?NSString
     @ForeignName["dominantLanguageForString:"] public static func dominantLanguageForString(string: NSString): ?NSString
-    @ForeignName["tagForString:atIndex:unit:scheme:orthography:tokenRange:"] public static func tagForStringAtIndexUnitSchemeOrthographyTokenRange(string: NSString, charIndex: NSUInteger, unit: NSInteger /*NSLinguisticTaggerUnit*/, scheme: NSLinguisticTagScheme, orthography: ?NSOrthography, tokenRange: NSRangePointer): NSLinguisticTag
-    @ForeignName["tagsForString:range:unit:scheme:options:orthography:tokenRanges:"] public static func tagsForStringRangeUnitSchemeOptionsOrthographyTokenRanges(string: NSString, range: NSRange, unit: NSInteger /*NSLinguisticTaggerUnit*/, scheme: NSLinguisticTagScheme, options: NSUInteger /*NSLinguisticTaggerOptions*/, orthography: ?NSOrthography, tokenRanges: ObjCPointer<NSArray/*<NSValue>*/>): NSArray/*<NSLinguisticTag>*/
-    @ForeignName["enumerateTagsForString:range:unit:scheme:options:orthography:usingBlock:"] public static func enumerateTagsForStringRangeUnitSchemeOptionsOrthographyUsingBlock(string: NSString, range: NSRange, unit: NSInteger /*NSLinguisticTaggerUnit*/, scheme: NSLinguisticTagScheme, options: NSUInteger /*NSLinguisticTaggerOptions*/, orthography: ?NSOrthography, block: ObjCBlock<(NSLinguisticTag, NSRange, ObjCPointer<Bool>) -> Unit>): Unit
+    @ForeignName["tagForString:atIndex:unit:scheme:orthography:tokenRange:"] public static func tagForStringAtIndexUnitSchemeOrthographyTokenRange(string: NSString, charIndex: NSUInteger, unit: NSLinguisticTaggerUnit, scheme: NSLinguisticTagScheme, orthography: ?NSOrthography, tokenRange: NSRangePointer): NSLinguisticTag
+    @ForeignName["tagsForString:range:unit:scheme:options:orthography:tokenRanges:"] public static func tagsForStringRangeUnitSchemeOptionsOrthographyTokenRanges(string: NSString, range: NSRange, unit: NSLinguisticTaggerUnit, scheme: NSLinguisticTagScheme, options: NSLinguisticTaggerOptions, orthography: ?NSOrthography, tokenRanges: ObjCPointer<NSArray/*<NSValue>*/>): NSArray/*<NSLinguisticTag>*/
+    @ForeignName["enumerateTagsForString:range:unit:scheme:options:orthography:usingBlock:"] public static func enumerateTagsForStringRangeUnitSchemeOptionsOrthographyUsingBlock(string: NSString, range: NSRange, unit: NSLinguisticTaggerUnit, scheme: NSLinguisticTagScheme, options: NSLinguisticTaggerOptions, orthography: ?NSOrthography, block: ObjCBlock<(NSLinguisticTag, NSRange, ObjCPointer<Bool>) -> Unit>): Unit
     @ForeignName["possibleTagsAtIndex:scheme:tokenRange:sentenceRange:scores:"] public open func possibleTagsAtIndexSchemeTokenRangeSentenceRangeScores(charIndex: NSUInteger, tagScheme: NSString, tokenRange: NSRangePointer, sentenceRange: NSRangePointer, scores: ObjCPointer<NSArray/*<NSValue>*/>): ?NSArray/*<NSString>*/
 }
 

@@ -8,30 +8,14 @@ import objc.lang.*
 @ObjCMirror
 public interface NSStreamDelegate <: NSObjectProtocol {
     @ObjCOptional
-    @ForeignName["stream:handleEvent:"] func streamHandleEvent(aStream: NSStream, eventCode: NSUInteger /*NSStreamEvent*/): Unit
+    @ForeignName["stream:handleEvent:"] func streamHandleEvent(aStream: NSStream, eventCode: NSStreamEvent): Unit
 }
 
 public type NSStreamPropertyKey = NSString
 
-public abstract sealed class NSStreamStatus {
-    public static const NSStreamStatusNotOpen: NSUInteger = 0
-    public static const NSStreamStatusOpening: NSUInteger = 1
-    public static const NSStreamStatusOpen: NSUInteger = 2
-    public static const NSStreamStatusReading: NSUInteger = 3
-    public static const NSStreamStatusWriting: NSUInteger = 4
-    public static const NSStreamStatusAtEnd: NSUInteger = 5
-    public static const NSStreamStatusClosed: NSUInteger = 6
-    public static const NSStreamStatusError: NSUInteger = 7
-}
+public type NSStreamStatus = NSUInteger
 
-public abstract sealed class NSStreamEvent {
-    public static const NSStreamEventNone: NSUInteger = 0
-    public static const NSStreamEventOpenCompleted: NSUInteger = 1
-    public static const NSStreamEventHasBytesAvailable: NSUInteger = 2
-    public static const NSStreamEventHasSpaceAvailable: NSUInteger = 4
-    public static const NSStreamEventErrorOccurred: NSUInteger = 8
-    public static const NSStreamEventEndEncountered: NSUInteger = 16
-}
+public type NSStreamEvent = NSUInteger
 
 @ObjCMirror
 public open class NSStream <: NSObject {
@@ -42,7 +26,7 @@ public open class NSStream <: NSObject {
     @ForeignName["setProperty:forKey:"] public open func setPropertyForKey(property: ?ObjCId, key: NSStreamPropertyKey): Bool
     @ForeignName["scheduleInRunLoop:forMode:"] public open func scheduleInRunLoopForMode(aRunLoop: NSRunLoop, mode: NSRunLoopMode): Unit
     @ForeignName["removeFromRunLoop:forMode:"] public open func removeFromRunLoopForMode(aRunLoop: NSRunLoop, mode: NSRunLoopMode): Unit
-    public open prop streamStatus: NSUInteger /*NSStreamStatus*/
+    public open prop streamStatus: NSStreamStatus
     public open prop streamError: ?NSError
     @ForeignName["getStreamsToHostWithName:port:inputStream:outputStream:"] public static func getStreamsToHostWithNamePortInputStreamOutputStream(hostname: NSString, port: NSInteger, inputStream: ObjCPointer<NSInputStream>, outputStream: ObjCPointer<NSOutputStream>): Unit
     @ForeignName["getBoundStreamsWithBufferSize:inputStream:outputStream:"] public static func getBoundStreamsWithBufferSizeInputStreamOutputStream(bufferSize: NSUInteger, inputStream: ObjCPointer<NSInputStream>, outputStream: ObjCPointer<NSOutputStream>): Unit

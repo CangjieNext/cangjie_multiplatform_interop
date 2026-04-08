@@ -65,13 +65,13 @@ public open class NSURL <: NSObject & NSSecureCoding & NSCopying {
     @ForeignName["removeCachedResourceValueForKey:"] public open func removeCachedResourceValueForKey(key: NSURLResourceKey): Unit
     public open func removeAllCachedResourceValues(): Unit
     @ForeignName["setTemporaryResourceValue:forKey:"] public open func setTemporaryResourceValueForKey(value: ?ObjCId, key: NSURLResourceKey): Unit
-    @ForeignName["bookmarkDataWithOptions:includingResourceValuesForKeys:relativeToURL:error:"] public open func bookmarkDataWithOptionsIncludingResourceValuesForKeysRelativeToURLError(options: NSUInteger /*NSURLBookmarkCreationOptions*/, keys: ?NSArray/*<NSURLResourceKey>*/, relativeURL: ?NSURL, error: ObjCPointer<NSError>): ?NSData
-    @ForeignName["initByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:"] public init(bookmarkData: NSData, options: NSUInteger /*NSURLBookmarkResolutionOptions*/, relativeURL: ?NSURL, isStale: ObjCPointer<Bool>, error: ObjCPointer<NSError>)
-    @ForeignName["URLByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:"] public static func URLByResolvingBookmarkDataOptionsRelativeToURLBookmarkDataIsStaleError(bookmarkData: NSData, options: NSUInteger /*NSURLBookmarkResolutionOptions*/, relativeURL: ?NSURL, isStale: ObjCPointer<Bool>, error: ObjCPointer<NSError>): NSURL
+    @ForeignName["bookmarkDataWithOptions:includingResourceValuesForKeys:relativeToURL:error:"] public open func bookmarkDataWithOptionsIncludingResourceValuesForKeysRelativeToURLError(options: NSURLBookmarkCreationOptions, keys: ?NSArray/*<NSURLResourceKey>*/, relativeURL: ?NSURL, error: ObjCPointer<NSError>): ?NSData
+    @ForeignName["initByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:"] public init(bookmarkData: NSData, options: NSURLBookmarkResolutionOptions, relativeURL: ?NSURL, isStale: ObjCPointer<Bool>, error: ObjCPointer<NSError>)
+    @ForeignName["URLByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:"] public static func URLByResolvingBookmarkDataOptionsRelativeToURLBookmarkDataIsStaleError(bookmarkData: NSData, options: NSURLBookmarkResolutionOptions, relativeURL: ?NSURL, isStale: ObjCPointer<Bool>, error: ObjCPointer<NSError>): NSURL
     @ForeignName["resourceValuesForKeys:fromBookmarkData:"] public static func resourceValuesForKeysFromBookmarkData(keys: NSArray/*<NSURLResourceKey>*/, bookmarkData: NSData): ?NSDictionary/*<NSURLResourceKey, ObjCId>*/
     @ForeignName["writeBookmarkData:toURL:options:error:"] public static func writeBookmarkDataToURLOptionsError(bookmarkData: NSData, bookmarkFileURL: NSURL, options: NSURLBookmarkFileCreationOptions, error: ObjCPointer<NSError>): Bool
     @ForeignName["bookmarkDataWithContentsOfURL:error:"] public static func bookmarkDataWithContentsOfURLError(bookmarkFileURL: NSURL, error: ObjCPointer<NSError>): ?NSData
-    @ForeignName["URLByResolvingAliasFileAtURL:options:error:"] public static func URLByResolvingAliasFileAtURLOptionsError(url: NSURL, options: NSUInteger /*NSURLBookmarkResolutionOptions*/, error: ObjCPointer<NSError>): NSURL
+    @ForeignName["URLByResolvingAliasFileAtURL:options:error:"] public static func URLByResolvingAliasFileAtURLOptionsError(url: NSURL, options: NSURLBookmarkResolutionOptions, error: ObjCPointer<NSError>): NSURL
     public open func startAccessingSecurityScopedResource(): Bool
     public open func stopAccessingSecurityScopedResource(): Unit
     @ForeignName["getPromisedItemResourceValue:forKey:error:"] public open func getPromisedItemResourceValueForKeyError(value: ObjCPointer<ObjCId>, key: NSURLResourceKey, error: ObjCPointer<NSError>): Bool
@@ -103,21 +103,9 @@ public type NSURLUbiquitousSharedItemRole = NSString
 
 public type NSURLUbiquitousSharedItemPermissions = NSString
 
-public abstract sealed class NSURLBookmarkCreationOptions {
-    public static const NSURLBookmarkCreationPreferFileIDResolution: NSUInteger = 256
-    public static const NSURLBookmarkCreationMinimalBookmark: NSUInteger = 512
-    public static const NSURLBookmarkCreationSuitableForBookmarkFile: NSUInteger = 1024
-    public static const NSURLBookmarkCreationWithSecurityScope: NSUInteger = 2048
-    public static const NSURLBookmarkCreationSecurityScopeAllowOnlyReadAccess: NSUInteger = 4096
-    public static const NSURLBookmarkCreationWithoutImplicitSecurityScope: NSUInteger = 536870912
-}
+public type NSURLBookmarkCreationOptions = NSUInteger
 
-public abstract sealed class NSURLBookmarkResolutionOptions {
-    public static const NSURLBookmarkResolutionWithoutUI: NSUInteger = 256
-    public static const NSURLBookmarkResolutionWithoutMounting: NSUInteger = 512
-    public static const NSURLBookmarkResolutionWithSecurityScope: NSUInteger = 1024
-    public static const NSURLBookmarkResolutionWithoutImplicitStartAccessing: NSUInteger = 32768
-}
+public type NSURLBookmarkResolutionOptions = NSUInteger
 
 public type NSURLBookmarkFileCreationOptions = NSUInteger
 

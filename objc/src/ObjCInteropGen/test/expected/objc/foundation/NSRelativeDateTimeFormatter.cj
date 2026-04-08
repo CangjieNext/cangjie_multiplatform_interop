@@ -5,23 +5,15 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSRelativeDateTimeFormatterStyle {
-    public static const NSRelativeDateTimeFormatterStyleNumeric: NSInteger = 0
-    public static const NSRelativeDateTimeFormatterStyleNamed: NSInteger = 1
-}
+public type NSRelativeDateTimeFormatterStyle = NSInteger
 
-public abstract sealed class NSRelativeDateTimeFormatterUnitsStyle {
-    public static const NSRelativeDateTimeFormatterUnitsStyleFull: NSInteger = 0
-    public static const NSRelativeDateTimeFormatterUnitsStyleSpellOut: NSInteger = 1
-    public static const NSRelativeDateTimeFormatterUnitsStyleShort: NSInteger = 2
-    public static const NSRelativeDateTimeFormatterUnitsStyleAbbreviated: NSInteger = 3
-}
+public type NSRelativeDateTimeFormatterUnitsStyle = NSInteger
 
 @ObjCMirror
 public open class NSRelativeDateTimeFormatter <: NSFormatter {
-    public open mut prop dateTimeStyle: NSInteger /*NSRelativeDateTimeFormatterStyle*/
-    public open mut prop unitsStyle: NSInteger /*NSRelativeDateTimeFormatterUnitsStyle*/
-    public open mut prop formattingContext: NSInteger /*NSFormattingContext*/
+    public open mut prop dateTimeStyle: NSRelativeDateTimeFormatterStyle
+    public open mut prop unitsStyle: NSRelativeDateTimeFormatterUnitsStyle
+    public open mut prop formattingContext: NSFormattingContext
     public open mut prop calendar: NSCalendar
     public open mut prop locale: NSLocale
     @ForeignName["localizedStringFromDateComponents:"] public open func localizedStringFromDateComponents(dateComponents: NSDateComponents): NSString

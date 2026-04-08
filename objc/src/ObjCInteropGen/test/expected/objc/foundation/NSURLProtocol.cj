@@ -9,7 +9,7 @@ import objc.lang.*
 public interface NSURLProtocolClient <: NSObjectProtocol {
     @ForeignName["URLProtocol:wasRedirectedToRequest:redirectResponse:"] func URLProtocolWasRedirectedToRequestRedirectResponse(protocol: NSURLProtocol, request: NSURLRequest, redirectResponse: NSURLResponse): Unit
     @ForeignName["URLProtocol:cachedResponseIsValid:"] func URLProtocolCachedResponseIsValid(protocol: NSURLProtocol, cachedResponse: NSCachedURLResponse): Unit
-    @ForeignName["URLProtocol:didReceiveResponse:cacheStoragePolicy:"] func URLProtocolDidReceiveResponseCacheStoragePolicy(protocol: NSURLProtocol, response: NSURLResponse, policy: NSUInteger /*NSURLCacheStoragePolicy*/): Unit
+    @ForeignName["URLProtocol:didReceiveResponse:cacheStoragePolicy:"] func URLProtocolDidReceiveResponseCacheStoragePolicy(protocol: NSURLProtocol, response: NSURLResponse, policy: NSURLCacheStoragePolicy): Unit
     @ForeignName["URLProtocol:didLoadData:"] func URLProtocolDidLoadData(protocol: NSURLProtocol, data: NSData): Unit
     @ForeignName["URLProtocolDidFinishLoading:"] func URLProtocolDidFinishLoading(protocol: NSURLProtocol): Unit
     @ForeignName["URLProtocol:didFailWithError:"] func URLProtocolDidFailWithError(protocol: NSURLProtocol, error: NSError): Unit

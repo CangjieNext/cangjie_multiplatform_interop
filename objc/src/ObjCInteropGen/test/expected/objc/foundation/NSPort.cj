@@ -43,18 +43,14 @@ public open class NSMachPort <: NSPort {
     @ForeignName["initWithMachPort:"] public init(machPort: uint32_t)
     public open func setDelegate(anObject: ?NSMachPortDelegate): Unit
     public open func delegate(): ?NSPortDelegate
-    @ForeignName["portWithMachPort:options:"] public static func portWithMachPortOptions(machPort: uint32_t, f: NSUInteger /*NSMachPortOptions*/): NSPort
-    @ForeignName["initWithMachPort:options:"] public init(machPort: uint32_t, f: NSUInteger /*NSMachPortOptions*/)
+    @ForeignName["portWithMachPort:options:"] public static func portWithMachPortOptions(machPort: uint32_t, f: NSMachPortOptions): NSPort
+    @ForeignName["initWithMachPort:options:"] public init(machPort: uint32_t, f: NSMachPortOptions)
     public open prop machPort: uint32_t
     public open func scheduleInRunLoopForMode(runLoop: NSRunLoop, mode: NSRunLoopMode): Unit
     public open func removeFromRunLoopForMode(runLoop: NSRunLoop, mode: NSRunLoopMode): Unit
 }
 
-public abstract sealed class NSMachPortOptions {
-    public static const NSMachPortDeallocateNone: NSUInteger = 0
-    public static const NSMachPortDeallocateSendRight: NSUInteger = 1
-    public static const NSMachPortDeallocateReceiveRight: NSUInteger = 2
-}
+public type NSMachPortOptions = NSUInteger
 
 @ObjCMirror
 public open class NSMessagePort <: NSPort {

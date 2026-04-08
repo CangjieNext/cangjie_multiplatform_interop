@@ -5,13 +5,7 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSDateIntervalFormatterStyle {
-    public static const NSDateIntervalFormatterNoStyle: NSUInteger = 0
-    public static const NSDateIntervalFormatterShortStyle: NSUInteger = 1
-    public static const NSDateIntervalFormatterMediumStyle: NSUInteger = 2
-    public static const NSDateIntervalFormatterLongStyle: NSUInteger = 3
-    public static const NSDateIntervalFormatterFullStyle: NSUInteger = 4
-}
+public type NSDateIntervalFormatterStyle = NSUInteger
 
 @ObjCMirror
 public open class NSDateIntervalFormatter <: NSFormatter {
@@ -19,8 +13,8 @@ public open class NSDateIntervalFormatter <: NSFormatter {
     public open mut prop calendar: NSCalendar
     public open mut prop timeZone: NSTimeZone
     public open mut prop dateTemplate: NSString
-    public open mut prop dateStyle: NSUInteger /*NSDateIntervalFormatterStyle*/
-    public open mut prop timeStyle: NSUInteger /*NSDateIntervalFormatterStyle*/
+    public open mut prop dateStyle: NSDateIntervalFormatterStyle
+    public open mut prop timeStyle: NSDateIntervalFormatterStyle
     @ForeignName["stringFromDate:toDate:"] public open func stringFromDateToDate(fromDate: NSDate, toDate: NSDate): NSString
     @ForeignName["stringFromDateInterval:"] public open func stringFromDateInterval(dateInterval: NSDateInterval): ?NSString
 }

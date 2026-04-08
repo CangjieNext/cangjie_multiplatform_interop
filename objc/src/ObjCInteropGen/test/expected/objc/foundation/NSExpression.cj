@@ -5,21 +5,7 @@ package objc.foundation
 import interoplib.objc.*
 import objc.lang.*
 
-public abstract sealed class NSExpressionType {
-    public static const NSConstantValueExpressionType: NSUInteger = 0
-    public static const NSEvaluatedObjectExpressionType: NSUInteger = 1
-    public static const NSVariableExpressionType: NSUInteger = 2
-    public static const NSKeyPathExpressionType: NSUInteger = 3
-    public static const NSFunctionExpressionType: NSUInteger = 4
-    public static const NSUnionSetExpressionType: NSUInteger = 5
-    public static const NSIntersectSetExpressionType: NSUInteger = 6
-    public static const NSMinusSetExpressionType: NSUInteger = 7
-    public static const NSSubqueryExpressionType: NSUInteger = 13
-    public static const NSAggregateExpressionType: NSUInteger = 14
-    public static const NSAnyKeyExpressionType: NSUInteger = 15
-    public static const NSBlockExpressionType: NSUInteger = 19
-    public static const NSConditionalExpressionType: NSUInteger = 20
-}
+public type NSExpressionType = NSUInteger
 
 @ObjCMirror
 public open class NSExpression <: NSObject & NSSecureCoding & NSCopying {
@@ -40,9 +26,9 @@ public open class NSExpression <: NSObject & NSSecureCoding & NSCopying {
     public static func expressionForAnyKey(): NSExpression
     @ForeignName["expressionForBlock:arguments:"] public static func expressionForBlockArguments(block: ObjCBlock<(ObjCId, NSArray/*<NSExpression>*/, NSMutableDictionary/*<KeyType, ObjectType>*/) -> ObjCId>, arguments: ?NSArray/*<NSExpression>*/): NSExpression
     @ForeignName["expressionForConditional:trueExpression:falseExpression:"] public static func expressionForConditionalTrueExpressionFalseExpression(predicate: NSPredicate, trueExpression: NSExpression, falseExpression: NSExpression): NSExpression
-    @ForeignName["initWithExpressionType:"] public init(`type`: NSUInteger /*NSExpressionType*/)
+    @ForeignName["initWithExpressionType:"] public init(`type`: NSExpressionType)
     @ForeignName["initWithCoder:"] public init(coder: NSCoder)
-    public open prop expressionType: NSUInteger /*NSExpressionType*/
+    public open prop expressionType: NSExpressionType
     public open prop constantValue: ?ObjCId
     public open prop keyPath: NSString
     public open prop function: NSString

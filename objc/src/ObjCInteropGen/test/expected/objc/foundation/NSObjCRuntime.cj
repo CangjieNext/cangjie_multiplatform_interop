@@ -39,29 +39,13 @@ public func NSLog(format: NSString): Unit
 @ObjCMirror
 public func NSLogv(format: NSString, args: va_list): Unit
 
-public abstract sealed class NSComparisonResult {
-    public static const NSOrderedAscending: NSInteger = -1
-    public static const NSOrderedSame: NSInteger = 0
-    public static const NSOrderedDescending: NSInteger = 1
-}
+public type NSComparisonResult = NSInteger
 
-public type NSComparator = ObjCBlock<(ObjCId, ObjCId) -> NSInteger /*NSComparisonResult*/>
+public type NSComparator = ObjCBlock<(ObjCId, ObjCId) -> NSComparisonResult>
 
-public abstract sealed class NSEnumerationOptions {
-    public static const NSEnumerationConcurrent: NSUInteger = 1
-    public static const NSEnumerationReverse: NSUInteger = 2
-}
+public type NSEnumerationOptions = NSUInteger
 
-public abstract sealed class NSSortOptions {
-    public static const NSSortConcurrent: NSUInteger = 1
-    public static const NSSortStable: NSUInteger = 16
-}
+public type NSSortOptions = NSUInteger
 
-public abstract sealed class NSQualityOfService {
-    public static const NSQualityOfServiceUserInteractive: NSInteger = 33
-    public static const NSQualityOfServiceUserInitiated: NSInteger = 25
-    public static const NSQualityOfServiceUtility: NSInteger = 17
-    public static const NSQualityOfServiceBackground: NSInteger = 9
-    public static const NSQualityOfServiceDefault: NSInteger = -1
-}
+public type NSQualityOfService = NSInteger
 
