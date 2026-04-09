@@ -156,7 +156,7 @@ void FileLevelSymbol::set_cangjie_package_name(std::string cangjie_package_name)
 
 [[nodiscard]] static Type::Kind get_kind(const TypeLikeSymbol& type_symbol)
 {
-    if (is<const TypeParameterSymbol&>(type_symbol)) {
+    if (is<TypeParameterSymbol>(type_symbol)) {
         return Type::Kind::TypeParam;
     }
     auto& universe = Universe::get();

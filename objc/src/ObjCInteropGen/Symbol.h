@@ -26,15 +26,19 @@ class SymbolVisitor;
 class TypeDeclarationSymbol;
 class TypeMapping;
 
-template <class To, class From> [[nodiscard]] bool is(From&& x)
+template <class To, class From>
+[[nodiscard]] typename std::enable_if_t<std::is_class_v<From> && std::is_class_v<To>, bool> is(const From& x)
 {
-    return dynamic_cast<std::conditional_t<std::is_pointer_v<To>, To, std::remove_reference_t<To>*>>(
-               &std::forward<From>(x)) != nullptr;
+    return dynamic_cast<const To*>(&x) != nullptr;
 }
 
-template <class To, class From> [[nodiscard]] To as(From&& x)
+template <class To, class From>
+[[nodiscard]] typename std::enable_if_t<std::is_class_v<std::remove_reference_t<From>> && std::is_reference_v<To> &&
+        std::is_class_v<std::remove_reference_t<To>>,
+    To&>
+as(From&& x)
 {
-    assert(is<To>(std::forward<From>(x)));
+    assert(is<std::remove_reference_t<To>>(x));
     return static_cast<To>(std::forward<From>(x));
 }
 
@@ -72,9 +76,7 @@ protected:
 private:
     NonCopyable(const NonCopyable&) = delete;
 
-    NonCopyable& operator=(const NonCopyable&) = default;
-
-    NonCopyable& operator=(NonCopyable&&) = default;
+    NonCopyable& operator=(const NonCopyable&) = delete;
 };
 
 class Symbol {
