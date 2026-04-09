@@ -794,7 +794,7 @@ public:
 
     void set_target(Type target) noexcept
     {
-        // TODO: check the underlying type is identical
+        // It could makes sense to check the underlying type is identical
         target_ = std::move(target);
     }
 
