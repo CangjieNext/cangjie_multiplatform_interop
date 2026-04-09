@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
         stage = "Writing Cangjie outputs";
         write_cangjie();
     } catch (const TomlParseError& e) {
-        std::cerr << e.what() << std::endl;
+        std::cerr << e.path() << ": " << e.what() << std::endl;
         return 1;
     } catch (const FatalException&) {
         // FatalException is assumed to print the error message before throwing
