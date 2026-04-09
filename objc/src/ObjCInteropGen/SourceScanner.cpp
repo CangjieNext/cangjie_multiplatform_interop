@@ -847,7 +847,7 @@ Type SourceScanner::type_like_symbol(const CXType& type, Nullability nullability
         case CXType_Typedef:
             type_kind = NamedTypeSymbol::Kind::TypeDef;
             type_name = get_type_name(type);
-            // TODO: clang_getCanonicalType(type) if needed
+            // It makes sense to call clang_getCanonicalType(type) if needed
             break;
 
         case CXType_ObjCInterface:
@@ -1044,7 +1044,7 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
     // #define NS_AUTOMATED_REFCOUNT_UNAVAILABLE
     //     __attribute__((unavailable("not available in automatic reference counting mode")))
     //
-    // TODO: take into account particular platform?
+    // It would make sense to take into account particular platform.
     int always_unavailable;
     clang_getCursorPlatformAvailability(cursor, nullptr, nullptr, &always_unavailable, nullptr, nullptr, 0);
     if (always_unavailable) {
@@ -1247,7 +1247,7 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             auto access_control = cursor_to_decl<clang::ObjCIvarDecl>(cursor).getCanonicalAccessControl();
             switch (access_control) {
                 case clang::ObjCIvarDecl::AccessControl::Package:
-                    // TODO?
+                    // Currently `package` does not go to mirrors
                     recurse = false;
                     break;
                 case clang::ObjCIvarDecl::AccessControl::Private:
@@ -1323,7 +1323,7 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             break;
         case CXCursor_VarDecl:
             // We don't support variables (generic C interop) at the moment.
-            // TODO: consider special-casing static const variables, like:
+            // It makes sense to consider special-casing static const variables, like:
             // static const NSLayoutPriority NSLayoutPriorityDefaultHigh = 750.0;
             recurse = false;
             break;
