@@ -149,9 +149,10 @@ public:
 {
     assert(!current_package_name.empty());
     const auto& symbol_package_name = symbol.cangjie_package_name();
-    return symbol_package_name.empty() || symbol_package_name == current_package_name
-        ? std::string()
-        : symbol_package_name + '.' + symbol.name();
+    if (symbol_package_name.empty() || symbol_package_name == current_package_name) {
+        return {};
+    }
+    return symbol_package_name + '.' + symbol.name();
 }
 
 class ImportCollectVisitor final : public SymbolVisitor {
@@ -180,7 +181,7 @@ private:
     {
         // If this is a type argument of an Objective-C generic type, ignore it.  Type
         // arguments are erased and may be printed inside comments only.
-        if (is<const TypeDeclarationSymbol&>(owner)) {
+        if (is<TypeDeclarationSymbol>(owner)) {
             return;
         }
 
