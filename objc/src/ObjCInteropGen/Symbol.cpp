@@ -841,7 +841,8 @@ void TypeDeclarationSymbol::mark_static_instance_clashes_resolved() noexcept
 
 void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor) const
 {
-    // TODO: is infinite recursion possible? With CRTP for example.
+    // It could make sense to analyze if infinite recursion is possible her.  With
+    // CRTP for example.
     for (auto& base : this->bases()) {
         visitor.visit_type(base);
     }
