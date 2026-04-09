@@ -14,7 +14,17 @@ namespace objcgen {
 
 class TomlParseError : public std::runtime_error {
 public:
-    using std::runtime_error::runtime_error;
+    TomlParseError(const std::string& path, const std::string& message) : std::runtime_error(message), path_(path)
+    {
+    }
+
+    [[nodiscard]] const auto& path() const noexcept
+    {
+        return path_;
+    }
+
+private:
+    std::string path_;
 };
 
 } // namespace objcgen
