@@ -61,11 +61,15 @@ static std::string compute_output_path_by_root_path(const std::string_view packa
     while (pos != std::string::npos) {
         const auto dot = package_cangjie_name.find('.', pos);
         if (dot == std::string::npos) {
-            result.append(package_cangjie_name, pos, dot);
+            if (pos != 0) {
+                result.append(package_cangjie_name, pos, dot);
+            }
             pos = std::string::npos;
         } else {
-            result.append(package_cangjie_name, pos, dot - pos);
-            result.append("/");
+            if (pos != 0) {
+                result.append(package_cangjie_name, pos, dot - pos);
+                result.append("/");
+            }
             pos = dot + 1;
         }
     }

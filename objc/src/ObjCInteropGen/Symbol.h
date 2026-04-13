@@ -1474,6 +1474,9 @@ public:
         bit_field_size_ = size;
     }
 
+    /** lack of modifiers API */
+    uint16_t modifiers_;
+
 protected:
     void visit_impl(SymbolVisitor& visitor) override;
 
@@ -1483,7 +1486,6 @@ private:
     friend class TopLevel;
 
     Kind kind_;
-    uint16_t modifiers_;
 
     // used for Kind::Property
     std::string getter_;

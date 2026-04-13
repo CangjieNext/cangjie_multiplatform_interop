@@ -7,6 +7,7 @@
 #include "Transform.h"
 
 #include <iostream>
+#include <queue>
 
 #include "Logging.h"
 #include "Mappings.h"
@@ -333,8 +334,49 @@ static void do_map()
     }
 }
 
+static void do_override_check(TypeDeclarationSymbol& type, TypeDeclarationSymbol& base_type) {
+    for (auto& member: type.members()) {
+        if (member.is_override()) {
+            continue;
+        }
+
+        for (auto &base_member: base_type.members()) {
+            if (member.name() == base_member.name()) {
+                member.modifiers_ |= ModifierOverride;
+                break;
+            }
+        }
+    }
+}
+
+static void do_override_check(TypeDeclarationSymbol& type) {
+    std::queue<TypeDeclarationSymbol*> types;
+    for (auto& base_type: type.bases()) {
+        types.push(&base_type);
+    }
+
+    while(!types.empty()) {
+        auto cur_base_type = types.front();
+        types.pop();
+        do_override_check(type, *cur_base_type);
+
+        // add next base types
+        for (auto& base_type: cur_base_type->bases()) {
+            types.push(&base_type);
+        }
+    }
+}
+
+static void do_override_check() {
+    auto& universe = Universe::get();
+    for (auto& type : universe.type_definitions()) {
+        do_override_check(type);
+    }
+}
+
 void apply_transforms()
 {
+    do_override_check();
     do_rename();
     set_type_mappings();
     do_map();
