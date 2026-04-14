@@ -9,8 +9,8 @@
 
 """Cangjie ObjectiveC interoperability build script"""
 import argparse
+import fileinput
 import logging
-import multiprocessing
 import os
 import platform
 import re
@@ -44,15 +44,19 @@ INTEROPLIB_OUT_PREFIX = os.path.join(INTEROPLIB_OUT, RELEASE, INTEROPLIB_NAME_IN
 OBJC_OUT_PREFIX = os.path.join(INTEROPLIB_OUT, RELEASE, OBJC_NAME_IN_TOML)
 
 OUT_INTEROPLIB_COMMON_DYLIB = os.path.join(INTEROPLIB_OUT_PREFIX, f"libinteroplib.common.{DYLIB_EXT}")
+OUT_INTEROPLIB_COMMON_A     = os.path.join(INTEROPLIB_OUT_PREFIX, "libinteroplib.common.a")
 OUT_INTEROPLIB_COMMON_CJO   = os.path.join(INTEROPLIB_OUT_PREFIX, "interoplib.common.cjo")
 
 OUT_INTEROPLIB_OBJC_DYLIB = os.path.join(INTEROPLIB_OUT_PREFIX, f"libinteroplib.objc.{DYLIB_EXT}")
+OUT_INTEROPLIB_OBJC_A     = os.path.join(INTEROPLIB_OUT_PREFIX, "libinteroplib.objc.a")
 OUT_INTEROPLIB_OBJC_CJO   = os.path.join(INTEROPLIB_OUT_PREFIX, "interoplib.objc.cjo")
 
 OUT_OBJC_LANG_DYLIB = os.path.join(OBJC_OUT_PREFIX, f"libobjc.lang.{DYLIB_EXT}")
+OUT_OBJC_LANG_A     = os.path.join(OBJC_OUT_PREFIX, "libobjc.lang.a")
 OUT_OBJC_LANG_CJO   = os.path.join(OBJC_OUT_PREFIX, "objc.lang.cjo")
 
 OUT_INTEROPLIB_OBJCLIB_DYLIB = os.path.join(INTEROPLIB_OUT_PREFIX, f"libinteroplib.objclib.{DYLIB_EXT}")
+OUT_INTEROPLIB_OBJCLIB_A     = os.path.join(INTEROPLIB_OUT_PREFIX, "libinteroplib.objclib.a")
 
 LOG_DIR = os.path.join(BUILD_DIR, 'logs')
 LOG_FILE = os.path.join(LOG_DIR, 'ObjCInteropGen.log')
@@ -105,6 +109,25 @@ def fixedEnv(env=None):
         env = os.environ.copy()
     env["ZERO_AR_DATE"] = "1"
     return env
+
+def check_clang(args):
+    # If user didn't specify --target-toolchain, we search for an available compiler in $PATH.
+    # If user did specify --target-toolchain, we search in user given path ONLY. By doing so
+    # user could see a proper 'compiler not found' error if the given path is incorrect.
+    toolchain_path = args.target_toolchain if args.target_toolchain else None
+    if toolchain_path and (not os.path.exists(toolchain_path)):
+        LOG.error(f"The given toolchain path does not exist: {toolchain_path}")
+
+    c_compiler = shutil.which("clang", path=toolchain_path)
+
+    if c_compiler is None:
+        if toolchain_path:
+            LOG.error(f"Cannot find clang in the given toolchain path: {toolchain_path}")
+        else:
+            LOG.error("Cannot find clang in $PATH")
+        fatal("clang is required to build interop libraries")
+
+    return c_compiler
 
 def command(*args, cwd=None, env=None):
     """Execute a child program via 'subprocess.Popen' and log the output"""
@@ -177,6 +200,12 @@ def download_and_patch_tinytoml():
             shutil.rmtree(TINYTOML_DIR)
         raise
 
+def replace_in_files(text_to_search, replacement_text, *filenames):
+    for filename in filenames:
+        with fileinput.FileInput(filename, inplace=True) as file:
+            for line in file:
+                print(line.replace(text_to_search, replacement_text), end='')
+
 def build(args):
     """interoplib or objc-interop-gen build"""
     if args.target:
@@ -199,42 +228,57 @@ def build(args):
             cjpm_env["SYSROOT_OPTION"] = "--sysroot=" + args.target_sysroot
         # target_toolchain is not used for cjpm
 
+        TOMLS = [os.path.join(INTEROPLIB_DIR, 'interoplib', 'cjpm.toml'), os.path.join(INTEROPLIB_DIR, 'objc', 'cjpm.toml')]
+
+        # replace "dynamic" => "static" for output-type in cjpm.toml files
+        replace_in_files('output-type = "dynamic"', 'output-type = "static"', TOMLS)
+
+        LOG.info('build interoplib into static libs:\n')
+        command("cjpm", "build", "--target-dir=" + INTEROPLIB_OUT, CJPM_CONFIG, cwd=INTEROPLIB_DIR, env=cjpm_env)
+
+        # restore original output-type = "dynamic"
+        replace_in_files('output-type = "static"', 'output-type = "dynamic"', TOMLS)
+
+        LOG.info('build interoplib into dynamic libs:\n')
         command("cjpm", "build", "--target-dir=" + INTEROPLIB_OUT, CJPM_CONFIG, cwd=INTEROPLIB_DIR, env=cjpm_env)
 
         # objc-code of interoplib is built by clang
-        CANGJIE_HOME=os.environ['CANGJIE_HOME']
-        CANGJIE_RUNTIME_LIB_PATH=f"{CANGJIE_HOME}/runtime/lib/{runtime}"
-
-        clang_command = ["clang", "-shared"]
+        clang_compiler = check_clang(args)
+        clang_opts = []
         if args.target_lib:
             clang_target = args.target_lib
             if clang_target == "ios-aarch64":
                 clang_target = "arm64-apple-ios11"
             if clang_target == "ios-simulator-aarch64":
                 clang_target = "arm64-apple-ios11-simulator"
-            clang_command += [f"--target={clang_target}"]
+            clang_opts += [f"--target={clang_target}"]
         if args.target_sysroot:
-            clang_command += [f"-isysroot{args.target_sysroot}"]
-        if IS_DARWIN:
-            clang_command += ["-lobjc"]
-        else:
-            clang_command += subprocess.run(['gnustep-config', '--objc-flags'], capture_output=True).stdout.decode().split()
-            clang_command += subprocess.run(['gnustep-config', '--objc-libs'], capture_output=True).stdout.decode().split()
+            clang_opts += [f"-isysroot{args.target_sysroot}"]
+        if not IS_DARWIN:
+            clang_opts += subprocess.run(['gnustep-config', '--objc-flags'], capture_output=True).stdout.decode().split()
 
-        clang_command += [f"-L{CANGJIE_RUNTIME_LIB_PATH}", "-lcangjie-runtime"]
-        clang_command += ["-I.", "cjinterop.m", f"-o{OUT_INTEROPLIB_OBJCLIB_DYLIB}"]
+        OBJCLIB_O = os.path.join(INTEROPLIB_OUT_PREFIX, "objclib.o")
 
-        clang_env = os.environ.copy()
-        if args.target_toolchain:
-            clang_env['PATH'] = f"{args.target_toolchain}:{clang_env['PATH']}"
+        clang_command_o = [clang_compiler, "-fmodules", "-c", "-fPIC"] + clang_opts.copy() + ["-I.", "cjinterop.m", f"-o{OBJCLIB_O}"]
+        command(*clang_command_o.copy(), cwd=INTEROPLIB_OBJCLIB_DIR)
 
-        output = subprocess.Popen(
-            clang_command.copy(),
-            env=clang_env,
+        command(
+            "ar", "-cr", OUT_INTEROPLIB_OBJCLIB_A, OBJCLIB_O,
             cwd=INTEROPLIB_OBJCLIB_DIR,
-            stdout=PIPE,
         )
-        log_output(output)
+        command(
+            "ranlib", "-D", OUT_INTEROPLIB_OBJCLIB_A,
+            cwd=INTEROPLIB_OBJCLIB_DIR,
+        )
+
+        clang_command_so = [clang_compiler, "-shared"] + clang_opts.copy()
+        if IS_DARWIN:
+            clang_command_so += ["-lobjc"]
+        else:
+            clang_command_so += subprocess.run(['gnustep-config', '--objc-libs'], capture_output=True).stdout.decode().split()
+        clang_command_so += [f"-L{os.environ['CANGJIE_HOME']}/runtime/lib/{runtime}", "-lcangjie-runtime"]
+        clang_command_so += [f"-o{OUT_INTEROPLIB_OBJCLIB_DYLIB}", OBJCLIB_O]
+        command(*clang_command_so.copy(), cwd=INTEROPLIB_OBJCLIB_DIR)
 
         LOG.info('end build interoplib for ' + runtime + '\n')
     else:
@@ -265,7 +309,7 @@ def clean(args):
 
 def prepare_dir(base_path, *relative_path):
     """
-    Insure that the directory specified by the arguments exists (create it if it
+    Ensure that the directory specified by the arguments exists (create it if it
     does not) and return its path.
     """
     path = os.path.join(base_path, *relative_path)
@@ -338,23 +382,35 @@ def install(args):
         runtime = runtime_name(args.target)
         LOG.info("begin install interoplib for " + runtime + "\n")
 
-        installation_dir = prepare_dir(install_path, "runtime", "lib", runtime)
-        install_files(installation_dir,
-                      OUT_INTEROPLIB_COMMON_DYLIB,
-                      OUT_INTEROPLIB_OBJC_DYLIB,
-                      OUT_OBJC_LANG_DYLIB,
-                      OUT_INTEROPLIB_OBJCLIB_DYLIB)
+        installation_dir_static = prepare_dir(install_path, "lib", runtime)
+        install_files(
+            installation_dir_static,
+            OUT_INTEROPLIB_COMMON_A,
+            OUT_INTEROPLIB_OBJC_A,
+            OUT_OBJC_LANG_A,
+            OUT_INTEROPLIB_OBJCLIB_A
+        )
+
+        installation_dir_dynamic = prepare_dir(install_path, "runtime", "lib", runtime)
+        install_files(
+            installation_dir_dynamic,
+            OUT_INTEROPLIB_COMMON_DYLIB,
+            OUT_INTEROPLIB_OBJC_DYLIB,
+            OUT_OBJC_LANG_DYLIB,
+            OUT_INTEROPLIB_OBJCLIB_DYLIB
+        )
+
         if IS_DARWIN:
-            change_install_names(os.path.join(installation_dir, "libinteroplib.common.dylib"), [])
+            change_install_names(os.path.join(installation_dir_dynamic, "libinteroplib.common.dylib"), [])
             change_install_names(
-                os.path.join(installation_dir, "libinteroplib.objc.dylib"),
+                os.path.join(installation_dir_dynamic, "libinteroplib.objc.dylib"),
                 ["libinteroplib.common.dylib"]
             )
             change_install_names(
-                os.path.join(installation_dir, "libobjc.lang.dylib"),
+                os.path.join(installation_dir_dynamic, "libobjc.lang.dylib"),
                 ["libinteroplib.common.dylib", "libinteroplib.objc.dylib"]
             )
-            change_install_names(os.path.join(installation_dir, "libinteroplib.objclib.dylib"), [])
+            change_install_names(os.path.join(installation_dir_dynamic, "libinteroplib.objclib.dylib"), [])
 
         install_files(
             prepare_dir(install_path, "modules", runtime),

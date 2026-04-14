@@ -8,6 +8,8 @@
 // Later it should be rewritten using C Invoke Cangjie API when it gets available in Cangjie SDK.
 #import "Cangjie.h"
 
+#import <Foundation/Foundation.h>
+
 #import "pthread.h"
 #import "stdio.h"
 #import "cjinterop.h"
@@ -38,9 +40,12 @@ bool initCJRuntime(const char* cj_gluecode_lib_name) {
         pthread_mutex_unlock(&mutex);
     }
 
-    if (LoadCJLibraryWithInit(cj_gluecode_lib_name)) {
-        printf("ERROR: Failed to init cjworld library\n");
-        return false;
+    const char* nm = [NSBundle mainBundle].executableURL.lastPathComponent.UTF8String;
+    if (InitCJLibrary(nm)) {
+        if (LoadCJLibraryWithInit(cj_gluecode_lib_name)) {
+            printf("ERROR: Failed to init library '%s'\n", cj_gluecode_lib_name);
+            return false;
+        }
     }
 
     return true;
