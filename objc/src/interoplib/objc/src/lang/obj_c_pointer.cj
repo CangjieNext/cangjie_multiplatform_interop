@@ -13,4 +13,5 @@ public struct ObjCPointer<T> {
     public func isNull(): Bool { ptr.isNull() }
     public func read(): T { unsafe { zeroValue<T>() } }
     public func write(_: T): Unit {}
+    public unsafe func getPtr(): CPointer<Unit> { ptr }
 }

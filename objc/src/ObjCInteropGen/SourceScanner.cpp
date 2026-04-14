@@ -163,7 +163,7 @@ class SourceScanner final : public ClangVisitor {
     Symbol* push_current(NamedTypeSymbol* symbol, const bool is_objc)
     {
         assert(symbol);
-        assert(is_objc == (symbol->is(Kind::Interface) || symbol->is(Kind::Protocol) || symbol->is(Kind::Category)));
+        assert(is_objc == (symbol->is(CategoryDeclarationSymbol::Kind::Interface) || symbol->is(CategoryDeclarationSymbol::Kind::Protocol) || symbol->is(CategoryDeclarationSymbol::Kind::Category)));
 
         current_.push_back(symbol);
 
@@ -704,27 +704,17 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
 
         case CXType_ObjCTypeParam: {
             auto* owner_type = current_type_declaration();
-            assert(owner_type);
-            switch (owner_type->kind()) {
-                case NamedTypeSymbol::Kind::Interface:
-                case NamedTypeSymbol::Kind::Protocol:
-                case NamedTypeSymbol::Kind::Category:
-                    break;
-                default:
-                    // Non-ObjC type declarations inside ObjC interfaces/protocols in the AST
-                    // are NOT children of ObjC type declaration. Therefore, current type will be the non-ObjC type,
-                    // which will not have the ObjC type parameter.
-                    // An example would be GSSetEnumeratorBlock struct defined in the middle of NSSet<ElementT>
-                    // definition, referencing ElementT type parameter in the function pointer signature of invoke
-                    // struct field. Since ObjC type declarations are top-level only, and it appears that non-ObjC
-                    // declarations are located after the ObjC declarations, we can track the last ObjC declaration and
-                    // use it for type parameter lookup here.
-                    if (last_objc_type_) {
-                        owner_type = last_objc_type_;
-                        assert(owner_type->is(NamedTypeSymbol::Kind::Interface) ||
-                            owner_type->is(NamedTypeSymbol::Kind::Protocol) ||
-                            owner_type->is(NamedTypeSymbol::Kind::Category));
-                    }
+            if (!owner_type) {
+                // Non-ObjC type declarations inside ObjC interfaces/protocols in the AST
+                // are NOT children of ObjC type declaration. Therefore, current type will be the non-ObjC type,
+                // which will not have the ObjC type parameter.
+                // An example would be GSSetEnumeratorBlock struct defined in the middle of NSSet<ElementT>
+                // definition, referencing ElementT type parameter in the function pointer signature of invoke
+                // struct field. Since ObjC type declarations are top-level only, and it appears that non-ObjC
+                // declarations are located after the ObjC declarations, we can track the last ObjC declaration and
+                // use it for type parameter lookup here.
+                assert(last_objc_type_);
+                owner_type = last_objc_type_;
             }
             auto decorated_type_name = as_string(clang_getTypeSpelling(type));
             auto [undecorated_type_name, narrowing_protocol_name] = undecorate_parameter_type_name(decorated_type_name);
