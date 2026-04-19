@@ -74,7 +74,7 @@ class InputFile final {
 public:
     [[nodiscard]] InputFile(std::filesystem::path path) noexcept;
 
-    [[nodiscard]] const auto& path() const noexcept
+    [[nodiscard]] const std::filesystem::path& path() const noexcept
     {
         return path_;
     }
@@ -103,7 +103,7 @@ public:
     {
     }
 
-    [[nodiscard]] const auto& path() const noexcept
+    [[nodiscard]] const std::filesystem::path& path() const noexcept
     {
         return path_;
     }
@@ -118,7 +118,7 @@ public:
         return files_.end();
     }
 
-    [[nodiscard]] auto& add_file(InputFile& input_file)
+    [[nodiscard]] InputFile& add_file(InputFile& input_file)
     {
         return *files_.emplace_back(&input_file);
     }
@@ -138,7 +138,7 @@ public:
         return PointerIterator<decltype(files_.end())>(files_.end());
     }
 
-    [[nodiscard]] auto& add_file(InputFile& input_file)
+    [[nodiscard]] InputFile& add_file(InputFile& input_file)
     {
         return *files_.emplace_back(&input_file);
     }
