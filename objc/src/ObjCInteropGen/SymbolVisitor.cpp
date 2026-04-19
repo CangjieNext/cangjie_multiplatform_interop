@@ -65,7 +65,7 @@ void SymbolVisitor::visit_member(const NonTypeSymbol& value)
 void SymbolVisitor::visit(const FileLevelSymbol& symbol)
 {
     // We just started the walk, don't bail out immediately.
-    assert(allow_recurse_ || is<TypeLikeSymbol>(symbol));
+    assert(allow_recurse_ || symbol.is<TypeLikeSymbol>());
     visit_impl(symbol);
     symbol.visit_impl(*this);
 }
