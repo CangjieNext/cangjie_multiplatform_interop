@@ -32,7 +32,7 @@ public:
 
     [[nodiscard]] virtual bool apply(std::string_view entity_name) const = 0;
 
-    [[nodiscard]] const auto& package() const noexcept
+    [[nodiscard]] const Package& package() const noexcept
     {
         return package_;
     }
@@ -57,12 +57,12 @@ public:
         return file_name_;
     }
 
-    [[nodiscard]] const auto& output_path() const noexcept
+    [[nodiscard]] const std::filesystem::path& output_path() const noexcept
     {
         return output_path_;
     }
 
-    [[nodiscard]] auto& package() const noexcept
+    [[nodiscard]] Package& package() const noexcept
     {
         return *package_;
     }
@@ -94,7 +94,7 @@ public:
     {
     }
 
-    [[nodiscard]] auto& operator*() const noexcept
+    [[nodiscard]] PackageFile& operator*() const noexcept
     {
         return *it_->second;
     }
@@ -126,22 +126,22 @@ public:
 
     ~Package() = default;
 
-    [[nodiscard]] const auto& cangjie_name() const noexcept
+    [[nodiscard]] const std::string& cangjie_name() const noexcept
     {
         return cangjie_name_;
     }
 
-    [[nodiscard]] const auto& output_path() const noexcept
+    [[nodiscard]] const std::string& output_path() const noexcept
     {
         return output_path_;
     }
 
-    [[nodiscard]] const auto* filters() const noexcept
+    [[nodiscard]] const PackageFilter* filters() const noexcept
     {
         return filters_;
     }
 
-    [[nodiscard]] const auto& depends_on() const noexcept
+    [[nodiscard]] const std::unordered_set<Package*>& depends_on() const noexcept
     {
         return depends_on_;
     }
@@ -175,12 +175,12 @@ public:
         return (*this)[std::string(name)];
     }
 
-    [[nodiscard]] auto begin() const noexcept
+    [[nodiscard]] PackageFilesIterator begin() const noexcept
     {
         return PackageFilesIterator{files_.begin()};
     }
 
-    [[nodiscard]] auto end() const noexcept
+    [[nodiscard]] PackageFilesIterator end() const noexcept
     {
         return PackageFilesIterator{files_.end()};
     }
@@ -196,7 +196,7 @@ public:
     {
     }
 
-    [[nodiscard]] auto& operator*() const noexcept
+    [[nodiscard]] Package& operator*() const noexcept
     {
         return *it_->second;
     }
@@ -238,12 +238,12 @@ public:
         return by_cangjie_name_.size();
     }
 
-    [[nodiscard]] auto begin() const noexcept
+    [[nodiscard]] PackagesIterator begin() const noexcept
     {
         return PackagesIterator{by_cangjie_name_.begin()};
     }
 
-    [[nodiscard]] auto end() const noexcept
+    [[nodiscard]] PackagesIterator end() const noexcept
     {
         return PackagesIterator{by_cangjie_name_.end()};
     }

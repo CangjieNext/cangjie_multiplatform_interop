@@ -28,12 +28,12 @@ extern enum class Mode {
     GENERATE_DEFINITIONS
 } mode;
 
-[[nodiscard]] inline auto normal_mode() noexcept
+[[nodiscard]] inline bool normal_mode() noexcept
 {
     return mode == Mode::NORMAL;
 }
 
-[[nodiscard]] inline auto generate_definitions_mode() noexcept
+[[nodiscard]] inline bool generate_definitions_mode() noexcept
 {
     return mode == Mode::GENERATE_DEFINITIONS;
 }

@@ -14,7 +14,8 @@
 
 namespace objcgen {
 
-[[nodiscard]] static auto create_regex(const Package& package, const std::string& pattern, std::string_view mode_name)
+[[nodiscard]] static std::regex create_regex(
+    const Package& package, const std::string& pattern, std::string_view mode_name)
 {
     try {
         return std::regex(pattern);

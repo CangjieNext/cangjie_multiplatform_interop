@@ -147,7 +147,7 @@ private:
         return top && top->kind() == NonTypeSymbol::Kind::Property;
     }
 
-    [[nodiscard]] auto& push_current(NamedTypeSymbol& symbol, const bool is_objc)
+    [[nodiscard]] NamedTypeSymbol& push_current(NamedTypeSymbol& symbol, const bool is_objc)
     {
         assert(is_objc ==
             (symbol.is(NamedTypeSymbol::Kind::Interface) || symbol.is(NamedTypeSymbol::Kind::Protocol) ||
@@ -162,13 +162,13 @@ private:
         return symbol;
     }
 
-    [[nodiscard]] auto& push_current(NonTypeSymbol& symbol)
+    [[nodiscard]] NonTypeSymbol& push_current(NonTypeSymbol& symbol)
     {
         current_.push_back(&symbol);
         return symbol;
     }
 
-    [[nodiscard]] auto& push_current(EnumConstantSymbol& constant)
+    [[nodiscard]] FileLevelSymbol*& push_current(EnumConstantSymbol& constant)
     {
         return current_.emplace_back(&constant);
     }
@@ -431,7 +431,7 @@ std::string SourceScanner::new_anonymous_name(const CXCursor& decl)
     return "__" + file_name + '_' + std::to_string(index);
 }
 
-[[nodiscard]] static auto get_nullability(const CXType& type)
+[[nodiscard]] static Nullability get_nullability(const CXType& type)
 {
     switch (clang_Type_getNullability(type)) {
         case CXTypeNullability_NonNull:
@@ -492,7 +492,7 @@ Type SourceScanner::add_type(NamedTypeSymbol::Kind kind, std::string name, const
     return Type(*symbol, nullability);
 }
 
-[[nodiscard]] static auto& get_type_declaration(
+[[nodiscard]] static TypeDeclarationSymbol& get_type_declaration(
     const CXCursor& cursor, NamedTypeSymbol::Kind kind, const std::string& name)
 {
     auto& universe = Universe::get();
@@ -506,7 +506,7 @@ Type SourceScanner::add_type(NamedTypeSymbol::Kind kind, std::string name, const
     return new_result;
 }
 
-[[nodiscard]] static auto& protocol_symbol(const CXType& objc_object_type, unsigned i)
+[[nodiscard]] static TypeDeclarationSymbol& protocol_symbol(const CXType& objc_object_type, unsigned i)
 {
     assert(objc_object_type.kind == CXType_ObjCObject);
     assert(i < clang_Type_getNumObjCProtocolRefs(objc_object_type));
@@ -654,7 +654,7 @@ public:
     {
     }
 
-    [[nodiscard]] auto& interface() const noexcept
+    [[nodiscard]] TypeDeclarationSymbol& interface() const noexcept
     {
         return *interface_;
     }
