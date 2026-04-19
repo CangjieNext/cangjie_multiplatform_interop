@@ -181,7 +181,7 @@ private:
     {
         // If this is a type argument of an Objective-C generic type, ignore it.  Type
         // arguments are erased and may be printed inside comments only.
-        if (is<TypeDeclarationSymbol>(owner)) {
+        if (owner.is<TypeDeclarationSymbol>()) {
             return;
         }
 
@@ -240,9 +240,9 @@ static bool is_objc_compatible(const Type& type)
             if (&type_symbol == &Universe::get().sel()) {
                 return false;
             }
-            switch (as<const NamedTypeSymbol&>(type_symbol).kind()) {
+            switch (type_symbol.as<NamedTypeSymbol>().kind()) {
                 case NamedTypeSymbol::Kind::TypeDef:
-                    return is_objc_compatible(as<const TypeAliasSymbol&>(type_symbol).canonical_type());
+                    return is_objc_compatible(type_symbol.as<TypeAliasSymbol>().canonical_type());
                 case NamedTypeSymbol::Kind::Struct:
                 case NamedTypeSymbol::Kind::Union:
                     return type_symbol.is_ctype();
@@ -314,10 +314,10 @@ static void print_enum_constant_value(
     std::ostream& output, const NamedTypeSymbol& underlying_type, const EnumConstantSymbol& constant)
 {
     const auto& canonical_type_symbol = underlying_type.kind() == NamedTypeSymbol::Kind::TypeDef
-        ? as<const NamedTypeSymbol&>(as<const TypeAliasSymbol&>(underlying_type).canonical_type_symbol())
+        ? underlying_type.as<TypeAliasSymbol>().canonical_type_symbol().as<NamedTypeSymbol>()
         : underlying_type;
     if (canonical_type_symbol.kind() == NamedTypeSymbol::Kind::Primitive) {
-        const auto& primitive_type = as<const PrimitiveTypeSymbol&>(canonical_type_symbol);
+        const auto& primitive_type = canonical_type_symbol.as<PrimitiveTypeSymbol>();
         // Avoid the "number exceeds the value range of type" Cangjie compiler error by
         // printing the value in a type-specific way.
         auto category = primitive_type.category();
@@ -360,7 +360,7 @@ static void print_enum_constant_value(
     // This is _int128 or unsigned _int128 represented respectively as
     // VArray<Int64, $2> or VArray<UInt64, $2>
     assert(canonical_type_symbol.kind() == NamedTypeSymbol::Kind::Unexposed);
-    const auto& type = as<const UnexposedTypeSymbol&>(canonical_type_symbol).underlying_type();
+    const auto& type = canonical_type_symbol.as<UnexposedTypeSymbol>().underlying_type();
     assert(type.kind() == Type::Kind::VArray);
     assert(type.varray_size() == 2);
     const auto& element_type = type.varray_element_type().symbol();
@@ -1093,7 +1093,7 @@ void write_cangjie()
                 } else if (const auto* enum_decl = dynamic_cast<const EnumDeclarationSymbol*>(symbol)) {
                     write_enum_declaration(output, *enum_decl);
                 } else {
-                    auto& top_level = as<NonTypeSymbol&>(*symbol);
+                    auto& top_level = symbol->as<NonTypeSymbol>();
                     assert(top_level.kind() == NonTypeSymbol::Kind::GlobalFunction);
 
                     // Ignore global functions with internal linkage.  Anyway, we cannot use them in
