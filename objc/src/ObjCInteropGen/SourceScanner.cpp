@@ -51,7 +51,7 @@ struct CXCursorHash {
     }
 };
 
-class SourceScanner final : private NonCopyable {
+class SourceScanner final : NonCopyable {
 public:
     void visit(const CXCursor& cursor)
     {
