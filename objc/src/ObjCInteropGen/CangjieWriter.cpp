@@ -181,7 +181,7 @@ private:
     {
         // If this is a type argument of an Objective-C generic type, ignore it.  Type
         // arguments are erased and may be printed inside comments only.
-        if (is<TypeDeclarationSymbol>(owner)) {
+        if (owner.is<TypeDeclarationSymbol>()) {
             return;
         }
 
@@ -240,9 +240,9 @@ static bool is_objc_compatible(const Type& type)
             if (&type_symbol == &Universe::get().sel()) {
                 return false;
             }
-            switch (as<const NamedTypeSymbol&>(type_symbol).kind()) {
+            switch (type_symbol.as<NamedTypeSymbol>().kind()) {
                 case NamedTypeSymbol::Kind::TypeDef:
-                    return is_objc_compatible(as<const TypeAliasSymbol&>(type_symbol).canonical_type());
+                    return is_objc_compatible(type_symbol.as<TypeAliasSymbol>().canonical_type());
                 case NamedTypeSymbol::Kind::Struct:
                 case NamedTypeSymbol::Kind::Union:
                     return type_symbol.is_ctype();
@@ -323,7 +323,7 @@ static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter&
 {
     const auto& type = op.type_printer_.obj();
     const auto& type_symbol = type.symbol();
-    if (is<TypeParameterSymbol>(type_symbol)) {
+    if (type_symbol.is<TypeParameterSymbol>()) {
         print_tricky_default_value(stream, "ObjCId", type.is_cj_option());
         return stream;
     }
@@ -359,7 +359,7 @@ static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter&
     if (named_type) {
         switch (named_type->kind()) {
             case NamedTypeSymbol::Kind::Primitive:
-                switch (as<const PrimitiveTypeSymbol&>(*named_type).category()) {
+                switch (named_type->as<PrimitiveTypeSymbol>().category()) {
                     case PrimitiveTypeCategory::Boolean:
                         return stream << "false";
 
@@ -382,7 +382,7 @@ static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter&
                 auto target = type.canonical_type();
                 const auto* named_target = dynamic_cast<const NamedTypeSymbol*>(&target.symbol());
                 if (named_target && named_target->is(NamedTypeSymbol::Kind::Primitive)) {
-                    switch (as<const PrimitiveTypeSymbol&>(*named_target).category()) {
+                    switch (named_target->as<PrimitiveTypeSymbol>().category()) {
                         case PrimitiveTypeCategory::SignedInteger:
                         case PrimitiveTypeCategory::UnsignedInteger:
                             return stream << "unsafe{zeroValue<" << named_type->name() << ">()}";
@@ -393,12 +393,11 @@ static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter&
                 return stream << default_value(op.symbol_, target, op.type_printer_.format());
             }
             case NamedTypeSymbol::Kind::Unexposed:
-                return stream << default_value(op.symbol_,
-                           as<const UnexposedTypeSymbol&>(*named_type).underlying_type(), op.type_printer_.format());
+                return stream << default_value(op.symbol_, named_type->as<UnexposedTypeSymbol>().underlying_type(),
+                           op.type_printer_.format());
             case NamedTypeSymbol::Kind::Enum:
                 return stream << default_value(op.symbol_,
-                           Type(as<const EnumDeclarationSymbol&>(*named_type).underlying_type()),
-                           op.type_printer_.format());
+                           Type(named_type->as<EnumDeclarationSymbol>().underlying_type()), op.type_printer_.format());
             case NamedTypeSymbol::Kind::Interface:
             case NamedTypeSymbol::Kind::Protocol:
                 print_tricky_default_value(stream, named_type->name(), type.is_cj_option());
@@ -414,7 +413,7 @@ static void print_enum_constant_value(
     std::ostream& output, const NamedTypeSymbol& underlying_type, const EnumConstantSymbol& constant)
 {
     const auto& canonical_type_symbol = underlying_type.kind() == NamedTypeSymbol::Kind::TypeDef
-        ? as<const TypeAliasSymbol&>(underlying_type).canonical_type_symbol()
+        ? underlying_type.as<TypeAliasSymbol>().canonical_type_symbol()
         : underlying_type;
     const auto* primitive_type = dynamic_cast<const PrimitiveTypeSymbol*>(&canonical_type_symbol);
     if (primitive_type) {
@@ -1189,7 +1188,7 @@ void write_cangjie()
                 } else if (const auto* enum_decl = dynamic_cast<const EnumDeclarationSymbol*>(symbol)) {
                     write_enum_declaration(output, *enum_decl);
                 } else {
-                    auto& top_level = as<NonTypeSymbol&>(*symbol);
+                    auto& top_level = symbol->as<NonTypeSymbol>();
                     assert(top_level.kind() == NonTypeSymbol::Kind::GlobalFunction);
 
                     // Ignore global functions with internal linkage.  Anyway, we cannot use them in

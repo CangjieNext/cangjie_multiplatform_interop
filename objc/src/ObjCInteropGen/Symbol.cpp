@@ -156,7 +156,7 @@ void FileLevelSymbol::set_cangjie_package_name(std::string cangjie_package_name)
 
 [[nodiscard]] static Type::Kind get_kind(const TypeLikeSymbol& type_symbol)
 {
-    if (is<TypeParameterSymbol>(type_symbol)) {
+    if (type_symbol.is<TypeParameterSymbol>()) {
         return Type::Kind::TypeParam;
     }
     auto& universe = Universe::get();
@@ -216,8 +216,7 @@ const TypeDeclarationSymbol& Type::actual_protocol() const noexcept
     // Probably, it would be good to return the least common ancestor of all
     // constraints here, not just `id`.
     assert(kind_ == Kind::TypeParam);
-    return parameters_.size() == 1 ? as<const TypeDeclarationSymbol&>(parameters_.front().symbol())
-                                   : Universe::get().id();
+    return parameters_.size() == 1 ? parameters_.front().symbol().as<TypeDeclarationSymbol>() : Universe::get().id();
 }
 
 void Type::set_nullability(Nullability nullability) noexcept
@@ -460,7 +459,7 @@ Nullability Type::init_nullability(Nullability nullability) noexcept
 {
     switch (kind_) {
         case Type::Kind::Named:
-            switch (as<const NamedTypeSymbol&>(*symbol_).kind()) {
+            switch (symbol_->as<NamedTypeSymbol>().kind()) {
                 case NamedTypeSymbol::Kind::Protocol:
                 case NamedTypeSymbol::Kind::Interface:
                 case NamedTypeSymbol::Kind::TypeDef:
@@ -507,7 +506,7 @@ void NamedTypeSymbol::print(std::ostream& stream, PrintFormat format) const
             if (format == PrintFormat::Raw) {
                 stream << name;
             } else {
-                as<const EnumDeclarationSymbol&>(*this).underlying_type().print(stream, format);
+                as<EnumDeclarationSymbol>().underlying_type().print(stream, format);
                 stream << " /*" << name << "*/";
             }
             break;
