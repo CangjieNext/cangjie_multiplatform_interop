@@ -10,9 +10,7 @@
 
 #include <array>
 #include <cassert>
-#include <deque>
 #include <unordered_set>
-#include <variant>
 
 #include "Collection.h"
 #include "InputFile.h"
