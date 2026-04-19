@@ -21,7 +21,7 @@ namespace objcgen {
 
 class Package;
 
-class PackageFilter : private NonCopyable {
+class PackageFilter : NonCopyable {
 protected:
     explicit PackageFilter(const Package& package) noexcept : package_(package)
     {
@@ -111,7 +111,7 @@ public:
     }
 };
 
-class Package final : private NonCopyable {
+class Package final : NonCopyable {
     const std::string cangjie_name_;
     const std::string output_path_;
     const PackageFilter* filters_ = nullptr;
