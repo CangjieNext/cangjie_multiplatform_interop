@@ -171,102 +171,102 @@ public:
 
     void register_type(NamedTypeSymbol& symbol);
 
-    [[nodiscard]] auto& unit() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& unit() noexcept
     {
         return unit_;
     }
 
-    [[nodiscard]] auto& boolean() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& boolean() noexcept
     {
         return bool_;
     }
 
-    [[nodiscard]] auto& int8() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& int8() noexcept
     {
         return int8_;
     }
 
-    [[nodiscard]] auto& int16() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& int16() noexcept
     {
         return int16_;
     }
 
-    [[nodiscard]] auto& int32() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& int32() noexcept
     {
         return int32_;
     }
 
-    [[nodiscard]] auto& int64() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& int64() noexcept
     {
         return int64_;
     }
 
-    [[nodiscard]] auto& uint8() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& uint8() noexcept
     {
         return uint8_;
     }
 
-    [[nodiscard]] auto& uint16() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& uint16() noexcept
     {
         return uint16_;
     }
 
-    [[nodiscard]] auto& uint32() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& uint32() noexcept
     {
         return uint32_;
     }
 
-    [[nodiscard]] auto& uint64() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& uint64() noexcept
     {
         return uint64_;
     }
 
-    [[nodiscard]] auto& float16() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& float16() noexcept
     {
         return float16_;
     }
 
-    [[nodiscard]] auto& float32() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& float32() noexcept
     {
         return float32_;
     }
 
-    [[nodiscard]] auto& float64() noexcept
+    [[nodiscard]] PrimitiveTypeSymbol& float64() noexcept
     {
         return float64_;
     }
 
-    [[nodiscard]] auto& clazz() noexcept
+    [[nodiscard]] TypeDeclarationSymbol& clazz() noexcept
     {
         return class_;
     }
 
-    [[nodiscard]] auto& id() noexcept
+    [[nodiscard]] TypeDeclarationSymbol& id() noexcept
     {
         return id_;
     }
 
-    [[nodiscard]] auto& sel() noexcept
+    [[nodiscard]] TypeDeclarationSymbol& sel() noexcept
     {
         return sel_;
     }
 
-    [[nodiscard]] auto& pointer() noexcept
+    [[nodiscard]] BuiltInTypeSymbol& pointer() noexcept
     {
         return pointer_;
     }
 
-    [[nodiscard]] auto& func() noexcept
+    [[nodiscard]] BuiltInTypeSymbol& func() noexcept
     {
         return func_;
     }
 
-    [[nodiscard]] auto& block() noexcept
+    [[nodiscard]] BuiltInTypeSymbol& block() noexcept
     {
         return block_;
     }
 
-    [[nodiscard]] auto& varray() noexcept
+    [[nodiscard]] BuiltInTypeSymbol& varray() noexcept
     {
         return varray_;
     }
