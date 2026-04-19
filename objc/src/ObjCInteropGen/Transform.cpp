@@ -103,10 +103,10 @@ static void fix_override_return_types(TypeDeclarationSymbol& type) noexcept
  * 1) In Cangjie, Option is not covariant.  If the overridden and overrider have
  * different nullabilities, fix the result type of the overrider.
  *
- * 3) In Cangjie, Option is not covariant.  If both the overridden and overrider
+ * 2) In Cangjie, Option is not covariant.  If both the overridden and overrider
  * are nullable, ensure that the overrider does not change the result type.
  *
- * 2) In Objective-C, contravariant return types are allowed.  That will not
+ * 3) In Objective-C, contravariant return types are allowed.  That will not
  * compile in Cangjie. Fix the result type of the overrider accordingly.
  */
 static void fix_override_return_types()
