@@ -26,22 +26,6 @@ class SymbolVisitor;
 class TypeDeclarationSymbol;
 class TypeMapping;
 
-template <class To, class From>
-[[nodiscard]] typename std::enable_if_t<std::is_class_v<From> && std::is_class_v<To>, bool> is(const From& x)
-{
-    return dynamic_cast<const To*>(&x) != nullptr;
-}
-
-template <class To, class From>
-[[nodiscard]] typename std::enable_if_t<std::is_class_v<std::remove_reference_t<From>> && std::is_reference_v<To> &&
-        std::is_class_v<std::remove_reference_t<To>>,
-    To&>
-as(From&& x)
-{
-    assert(is<std::remove_reference_t<To>>(x));
-    return static_cast<To>(std::forward<From>(x));
-}
-
 enum class PrintFormat {
     // The object is printed "as is".  This is good for readability (for example, in
     // diagnostic texts or comments), but syntactic Cangjie correctness is not
@@ -150,6 +134,23 @@ public:
     [[nodiscard]] size_t number_of_referencing_packages() const noexcept;
 
     void print_referencing_packages_info() const;
+
+    template <class To> [[nodiscard]] bool is() const noexcept
+    {
+        return dynamic_cast<const To*>(this) != nullptr;
+    }
+
+    template <class To> [[nodiscard]] const To& as() const noexcept
+    {
+        assert(is<To>());
+        return static_cast<const To&>(*this);
+    }
+
+    template <class To> [[nodiscard]] To& as() noexcept
+    {
+        assert(is<To>());
+        return static_cast<To&>(*this);
+    }
 
 protected:
     explicit FileLevelSymbol(std::string name) noexcept : Symbol(std::move(name))
