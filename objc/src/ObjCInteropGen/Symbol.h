@@ -96,19 +96,19 @@ public:
 
     void set_definition_location(const Location& location);
 
-    [[nodiscard]] const auto& references_symbols() const noexcept
+    [[nodiscard]] const std::unordered_set<FileLevelSymbol*>& references_symbols() const noexcept
     {
         return references_symbols_;
     }
 
     [[nodiscard]] bool add_reference(FileLevelSymbol& symbol);
 
-    [[nodiscard]] auto* defining_file() const noexcept
+    [[nodiscard]] InputFile* defining_file() const noexcept
     {
         return input_file_;
     }
 
-    [[nodiscard]] auto* package_file() const noexcept
+    [[nodiscard]] PackageFile* package_file() const noexcept
     {
         return output_file_;
     }
@@ -121,7 +121,7 @@ public:
 
     [[nodiscard]] Package* package() const noexcept;
 
-    [[nodiscard]] auto output_status() const noexcept
+    [[nodiscard]] OutputStatus output_status() const noexcept
     {
         return output_status_;
     }
@@ -239,7 +239,7 @@ public:
         return symbol_;
     }
 
-    [[nodiscard]] auto kind() const noexcept
+    [[nodiscard]] Kind kind() const noexcept
     {
         return kind_;
     }
@@ -252,7 +252,7 @@ public:
 
     [[nodiscard]] const std::string& name() const noexcept;
 
-    [[nodiscard]] const auto& parameters() const noexcept
+    [[nodiscard]] const std::vector<Type>& parameters() const noexcept
     {
         return parameters_;
     }
@@ -264,7 +264,7 @@ public:
 
     [[nodiscard]] const TypeDeclarationSymbol& actual_protocol() const noexcept;
 
-    [[nodiscard]] auto nullability() const noexcept
+    [[nodiscard]] Nullability nullability() const noexcept
     {
         return nullability_;
     }
@@ -273,7 +273,7 @@ public:
 
     [[nodiscard]] const Type& varray_element_type() const noexcept;
 
-    [[nodiscard]] auto varray_size() const noexcept
+    [[nodiscard]] size_t varray_size() const noexcept
     {
         return varray_size_;
     }
@@ -360,12 +360,12 @@ public:
 
     void print(std::ostream& stream, PrintFormat) const override;
 
-    [[nodiscard]] auto kind() const noexcept
+    [[nodiscard]] Kind kind() const noexcept
     {
         return kind_;
     }
 
-    [[nodiscard]] auto is(const Kind kind) const noexcept
+    [[nodiscard]] bool is(const Kind kind) const noexcept
     {
         return kind_ == kind;
     }
@@ -382,7 +382,7 @@ private:
 
     [[nodiscard]] bool is_optionable_reference() const noexcept override;
 
-    [[nodiscard]] const auto* mapping() const noexcept
+    [[nodiscard]] const TypeMapping* mapping() const noexcept
     {
         return mapping_;
     }
@@ -496,7 +496,7 @@ private:
 
     void visit_impl(SymbolVisitor& visitor) const override;
 
-    [[nodiscard]] auto empty() const noexcept
+    [[nodiscard]] bool empty() const noexcept
     {
         return constants_.empty();
     }
@@ -678,7 +678,7 @@ public:
         return Collection(parameters_);
     }
 
-    [[nodiscard]] auto parameter_count() const noexcept
+    [[nodiscard]] size_t parameter_count() const noexcept
     {
         return parameters_.size();
     }
@@ -704,7 +704,7 @@ public:
         return members_.size();
     }
 
-    [[nodiscard]] const auto& member(size_t index) const noexcept
+    [[nodiscard]] const NonTypeSymbol& member(size_t index) const noexcept
     {
         return members_[index];
     }
@@ -785,12 +785,12 @@ public:
         return target_.canonical_type_symbol();
     }
 
-    [[nodiscard]] const auto& target() const noexcept
+    [[nodiscard]] const Type& target() const noexcept
     {
         return target_;
     }
 
-    [[nodiscard]] auto& target() noexcept
+    [[nodiscard]] Type& target() noexcept
     {
         return target_;
     }
@@ -813,7 +813,7 @@ public:
      * the canonical type for Alias will be T, and the canonical type for Alias2
      * will be Option<T>.
      */
-    [[nodiscard]] auto canonical_type() const
+    [[nodiscard]] Type canonical_type() const
     {
         return target_.canonical_type();
     }
@@ -845,12 +845,12 @@ public:
     {
     }
 
-    [[nodiscard]] const auto& type() const noexcept
+    [[nodiscard]] const Type& type() const noexcept
     {
         return type_;
     }
 
-    [[nodiscard]] auto& type() noexcept
+    [[nodiscard]] Type& type() noexcept
     {
         return type_;
     }
@@ -895,12 +895,12 @@ public:
 
     void visit_impl(SymbolVisitor& visitor) const override;
 
-    [[nodiscard]] auto kind() const noexcept
+    [[nodiscard]] Kind kind() const noexcept
     {
         return kind_;
     }
 
-    [[nodiscard]] const auto& selector_attribute() const noexcept
+    [[nodiscard]] const std::string& selector_attribute() const noexcept
     {
         return selector_attribute_;
     }
@@ -940,7 +940,7 @@ public:
         return kind() == Kind::Property;
     }
 
-    [[nodiscard]] const auto& selector() const noexcept
+    [[nodiscard]] const std::string& selector() const noexcept
     {
         return selector_attribute_.empty() ? name() : selector_attribute_;
     }
@@ -961,17 +961,17 @@ public:
         return Collection(parameters_);
     }
 
-    [[nodiscard]] auto parameter_count() const noexcept
+    [[nodiscard]] size_t parameter_count() const noexcept
     {
         return parameters_.size();
     }
 
-    [[nodiscard]] auto& parameter(size_t index) noexcept
+    [[nodiscard]] ParameterSymbol& parameter(size_t index) noexcept
     {
         return parameters_[index];
     }
 
-    [[nodiscard]] const auto& parameter(size_t index) const noexcept
+    [[nodiscard]] const ParameterSymbol& parameter(size_t index) const noexcept
     {
         return parameters_[index];
     }
@@ -1023,7 +1023,7 @@ public:
         return modifiers_ & ModifierInternalLinkage;
     }
 
-    [[nodiscard]] const auto& getter() const noexcept
+    [[nodiscard]] const std::string& getter() const noexcept
     {
         return getter_;
     }
@@ -1062,12 +1062,12 @@ public:
     {
     }
 
-    [[nodiscard]] const auto& obj() const noexcept
+    [[nodiscard]] const T& obj() const noexcept
     {
         return obj_;
     }
 
-    [[nodiscard]] auto format() const noexcept
+    [[nodiscard]] PrintFormat format() const noexcept
     {
         return format_;
     }
@@ -1110,7 +1110,7 @@ private:
     const std::string_view name;
 };
 
-[[nodiscard]] inline auto escape_keyword(std::string_view name) noexcept
+[[nodiscard]] inline KeywordEscaper escape_keyword(std::string_view name) noexcept
 {
     return KeywordEscaper(name);
 }

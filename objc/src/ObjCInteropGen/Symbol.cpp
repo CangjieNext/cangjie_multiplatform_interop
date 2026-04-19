@@ -93,7 +93,7 @@ void FileLevelSymbol::set_package_file(PackageFile& package_file) noexcept
     output_file_ = &package_file;
 }
 
-[[nodiscard]] static auto referencing_packages_detailed_info() noexcept
+[[nodiscard]] static bool referencing_packages_detailed_info() noexcept
 {
     return verbosity > LogLevel::WARNING;
 }
