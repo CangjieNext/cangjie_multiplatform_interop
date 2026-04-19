@@ -32,7 +32,7 @@ static PackageFile& input_to_output(Package& package, const FileLevelSymbol& sym
 
 static bool check_symbol(FileLevelSymbol& symbol) noexcept
 {
-    return !is<PrimitiveTypeSymbol>(symbol) && symbol.is_file_level();
+    return !symbol.is<PrimitiveTypeSymbol>() && symbol.is_file_level();
 }
 
 static bool set_package(FileLevelSymbol& symbol)
