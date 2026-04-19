@@ -18,7 +18,7 @@ public:
     {
     }
 
-    [[nodiscard]] const auto& path() const noexcept
+    [[nodiscard]] const std::string& path() const noexcept
     {
         return path_;
     }
