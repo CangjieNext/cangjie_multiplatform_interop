@@ -118,7 +118,7 @@ private:
     std::deque<NonTypeSymbol> members_;
 };
 
-class Universe final : private NonCopyable {
+class Universe final : NonCopyable {
     using type_map_t = std::unordered_map<std::string, NamedTypeSymbol*>;
 
     template <bool constant> friend class UniverseNamedTypeIterator;
