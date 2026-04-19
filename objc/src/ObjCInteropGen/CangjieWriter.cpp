@@ -125,7 +125,7 @@ private:
 static std::string_view current_package_name;
 static std::set<std::string> imports;
 
-class PackageFileScope final : private NonCopyable {
+class PackageFileScope final : NonCopyable {
     const std::string_view package_name_;
 
 public:
