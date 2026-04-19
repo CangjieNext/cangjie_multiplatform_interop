@@ -12,7 +12,7 @@
 
 namespace objcgen {
 
-class SymbolVisitor : private NonCopyable {
+class SymbolVisitor : NonCopyable {
 public:
     virtual ~SymbolVisitor() = default;
 
