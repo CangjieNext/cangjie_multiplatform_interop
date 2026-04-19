@@ -156,7 +156,7 @@ void FileLevelSymbol::set_cangjie_package_name(std::string cangjie_package_name)
 
 [[nodiscard]] static Type::Kind get_kind(const TypeLikeSymbol& type_symbol)
 {
-    if (is<TypeParameterSymbol>(type_symbol)) {
+    if (type_symbol.is<TypeParameterSymbol>()) {
         return Type::Kind::TypeParam;
     }
     auto& universe = Universe::get();
@@ -216,8 +216,7 @@ const TypeDeclarationSymbol& Type::actual_protocol() const noexcept
     // Probably, it would be good to return the least common ancestor of all
     // constraints here, not just `id`.
     assert(kind_ == Kind::TypeParam);
-    return parameters_.size() == 1 ? as<const TypeDeclarationSymbol&>(parameters_.front().symbol())
-                                   : Universe::get().id();
+    return parameters_.size() == 1 ? parameters_.front().symbol().as<TypeDeclarationSymbol>() : Universe::get().id();
 }
 
 void Type::set_nullability(Nullability nullability) noexcept
@@ -471,7 +470,7 @@ void Type::print_default_value(std::ostream& stream, PrintFormat format) const
         return;
     }
     const auto& type_symbol = symbol();
-    if (is<TypeParameterSymbol>(type_symbol)) {
+    if (type_symbol.is<TypeParameterSymbol>()) {
         print_tricky_default_value(stream, "ObjCId");
         return;
     }
@@ -510,7 +509,7 @@ void Type::print_default_value(std::ostream& stream, PrintFormat format) const
     if (named_type) {
         switch (named_type->kind()) {
             case NamedTypeSymbol::Kind::Primitive:
-                switch (as<const PrimitiveTypeSymbol&>(*named_type).category()) {
+                switch (named_type->as<PrimitiveTypeSymbol>().category()) {
                     case PrimitiveTypeCategory::Boolean:
                         stream << "false";
                         return;
@@ -549,11 +548,10 @@ void Type::print_default_value(std::ostream& stream, PrintFormat format) const
                 break;
             }
             case NamedTypeSymbol::Kind::Unexposed:
-                as<const UnexposedTypeSymbol&>(*named_type).underlying_type().print_default_value(stream, format);
+                named_type->as<UnexposedTypeSymbol>().underlying_type().print_default_value(stream, format);
                 return;
             case NamedTypeSymbol::Kind::Enum:
-                Type(as<const EnumDeclarationSymbol&>(*named_type).underlying_type())
-                    .print_default_value(stream, format);
+                Type(named_type->as<EnumDeclarationSymbol>().underlying_type()).print_default_value(stream, format);
                 return;
             case NamedTypeSymbol::Kind::Interface:
             case NamedTypeSymbol::Kind::Protocol:
@@ -570,7 +568,7 @@ Nullability Type::init_nullability(Nullability nullability) noexcept
 {
     switch (kind_) {
         case Type::Kind::Named:
-            switch (as<const NamedTypeSymbol&>(*symbol_).kind()) {
+            switch (symbol_->as<NamedTypeSymbol>().kind()) {
                 case NamedTypeSymbol::Kind::Protocol:
                 case NamedTypeSymbol::Kind::Interface:
                 case NamedTypeSymbol::Kind::TypeDef:
