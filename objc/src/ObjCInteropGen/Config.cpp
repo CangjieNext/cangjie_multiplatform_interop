@@ -61,7 +61,16 @@ static void merge_to_left(toml::Value& lhs, const toml::Table& rhs)
     merge_to_left_array(lhs, rhs, "mappings");
 }
 
-static std::string print_import_sequence(const std::vector<std::string>& import_sequence)
+class TomlFileParser {
+public:
+    [[nodiscard]] toml::Value parse(const std::string& path);
+
+private:
+    std::vector<std::string> import_sequence;
+    std::unordered_map<std::string, std::vector<std::string>> imported;
+};
+
+[[nodiscard]] static std::string print_import_sequence(const std::vector<std::string>& import_sequence)
 {
     assert(!import_sequence.empty());
     auto it = import_sequence.begin();
@@ -75,8 +84,7 @@ static std::string print_import_sequence(const std::vector<std::string>& import_
     return message;
 }
 
-[[nodiscard]] static toml::Value parse_toml_file(const std::string& path, std::vector<std::string>& import_sequence,
-    std::unordered_map<std::string, std::vector<std::string>>& imported)
+toml::Value TomlFileParser::parse(const std::string& path)
 {
     auto absolute_path = std::filesystem::absolute(path).u8string();
     if (verbosity >= LogLevel::INFO) {
@@ -126,7 +134,7 @@ static std::string print_import_sequence(const std::vector<std::string>& import_
                 fatal("`imports` in `", path, "` item #", i, " is empty");
             }
 
-            auto import_config = parse_toml_file(import_path, import_sequence, imported);
+            auto import_config = parse(import_path);
             if (!import_config.empty()) {
                 assert(import_config.is<toml::Table>());
 
@@ -146,9 +154,8 @@ static std::string print_import_sequence(const std::vector<std::string>& import_
 
 void parse_toml_config_file(const std::string& path)
 {
-    std::unordered_map<std::string, std::vector<std::string>> imported;
-    std::vector<std::string> import_sequence;
-    config = parse_toml_file(path, import_sequence, imported);
+    TomlFileParser parser;
+    config = parser.parse(path);
 }
 
 } // namespace objcgen
