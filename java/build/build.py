@@ -142,12 +142,6 @@ def command(*args, cwd=None, env=None):
     if output.returncode:
         fatal('"' + ' '.join(args) + '" returned ' + output.returncode)
 
-def dylib_pref(target):
-    if "windows" in target:
-        return ""
-    else:
-        return "lib"
-
 def dylib_ext(target):
     if "darwin" in target or "ios" in target:
         return "dylib"
@@ -348,7 +342,6 @@ def build(args):
     if args.target_lib:
         LOG.info('begin build interoplib for ' + args.target_lib + '\n')
 
-        DYLIB_PREF = dylib_pref(args.target_lib)
         DYLIB_EXT = dylib_ext(args.target_lib)
         OUT_CINTEROPLIB_O = os.path.join(DIST_DIR, "cinteroplib.o")
 
@@ -469,13 +462,12 @@ def install(args):
         LOG.info("begin install interoplib for " + args.target + "\n")
         runtime = runtime_name(args.target)
 
-        DYLIB_PREF = dylib_pref(args.target)
         DYLIB_EXT = dylib_ext(args.target)
         OUT_CINTEROPLIB_O = os.path.join(DIST_DIR, "cinteroplib.o")
-        OUT_INTEROPLIB_A = os.path.join(DIST_DIR, f"{DYLIB_PREF}interoplib.interop.a")
-        OUT_INTEROPLIB_SO = os.path.join(DIST_DIR, f"{DYLIB_PREF}interoplib.interop.{DYLIB_EXT}")
-        OUT_JAVA_LANG_A = os.path.join(DIST_DIR, f"{DYLIB_PREF}java.lang.a")
-        OUT_JAVA_LANG_SO = os.path.join(DIST_DIR, f"{DYLIB_PREF}java.lang.{DYLIB_EXT}")
+        OUT_INTEROPLIB_A = os.path.join(DIST_DIR, "libinteroplib.interop.a")
+        OUT_INTEROPLIB_SO = os.path.join(DIST_DIR, f"libinteroplib.interop.{DYLIB_EXT}")
+        OUT_JAVA_LANG_A = os.path.join(DIST_DIR, "libjava.lang.a")
+        OUT_JAVA_LANG_SO = os.path.join(DIST_DIR, f"libjava.lang.{DYLIB_EXT}")
 
         DEST_LIB = prepare_dir(install_path, "lib", runtime)
         install_files(
