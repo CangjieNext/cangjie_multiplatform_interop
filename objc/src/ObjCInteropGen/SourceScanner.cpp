@@ -1360,8 +1360,14 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
             assert(current_top_is_type());
             assert(is_canonical(cursor));
             assert(is_defining(cursor));
+            bool is_bitfield = clang_Cursor_isBitField(cursor);
+            if (is_bitfield && name.empty()) {
+                // Bit-fields can be unnamed.  Ignore such fields.
+                return CXChildVisit_Continue;
+            }
+            assert(!name.empty());
             auto& field = current_type_declaration()->add_field(name, type_like_symbol(type), is_nullable(type));
-            if (clang_Cursor_isBitField(cursor)) {
+            if (is_bitfield) {
                 auto width = clang_getFieldDeclBitWidth(cursor);
                 assert(width >= 0);
                 assert(width < 0xFF);
