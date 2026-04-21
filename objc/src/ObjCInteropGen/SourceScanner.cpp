@@ -238,6 +238,12 @@ protected:
 
 private:
     bool visit_parameter_declaration(std::string cursor_name, const CXType& cursor_type);
+
+    /**
+     * Get the generic type declaration the currently processed type parameter
+     * belongs to.
+     */
+    [[nodiscard]] const TypeDeclarationSymbol& get_owner_generic_type() const;
 };
 
 class ClangSessionImpl final : public ClangSession {
@@ -611,6 +617,47 @@ static UndecorateResult undecorate_parameter_type_name(const std::string& decora
     return *new VArraySymbol(universe.int8(), static_cast<size_t>(size));
 }
 
+const TypeDeclarationSymbol& SourceScanner::get_owner_generic_type() const
+{
+    // Non-ObjC type declarations nested in ObjC interfaces/protocols are visited
+    // NOT as children of those interfaces/protocols, but as top-level types (not
+    // having parents formally).  But they can reference type parameters of their
+    // actual parents!
+    //
+    // For example:
+    //     @interface M <__covariant ElementT>
+    //     typedef ElementT E;
+    //     @end
+    //
+    // In this example the type ElementT will be visited as a child of the top-level
+    // E type declaration, but we need the information about its real generic
+    // Objective-C owner which is M in this case.  Luckily, such nested non-ObjC
+    // declarations are visited right after processing their real owners.  So that
+    // we can track the previous ObjC declaration and use it for type parameter
+    // lookup here.
+    //
+    // It seems macOS/iOS system headers do not declare nested types, but they are
+    // usual in GNUstep.  For example the GSSetEnumeratorBlock typedef, which is
+    // defined in the middle of the NSSet<ElementT> definition and references the
+    // ElementT type parameter.
+    if (!is_on_top_level()) {
+        const auto* owner_type = current_type_declaration();
+        assert(owner_type);
+        switch (owner_type->kind()) {
+            case NamedTypeSymbol::Kind::Interface:
+            case NamedTypeSymbol::Kind::Protocol:
+            case NamedTypeSymbol::Kind::Category:
+                return *owner_type;
+            default:
+                break;
+        }
+    }
+    assert(last_objc_type_);
+    assert(last_objc_type_->is(NamedTypeSymbol::Kind::Interface) ||
+        last_objc_type_->is(NamedTypeSymbol::Kind::Protocol) || last_objc_type_->is(NamedTypeSymbol::Kind::Category));
+    return *last_objc_type_;
+}
+
 TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
 {
     assert(type.kind != CXType_Invalid);
@@ -703,40 +750,18 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
         }
 
         case CXType_ObjCTypeParam: {
-            auto* owner_type = current_type_declaration();
-            assert(owner_type);
-            switch (owner_type->kind()) {
-                case NamedTypeSymbol::Kind::Interface:
-                case NamedTypeSymbol::Kind::Protocol:
-                case NamedTypeSymbol::Kind::Category:
-                    break;
-                default:
-                    // Non-ObjC type declarations inside ObjC interfaces/protocols in the AST
-                    // are NOT children of ObjC type declaration. Therefore, current type will be the non-ObjC type,
-                    // which will not have the ObjC type parameter.
-                    // An example would be GSSetEnumeratorBlock struct defined in the middle of NSSet<ElementT>
-                    // definition, referencing ElementT type parameter in the function pointer signature of invoke
-                    // struct field. Since ObjC type declarations are top-level only, and it appears that non-ObjC
-                    // declarations are located after the ObjC declarations, we can track the last ObjC declaration and
-                    // use it for type parameter lookup here.
-                    if (last_objc_type_) {
-                        owner_type = last_objc_type_;
-                        assert(owner_type->is(NamedTypeSymbol::Kind::Interface) ||
-                            owner_type->is(NamedTypeSymbol::Kind::Protocol) ||
-                            owner_type->is(NamedTypeSymbol::Kind::Category));
-                    }
-            }
+            const auto& owner_type = get_owner_generic_type();
             auto decorated_type_name = as_string(clang_getTypeSpelling(type));
             auto [undecorated_type_name, narrowing_protocol_name] = undecorate_parameter_type_name(decorated_type_name);
-            const auto parameter_count = owner_type->parameter_count();
+            const auto parameter_count = owner_type.parameter_count();
             for (std::size_t i = 0; i < parameter_count; ++i) {
-                auto* parameter = owner_type->parameter(i);
+                auto* parameter = owner_type.parameter(i);
                 assert(parameter);
                 auto parameter_name = parameter->name();
                 if (parameter_name == undecorated_type_name) {
-                    if (owner_type->kind() == NamedTypeSymbol::Kind::Category) {
-                        assert(dynamic_cast<CategoryDeclarationSymbol*>(owner_type));
-                        const auto* interface = static_cast<const CategoryDeclarationSymbol*>(owner_type)->interface();
+                    if (owner_type.kind() == NamedTypeSymbol::Kind::Category) {
+                        assert(dynamic_cast<const CategoryDeclarationSymbol*>(&owner_type));
+                        const auto* interface = static_cast<const CategoryDeclarationSymbol&>(owner_type).interface();
                         assert(parameter_count == interface->parameter_count());
                         parameter = interface->parameter(i);
                     }
