@@ -600,6 +600,8 @@ static UndecorateResult undecorate_parameter_type_name(const std::string& decora
     }
 #endif
     remove_prefix_in_place(type_name, "__strong ");
+    remove_prefix_in_place(type_name, "__unsafe_unretained ");
+    remove_prefix_in_place(type_name, "__autoreleasing ");
     return type_name;
 }
 
@@ -787,6 +789,12 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
         case CXType_ConstantArray:
             return new VArraySymbol(
                 *type_like_symbol(clang_getArrayElementType(type)), static_cast<size_t>(clang_getArraySize(type)));
+
+        case CXType_Atomic: {
+            auto value_type = clang_Type_getValueType(type);
+            assert(is_valid(value_type));
+            return type_like_symbol(value_type);
+        }
 
             // We will handle the rest below this switch.
 
