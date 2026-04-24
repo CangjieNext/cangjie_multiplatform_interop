@@ -852,6 +852,7 @@ constexpr uint16_t ModifierNullable = 1 << 5;
 constexpr uint16_t ModifierOverride = 1 << 6;
 constexpr uint16_t ModifierOptional = 1 << 7;
 constexpr uint16_t ModifierInternalLinkage = 1 << 8; // used for Kind::GlobalFunction
+constexpr uint16_t ModifierBitField = 1 << 9;
 
 class TypeDeclarationSymbol : public NamedTypeSymbol {
     std::vector<std::unique_ptr<TypeParameterSymbol>> parameters_;
@@ -985,7 +986,7 @@ public:
 
     NonTypeSymbol& add_constructor(std::string name, TypeLikeSymbol* return_type);
 
-    NonTypeSymbol& add_field(std::string name, TypeLikeSymbol* type, bool is_nullable);
+    NonTypeSymbol& add_field(std::string name, TypeLikeSymbol* type, uint16_t modifiers);
 
     NonTypeSymbol& add_instance_variable(std::string name, TypeLikeSymbol* type, uint16_t modifiers);
 
@@ -1451,7 +1452,7 @@ public:
 
     [[nodiscard]] bool is_bit_field() const noexcept
     {
-        return bit_field_size_ != 0xFF;
+        return modifiers_ & ModifierBitField;
     }
 
     [[nodiscard]] bool is_ctype() const noexcept override;
@@ -1513,13 +1514,6 @@ public:
         return modifiers_ & ModifierInternalLinkage;
     }
 
-    void set_bit_field_size(uint8_t size) noexcept
-    {
-        assert(is_instance()); // A bit-field cannot be a static data member.
-        assert(size < 0xFF);
-        bit_field_size_ = size;
-    }
-
 protected:
     void visit_impl(SymbolVisitor& visitor) override;
 
@@ -1535,7 +1529,6 @@ private:
     std::string getter_;
     std::string setter_;
 
-    uint8_t bit_field_size_ = 0xFF; // Non-default value if this is a bit-field
     TypeLikeSymbol* return_type_;
     std::vector<ParameterSymbol> parameters_;
     std::string selector_attribute_;

@@ -933,6 +933,9 @@ void TypeDeclarationWriter::write_field(const NonTypeSymbol& field)
 {
     assert(field.is_field());
     assert(field.is_instance());
+    if (field.is_bit_field() && field.name().empty()) {
+        return;
+    }
     auto* return_type = field.return_type();
     assert(return_type);
     assert(!return_type->is_unit());

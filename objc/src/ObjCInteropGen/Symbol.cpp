@@ -308,13 +308,19 @@ NonTypeSymbol& TypeDeclarationSymbol::add_constructor(std::string name, TypeLike
         NonTypeSymbol::Private(), std::move(name), NonTypeSymbol::Kind::Constructor, return_type);
 }
 
-NonTypeSymbol& TypeDeclarationSymbol::add_field(std::string name, TypeLikeSymbol* type, bool is_nullable)
+NonTypeSymbol& TypeDeclarationSymbol::add_field(std::string name, TypeLikeSymbol* type, uint16_t modifiers)
 {
     assert(kind() == Kind::Struct || kind() == Kind::Union);
-    assert(all_of_members([&name](const auto& member) { return !member.is_field() || member.name() != name; }));
 
-    auto& member = members_.emplace_back(NonTypeSymbol::Private(), std::move(name), NonTypeSymbol::Kind::Field, type,
-        is_nullable ? ModifierNullable : 0);
+    // Only bit-fields can be unnamed
+    assert(!name.empty() || modifiers & ModifierBitField);
+
+    // And once it is named, no other field with this name should exist
+    assert(name.empty() ||
+        all_of_members([&name](const auto& member) { return !member.is_field() || member.name() != name; }));
+
+    auto& member =
+        members_.emplace_back(NonTypeSymbol::Private(), std::move(name), NonTypeSymbol::Kind::Field, type, modifiers);
     if (is_ctype_ && !member.return_type()->is_ctype()) {
         is_ctype_ = false;
     }
