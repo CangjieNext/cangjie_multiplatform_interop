@@ -245,7 +245,7 @@ enum class OutputStatus { Undefined, Root, Referenced, ReferencedMarked, MultiRe
 
 class FileLevelSymbol : public Symbol {
     InputFile* input_file_ = nullptr; // Stage 1
-    LineCol location_ = {0, 0};
+    LineCol location_{};
     std::unordered_set<FileLevelSymbol*> references_symbols_; // Stage 2
 
     std::string cangjie_package_name_;

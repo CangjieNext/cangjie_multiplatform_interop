@@ -284,6 +284,18 @@ public unsafe func getClass(className: String): NativeObjCId {
 }
 
 /**
+ * Gets a protocol NativeObjCProtocol by it's name.
+ * Effectively a wrapper around objc_getProtocol(protoname), but with Cangjie String as a parameter for convenience.
+ */
+public unsafe func getProtocol(protoName: String): NativeObjCProtocol {
+    let protoCName = LibC.mallocCString(protoName)
+    let proto = objc_getProtocol(protoCName)
+    LibC.free(protoCName)
+
+    proto
+}
+
+/**
  * Returns a pointer to objc_msgSend implementation.
  * The result should be cast to proper CFunc<(NativeObjCId, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
  */
@@ -309,6 +321,35 @@ public func objCMsgSendSuper(_: NativeObjCSuperPtr, _: NativeObjCSel): CPointer<
 public func objCMsgSendSuper(objCSuper: NativeObjCSuperPtr, sel: NativeObjCSel): CPointer<Unit> {
     unsafe {
         objc_msg_lookup_super(objCSuper, sel)
+    }
+}
+
+/**
+ * Converts Cangjie String to NSString.
+ */
+public func convertToNSString(str: String): NativeObjCId {
+    unsafe {
+        let cstr = LibC.mallocCString(str)
+        let ptr = CPointer<Unit>(cstr.getChars())
+        let result = CFunc<(NativeObjCId, NativeObjCSel, CPointer<Unit>) -> NativeObjCId>(objCMsgSend())(
+            alloc("NSString"), registerName("initWithUTF8String:"), ptr
+        )
+        LibC.free(cstr)
+        return result
+    }
+}
+
+/**
+ * Gets object description and converts it to Cangjie String.
+ */
+public func descriptionAsString(id: NativeObjCId): String {
+    unsafe {
+        let description = CFunc<(NativeObjCId, NativeObjCSel) -> NativeObjCId>(objCMsgSend())(id, registerName("description"))
+        let result = CFunc<(NativeObjCId, NativeObjCSel) -> CPointer<Unit>>(objCMsgSend())(
+            description, registerName("UTF8String")
+        )
+        let str = CString(CPointer<UInt8>(result))
+        return str.toString()
     }
 }
 
@@ -443,6 +484,13 @@ foreign func objc_msgSend(): Unit
  * super: NativeObjCSuperPtr, sel: NativeObjCSel, ...
  */
 foreign func objc_msgSendSuper(): Unit
+
+@FastNative
+/**
+ * Returns the protocol with the specified name, if one has been registered with
+ * the runtime, or nil if one does not exist.
+ */
+foreign func objc_getProtocol(name: CString): NativeObjCProtocol
 
 @FastNative
 /**

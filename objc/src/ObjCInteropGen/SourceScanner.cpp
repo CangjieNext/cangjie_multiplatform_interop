@@ -238,6 +238,12 @@ protected:
 
 private:
     bool visit_parameter_declaration(std::string cursor_name, const CXType& cursor_type);
+
+    /**
+     * Get the generic type declaration the currently processed type parameter
+     * belongs to.
+     */
+    [[nodiscard]] const TypeDeclarationSymbol& get_owner_generic_type() const;
 };
 
 class ClangSessionImpl final : public ClangSession {
@@ -359,25 +365,24 @@ ClangSessionImpl::~ClangSessionImpl()
     return clang_equalLocations(loc, clang_getNullLocation());
 }
 
-static Location get_location(const CXSourceLocation& loc)
+[[nodiscard]] static Location get_location(const CXCursor& decl)
 {
-    assert(!is_null_location(loc));
+    assert(is_valid(decl));
+    auto loc = clang_getCursorLocation(decl);
+    if (is_null_location(loc)) {
+        return {};
+    }
     Location location;
     CXFile file;
-    clang_getFileLocation(loc, &file, &location.line_, &location.col_, nullptr);
-    assert(file);
+    clang_getFileLocation(loc, &file, &location.pos_.line_, &location.pos_.col_, nullptr);
+    if (!file) {
+        return {};
+    }
     location.file_ = as_string(clang_getFileName(file));
     if (!location.file_.is_absolute()) {
         location.file_ = std::filesystem::absolute(location.file_);
     }
     return location;
-}
-
-static Location get_location(const CXCursor& decl)
-{
-    assert(is_valid(decl));
-    auto loc = clang_getCursorLocation(decl);
-    return is_null_location(loc) ? Location{{0, 0}, {}} : get_location(loc);
 }
 
 [[nodiscard]] static std::string declaring_file_name(const CXCursor& decl)
@@ -566,8 +571,8 @@ struct UndecorateResult {
  *     @end
  * </pre>
  *
- * Also, under `-fobjc-arc` the type parameter name can be prefixed with the
- * `__unsafe_unretained` or `__strong` modifier.
+ * Also the type parameter name can be prefixed with the `const`,
+ * `__unsafe_unretained`, or `__strong` modifier.
  *
  * <p> We need a pure name without any "decorations", to make it possible to
  * find the parameter in its owner's parameter list.  The pure name hardly can
@@ -575,7 +580,8 @@ struct UndecorateResult {
  */
 static UndecorateResult undecorate_parameter_type_name(const std::string& decorated_type_name)
 {
-    auto without_prefix = remove_prefix(remove_prefix(decorated_type_name, "__unsafe_unretained "), "__strong ");
+    auto without_prefix =
+        remove_prefix(remove_prefix(remove_prefix(decorated_type_name, "__unsafe_unretained "), "__strong "), "const ");
     auto opening_bracket = without_prefix.find('<');
     return opening_bracket == std::string_view::npos || without_prefix.back() != '>'
         ? UndecorateResult{without_prefix, std::string_view()}
@@ -594,26 +600,65 @@ static UndecorateResult undecorate_parameter_type_name(const std::string& decora
     }
 #endif
     remove_prefix_in_place(type_name, "__strong ");
+    remove_prefix_in_place(type_name, "__unsafe_unretained ");
+    remove_prefix_in_place(type_name, "__autoreleasing ");
     return type_name;
 }
 
-static TypeLikeSymbol& get_unexposed_base_type(const CXType& type, const std::string& type_name)
+[[nodiscard]] static TypeLikeSymbol& primitive_type(const CXType& type) noexcept
 {
-    auto& universe = Universe::get();
-    TypeLikeSymbol* result = universe.type(type_name);
-    if (result) {
-        return *result;
-    }
     auto size = clang_Type_getSizeOf(type);
-    result = universe.primitive_type(
-        get_primitive_category(type), size < 0 ? PrimitiveSize::Zero : static_cast<PrimitiveSize>(size));
-    if (result) {
-        return *result;
-    }
+    auto& universe = Universe::get();
     if (size <= 0) {
         return universe.unit();
     }
+    auto* type_symbol = universe.primitive_type(
+        get_primitive_category(type), static_cast<PrimitiveSize>(size));
+    if (type_symbol) {
+        return *type_symbol;
+    }
     return *new VArraySymbol(universe.int8(), static_cast<size_t>(size));
+}
+
+const TypeDeclarationSymbol& SourceScanner::get_owner_generic_type() const
+{
+    // Non-ObjC type declarations nested in ObjC interfaces/protocols are visited
+    // NOT as children of those interfaces/protocols, but as top-level types (not
+    // having parents formally).  But they can reference type parameters of their
+    // actual parents!
+    //
+    // For example:
+    //     @interface M <__covariant ElementT>
+    //     typedef ElementT E;
+    //     @end
+    //
+    // In this example the type ElementT will be visited as a child of the top-level
+    // E type declaration, but we need the information about its real generic
+    // Objective-C owner which is M in this case.  Luckily, such nested non-ObjC
+    // declarations are visited right after processing their real owners.  So that
+    // we can track the previous ObjC declaration and use it for type parameter
+    // lookup here.
+    //
+    // It seems macOS/iOS system headers do not declare nested types, but they are
+    // usual in GNUstep.  For example the GSSetEnumeratorBlock typedef, which is
+    // defined in the middle of the NSSet<ElementT> definition and references the
+    // ElementT type parameter.
+    if (!is_on_top_level()) {
+        const auto* owner_type = current_type_declaration();
+        assert(owner_type);
+        switch (owner_type->kind()) {
+            case NamedTypeSymbol::Kind::Interface:
+            case NamedTypeSymbol::Kind::Protocol:
+            case NamedTypeSymbol::Kind::Category:
+                return *owner_type;
+            default:
+                break;
+        }
+    }
+    assert(last_objc_type_);
+    assert(last_objc_type_->is(NamedTypeSymbol::Kind::Interface) ||
+        last_objc_type_->is(NamedTypeSymbol::Kind::Protocol) || last_objc_type_->is(NamedTypeSymbol::Kind::Category));
+    return *last_objc_type_;
 }
 
 TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
@@ -697,7 +742,8 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
                 return type_like_symbol(modified_type);
             }
             auto type_name = get_type_name(type);
-            return new UnexposedTypeSymbol(type_name, get_unexposed_base_type(type, type_name));
+            auto* result = Universe::get().type(type_name);
+            return new UnexposedTypeSymbol(type_name, result ? *result : primitive_type(type));
         }
 
         case CXType_Attributed: {
@@ -707,40 +753,18 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
         }
 
         case CXType_ObjCTypeParam: {
-            auto* owner_type = current_type_declaration();
-            assert(owner_type);
-            switch (owner_type->kind()) {
-                case NamedTypeSymbol::Kind::Interface:
-                case NamedTypeSymbol::Kind::Protocol:
-                case NamedTypeSymbol::Kind::Category:
-                    break;
-                default:
-                    // Non-ObjC type declarations inside ObjC interfaces/protocols in the AST
-                    // are NOT children of ObjC type declaration. Therefore, current type will be the non-ObjC type,
-                    // which will not have the ObjC type parameter.
-                    // An example would be GSSetEnumeratorBlock struct defined in the middle of NSSet<ElementT>
-                    // definition, referencing ElementT type parameter in the function pointer signature of invoke
-                    // struct field. Since ObjC type declarations are top-level only, and it appears that non-ObjC
-                    // declarations are located after the ObjC declarations, we can track the last ObjC declaration and
-                    // use it for type parameter lookup here.
-                    if (last_objc_type_) {
-                        owner_type = last_objc_type_;
-                        assert(owner_type->is(NamedTypeSymbol::Kind::Interface) ||
-                            owner_type->is(NamedTypeSymbol::Kind::Protocol) ||
-                            owner_type->is(NamedTypeSymbol::Kind::Category));
-                    }
-            }
+            const auto& owner_type = get_owner_generic_type();
             auto decorated_type_name = as_string(clang_getTypeSpelling(type));
             auto [undecorated_type_name, narrowing_protocol_name] = undecorate_parameter_type_name(decorated_type_name);
-            const auto parameter_count = owner_type->parameter_count();
+            const auto parameter_count = owner_type.parameter_count();
             for (std::size_t i = 0; i < parameter_count; ++i) {
-                auto* parameter = owner_type->parameter(i);
+                auto* parameter = owner_type.parameter(i);
                 assert(parameter);
                 auto parameter_name = parameter->name();
                 if (parameter_name == undecorated_type_name) {
-                    if (owner_type->kind() == NamedTypeSymbol::Kind::Category) {
-                        assert(dynamic_cast<CategoryDeclarationSymbol*>(owner_type));
-                        const auto* interface = static_cast<const CategoryDeclarationSymbol*>(owner_type)->interface();
+                    if (owner_type.kind() == NamedTypeSymbol::Kind::Category) {
+                        assert(dynamic_cast<const CategoryDeclarationSymbol*>(&owner_type));
+                        const auto* interface = static_cast<const CategoryDeclarationSymbol&>(owner_type).interface();
                         assert(parameter_count == interface->parameter_count());
                         parameter = interface->parameter(i);
                     }
@@ -766,6 +790,12 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
         case CXType_ConstantArray:
             return new VArraySymbol(
                 *type_like_symbol(clang_getArrayElementType(type)), static_cast<size_t>(clang_getArraySize(type)));
+
+        case CXType_Atomic: {
+            auto value_type = clang_Type_getValueType(type);
+            assert(is_valid(value_type));
+            return type_like_symbol(value_type);
+        }
 
             // We will handle the rest below this switch.
 
@@ -836,15 +866,9 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
             break;
         }
 
-        default: {
+        default:
             assert(is_builtin(type));
-            type_name = get_type_name(type);
-            auto size = clang_Type_getSizeOf(type);
-            auto* primitive_symbol = Universe::get().primitive_type(
-                get_primitive_category(type), size < 0 ? PrimitiveSize::Zero : static_cast<PrimitiveSize>(size));
-            assert(primitive_symbol);
-            return primitive_symbol;
-        }
+            return &primitive_type(type);
     }
 
     if (auto* type_symbol = Universe::get().type(type_kind, type_name)) {
@@ -1477,7 +1501,12 @@ static bool parse_source(CXIndex index, const std::string& file, std::vector<con
 
 void ClangSessionImpl::parse_sources(const std::vector<std::string>& files, const std::vector<std::string>& arguments)
 {
-    std::vector args = {"-xobjective-c", "-fobjc-arc"};
+    std::vector args = {
+        "-xobjective-c",
+        "-fobjc-nonfragile-abi", // Required by GNUstep built for non-fragile ABI
+        "-fobjc-arc",            // Prevents adding low-level staff like retain/release/NSAutoreleasePool
+        "-fblocks"               // Required by GNUstep on Windows if blocks are processed
+    };
 
     for (auto&& argument : arguments) {
         args.push_back(argument.c_str());
