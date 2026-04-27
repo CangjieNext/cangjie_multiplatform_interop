@@ -1124,9 +1124,14 @@ public:
 
 protected:
     FuncLikeTypeSymbol();
+
     FuncLikeTypeSymbol(TupleTypeSymbol* parameters, TypeLikeSymbol* return_type);
+
     void visit_impl(SymbolVisitor& visitor) override;
+
     void do_print(std::ostream& stream, std::string_view name, SymbolPrintFormat format) const;
+
+    void do_print_as_func(std::ostream& stream, SymbolPrintFormat format) const;
 };
 
 class FuncTypeSymbol final : public FuncLikeTypeSymbol {

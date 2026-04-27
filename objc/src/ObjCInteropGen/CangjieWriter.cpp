@@ -1080,8 +1080,8 @@ static void write_enum_declaration(IndentingStringStream& output, EnumDeclaratio
     collect_import(underlying_type);
     output << "public type " << emit_cangjie(enum_decl) << " = " << emit_cangjie(underlying_type) << '\n';
     enum_decl.for_each_constant([&output, format, &enum_decl, &underlying_type](const auto& constant) {
-        output << "public const " << escape_keyword(constant.name()) << ": "
-               << SymbolPrinter(enum_decl, format) << " = ";
+        output << "public const " << escape_keyword(constant.name()) << ": " << SymbolPrinter(enum_decl, format)
+               << " = ";
         print_enum_constant_value(output, underlying_type, constant);
         output << '\n';
     });

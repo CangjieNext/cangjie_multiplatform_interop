@@ -682,13 +682,18 @@ void FuncLikeTypeSymbol::do_print(std::ostream& stream, std::string_view name, S
     stream << '>';
 }
 
-void FuncTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
+void FuncLikeTypeSymbol::do_print_as_func(std::ostream& stream, SymbolPrintFormat format) const
 {
     if (!is_ctype() || format == SymbolPrintFormat::EmitCangjieStrict) {
         do_print(stream, "ObjCFunc", SymbolPrintFormat::EmitCangjieStrict);
     } else {
         do_print(stream, "CFunc", format);
     }
+}
+
+void FuncTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
+{
+    do_print_as_func(stream, format);
 }
 
 void BlockTypeSymbol::print(std::ostream& stream, SymbolPrintFormat)
@@ -728,7 +733,9 @@ void BlockTypeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]]
     SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
 {
     print(stream, format);
-    stream << "(CPointer<NativeBlockABI>())";
+    stream << "(unsafe { ";
+    do_print(stream, "zeroValue", format);
+    stream << "() })";
 }
 
 void FuncLikeTypeSymbol::visit_impl(SymbolVisitor& visitor)
