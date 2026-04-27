@@ -13,13 +13,13 @@ public class ObjCBlock<F> {
     let ptr: CPointer<NativeBlockABI>
     
     // this constructor is used to construct block object from Objective-C native block pointer
-    public init(ptr: CPointer<NativeBlockABI>) {
+    protected init(ptr: CPointer<NativeBlockABI>) {
         this.ptr = ptr
         this.cangjieOwnedPtr = false
     }
     
     // this constructor is used to construct block object from Cangjie
-    public init(ptr: CPointer<CangjieBlockABI>) {
+    protected init(ptr: CPointer<CangjieBlockABI>) {
         this.ptr = CPointer<NativeBlockABI>(ptr)
         this.cangjieOwnedPtr = true
     }

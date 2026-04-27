@@ -12,7 +12,7 @@ import std.sync.Mutex
 /**
  * To avoid std.sync.Mutex dependency at objc glue-code.
  */
-public type ForwarderMutex = Mutex
+protected type ForwarderMutex = Mutex
 
 /**
  * id or Instance Method Pointer type.
@@ -22,34 +22,34 @@ public type NativeObjCId = CPointer<Unit>
 /**
  * SEL.
  */
-public type NativeObjCSel = CPointer<Unit>
+protected type NativeObjCSel = CPointer<Unit>
 
 /**
  * Class.
  */
-public type NativeObjCClass = CPointer<Unit>
+protected type NativeObjCClass = CPointer<Unit>
 
 /**
  * Protocol.
  */
-public type NativeObjCProtocol = CPointer<Unit>
+protected type NativeObjCProtocol = CPointer<Unit>
 
 /**
  * Ivar.
  */
-public type NativeObjCIvar = CPointer<Unit>
+protected type NativeObjCIvar = CPointer<Unit>
 
 /**
  * Instance Method Pointer type.
  * Note: Should be cast to proper CFunc<(NativeObjCId, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
  */
-public type NativeObjCImp = CPointer<Unit>
+protected type NativeObjCImp = CPointer<Unit>
 
 @C
 /**
  * objc_super
  */
-public struct NativeObjCSuper {
+protected struct NativeObjCSuper {
     public NativeObjCSuper(let receiver: NativeObjCId, let super_class: NativeObjCClass) {}
 }
 
@@ -57,17 +57,17 @@ public struct NativeObjCSuper {
  * objc_super*
  * Could be convenient for msgSendSuper calls.
  */
-public type NativeObjCSuperPtr = CPointer<NativeObjCSuper>
+protected type NativeObjCSuperPtr = CPointer<NativeObjCSuper>
 
 /**
  * An opaque identifier for Cangjie mirror objects.
  */
-public type RegistryId = Int64
+protected type RegistryId = Int64
 
 /**
  * An exception that has to be used to mark an unreachable code (e.g. instantiation @ObjCImpl objects from Cangjie side).
  */
-public class ObjCUnreachableCodeException <: Exception {}
+protected class ObjCUnreachableCodeException <: Exception {}
 
 /**
  * An exception that has to be used when runtime calls for method unimplemented in Mirror from protocol.
@@ -77,13 +77,13 @@ public class ObjCOptionalMethodUnimplementedException <: Exception {}
 /**
  * An exception that has to be used when runtime calls static methods directly on interfaces (protocols).
  */
-public class ObjCStaticMethodCallOnInterfaceException <: Exception {}
+protected class ObjCStaticMethodCallOnInterfaceException <: Exception {}
 
 @Frozen
 /**
  * Gets a Cangjie object of type R from registry by the pointer of its Objective-C counterpart.
  */
-public unsafe func getFromRegistryByNativeHandle<R>(id: NativeObjCId): R {
+protected unsafe func getFromRegistryByNativeHandle<R>(id: NativeObjCId): R {
     const REGISTRY_ID_IDENT = "$registryId"
     getFromRegistryById<R>(
         CFunc<(NativeObjCId, NativeObjCSel) -> RegistryId>(objCMsgSend())(id, registerName(REGISTRY_ID_IDENT))
@@ -94,21 +94,21 @@ public unsafe func getFromRegistryByNativeHandle<R>(id: NativeObjCId): R {
 /**
  * Gets a Cangjie object of type R from registry by the id.
  */
-public unsafe func getFromRegistryById<R>(registryId: RegistryId): R {
+protected unsafe func getFromRegistryById<R>(registryId: RegistryId): R {
     REGISTRY.get<R>(registryId).getOrThrow()
 }
 
 /**
  * Puts a Cangjie object to registry.
  */
-public unsafe func putToRegistry(any: Any): RegistryId {
+protected unsafe func putToRegistry(any: Any): RegistryId {
     REGISTRY.put(any)
 }
 
 /**
  * Removes a Cangjie object from registry by its id.
  */
-public unsafe func removeFromRegistry(registryId: RegistryId): Unit {
+protected unsafe func removeFromRegistry(registryId: RegistryId): Unit {
     REGISTRY.remove(registryId)
 }
 
@@ -117,7 +117,7 @@ public unsafe func removeFromRegistry(registryId: RegistryId): Unit {
  * Effectively a wrapper around [cls alloc], but with Cangjie String as a parameter for convenience.
  * Note: MUST be called in a transaction with corresponding init* method of the class and the pointer, returned by this function, MUST NOT be stored anywhere.
  */
-public unsafe func alloc(className: String): NativeObjCId {
+protected unsafe func alloc(className: String): NativeObjCId {
     const ALLOC_SEL = "alloc"
     CFunc<(NativeObjCId, NativeObjCSel) -> NativeObjCId>(objCMsgSend())(getClass(className), registerName(ALLOC_SEL))
 }
@@ -125,7 +125,7 @@ public unsafe func alloc(className: String): NativeObjCId {
 /**
  * Returns super_class field from NativeObjCSuperPtr
  */
-public unsafe func getSuperClass(objCSuper: NativeObjCSuperPtr): NativeObjCClass {
+protected unsafe func getSuperClass(objCSuper: NativeObjCSuperPtr): NativeObjCClass {
     return objCSuper.read().super_class
 }
 
@@ -136,7 +136,7 @@ public unsafe func getSuperClass(objCSuper: NativeObjCSuperPtr): NativeObjCClass
  * 3. To return an object.
  * Note: the result of this call supposed to be sent to a constructor of a desired return result.
  */
-public unsafe func withMethodEnvObj(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> NativeObjCId): NativeObjCId {
+protected unsafe func withMethodEnvObj(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> NativeObjCId): NativeObjCId {
     withObjCSuper(id, objCClassName) {
         receiver: CPointer<Unit>, objCSuper: NativeObjCSuperPtr => withAutoreleasePoolObj( { => action(receiver, objCSuper) } )
     }
@@ -149,7 +149,7 @@ public unsafe func withMethodEnvObj(id: NativeObjCId, objCClassName: String, act
  * 2. To call objc_msgSendSuper with NativeObjCSuperPtr.
  * 3. To return an Objective-C compatible primitive type value.
  */
-public unsafe func withMethodEnv<R>(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> R): R where R <: CType {
+protected unsafe func withMethodEnv<R>(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> R): R where R <: CType {
     withObjCSuper(id, objCClassName) {
         receiver: CPointer<Unit>, objCSuper: NativeObjCSuperPtr => withAutoreleasePool( {=> action(receiver, objCSuper)} )
     }
@@ -163,7 +163,7 @@ public unsafe func withMethodEnv<R>(id: NativeObjCId, objCClassName: String, act
  * CFunc<(CPointer<Unit>, NativeObjCSel, ...ArgTypes) -> RetType>(objCMsgSendSuper(objCSuper, sel))(receiver, sel, ...)
  * where: receiver is the first `action` param and objCSuper is the second `action` param
  */
-public unsafe func withObjCSuper<R>(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> R): R where R <: CType {
+protected unsafe func withObjCSuper<R>(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> R): R where R <: CType {
     let objCSuper = getObjCSuper(id, objCClassName)
     try {
         action(CPointer<Unit>(objCSuper), objCSuper)
@@ -180,7 +180,7 @@ public unsafe func withObjCSuper<R>(id: NativeObjCId, objCClassName: String, act
  * CFunc<(CPointer<Unit>, NativeObjCSel, ...ArgTypes) -> RetType>(objCMsgSendSuper(objCSuper, sel))(receiver, sel, ...)
  * where: receiver is the first `action` param and objCSuper is the second `action` param
  */
-public unsafe func withObjCSuper<R>(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> R): R where R <: CType {
+protected unsafe func withObjCSuper<R>(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> R): R where R <: CType {
     let objCSuper = getObjCSuper(id, objCClassName)
     try {
         // Note: for linux implementation we need to use `id` as a receiver, see [objCMsgSendSuper]
@@ -195,7 +195,7 @@ public unsafe func withObjCSuper<R>(id: NativeObjCId, objCClassName: String, act
  * Performs an `action` within an @autoreleasepool.
  * Note: This function is intended to be used with action returns primitive types. For instancetype(ObjCId) use `autoreleasePoolObj` (or autorelease manually).
  */
-public unsafe func withAutoreleasePool<R>(action: () -> R): R where R <: CType {
+protected unsafe func withAutoreleasePool<R>(action: () -> R): R where R <: CType {
     let pool = objc_autoreleasePoolPush()
     try {
         action()
@@ -208,7 +208,7 @@ public unsafe func withAutoreleasePool<R>(action: () -> R): R where R <: CType {
  * Performs an `action` within an @autoreleasepool.
  * The overall effect of this function for return value is retain + autorelease.
  */
-public unsafe func withAutoreleasePoolObj(action: () -> NativeObjCId): NativeObjCId {
+protected unsafe func withAutoreleasePoolObj(action: () -> NativeObjCId): NativeObjCId {
     withAutoreleasePool<NativeObjCId>( {=> objc_retainAutoreleasedReturnValue(action())} )
 }
 
@@ -216,7 +216,7 @@ public unsafe func withAutoreleasePoolObj(action: () -> NativeObjCId): NativeObj
  * Registers a selector in the Objective-C runtime by its name.
  * Effectively a wrapper around sel_registerName(sel), but with Cangjie String as a parameter for convenience.
  */
-public unsafe func registerName(selName: String): NativeObjCSel {
+protected unsafe func registerName(selName: String): NativeObjCSel {
     let selCName = LibC.mallocCString(selName)
 
     let sel = sel_registerName(selCName)
@@ -231,7 +231,7 @@ public unsafe func registerName(selName: String): NativeObjCSel {
  *
  * Note: this method MUST BE used only with instance variables of object types.
  */
-public unsafe func getInstanceVariableObj(id: NativeObjCId, name: String): NativeObjCId {
+protected unsafe func getInstanceVariableObj(id: NativeObjCId, name: String): NativeObjCId {
     let ivar = getIvar(id, name)
     object_getIvar(id, ivar)
 }
@@ -242,7 +242,7 @@ public unsafe func getInstanceVariableObj(id: NativeObjCId, name: String): Nativ
  *
  * Note: this method MUST BE used only with instance variables of object types.
  */
-public unsafe func setInstanceVariableObj(id: NativeObjCId, name: String, value: NativeObjCId): Unit {
+protected unsafe func setInstanceVariableObj(id: NativeObjCId, name: String, value: NativeObjCId): Unit {
     let ivar = getIvar(id, name)
     object_setIvar(id, ivar, value)
 }
@@ -253,7 +253,7 @@ public unsafe func setInstanceVariableObj(id: NativeObjCId, name: String, value:
  *
  * Note: this method MUST BE used only with instance variables of Objective-C compatible primitive types.
  */
-public unsafe func getInstanceVariable<R>(id: NativeObjCId, name: String): R where R <: CType {
+protected unsafe func getInstanceVariable<R>(id: NativeObjCId, name: String): R where R <: CType {
     let fieldPtr = getFieldPtr<R>(id, name)
     fieldPtr.read()
 }
@@ -264,7 +264,7 @@ public unsafe func getInstanceVariable<R>(id: NativeObjCId, name: String): R whe
  *
  * Note: this method MUST BE used only with instance variables of Objective-C compatible primitive types.
  */
-public unsafe func setInstanceVariable<T>(id: NativeObjCId, name: String, value: T): Unit where T <: CType {
+protected unsafe func setInstanceVariable<T>(id: NativeObjCId, name: String, value: T): Unit where T <: CType {
     let fieldPtr = getFieldPtr<T>(id, name)
     fieldPtr.write(value)
 }
@@ -275,7 +275,7 @@ public unsafe func setInstanceVariable<T>(id: NativeObjCId, name: String, value:
  *
  * Note: NativeObjCId (not NativeObjCClass) is used as a return type to meet an Objective-C runtime API.
  */
-public unsafe func getClass(className: String): NativeObjCId {
+protected unsafe func getClass(className: String): NativeObjCId {
     let classCName = LibC.mallocCString(className)
     let cls = objc_getClass(classCName)
     LibC.free(classCName)
@@ -287,7 +287,7 @@ public unsafe func getClass(className: String): NativeObjCId {
  * Gets a protocol NativeObjCProtocol by it's name.
  * Effectively a wrapper around objc_getProtocol(protoname), but with Cangjie String as a parameter for convenience.
  */
-public unsafe func getProtocol(protoName: String): NativeObjCProtocol {
+protected unsafe func getProtocol(protoName: String): NativeObjCProtocol {
     let protoCName = LibC.mallocCString(protoName)
     let proto = objc_getProtocol(protoCName)
     LibC.free(protoCName)
@@ -299,7 +299,7 @@ public unsafe func getProtocol(protoName: String): NativeObjCProtocol {
  * Returns a pointer to objc_msgSend implementation.
  * The result should be cast to proper CFunc<(NativeObjCId, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
  */
-public func objCMsgSend(): CPointer<Unit> {
+protected func objCMsgSend(): CPointer<Unit> {
     return CPointer<Unit>(objc_msgSend)
 }
 
@@ -308,7 +308,7 @@ public func objCMsgSend(): CPointer<Unit> {
  * Returns a pointer to objc_msgSendSuper implementation.
  * The result should be cast to proper CFunc<(NativeObjCSuperPtr, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
  */
-public func objCMsgSendSuper(_: NativeObjCSuperPtr, _: NativeObjCSel): CPointer<Unit> {
+protected func objCMsgSendSuper(_: NativeObjCSuperPtr, _: NativeObjCSel): CPointer<Unit> {
     CPointer<Unit>(objc_msgSendSuper)
 }
 
@@ -318,7 +318,7 @@ public func objCMsgSendSuper(_: NativeObjCSuperPtr, _: NativeObjCSel): CPointer<
  * The result should be cast to proper CFunc<(NativeObjCId, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
  * Note: Result MUST be called with a pointer to the message receiver, not with a pointer to NativeObjCSuper struct.
  */
-public func objCMsgSendSuper(objCSuper: NativeObjCSuperPtr, sel: NativeObjCSel): CPointer<Unit> {
+protected func objCMsgSendSuper(objCSuper: NativeObjCSuperPtr, sel: NativeObjCSel): CPointer<Unit> {
     unsafe {
         objc_msg_lookup_super(objCSuper, sel)
     }
@@ -327,7 +327,7 @@ public func objCMsgSendSuper(objCSuper: NativeObjCSuperPtr, sel: NativeObjCSel):
 /**
  * Converts Cangjie String to NSString.
  */
-public func convertToNSString(str: String): NativeObjCId {
+protected func convertToNSString(str: String): NativeObjCId {
     unsafe {
         let cstr = LibC.mallocCString(str)
         let ptr = CPointer<Unit>(cstr.getChars())
@@ -342,7 +342,7 @@ public func convertToNSString(str: String): NativeObjCId {
 /**
  * Gets object description and converts it to Cangjie String.
  */
-public func descriptionAsString(id: NativeObjCId): String {
+protected func descriptionAsString(id: NativeObjCId): String {
     unsafe {
         let description = CFunc<(NativeObjCId, NativeObjCSel) -> NativeObjCId>(objCMsgSend())(id, registerName("description"))
         let result = CFunc<(NativeObjCId, NativeObjCSel) -> CPointer<Unit>>(objCMsgSend())(
@@ -356,14 +356,14 @@ public func descriptionAsString(id: NativeObjCId): String {
 /**
  * Autoreleases the argument. Equivalent to [id autorelease].
  */
-public unsafe func objCAutorelease(id: NativeObjCId): NativeObjCId {
+protected unsafe func objCAutorelease(id: NativeObjCId): NativeObjCId {
     objc_autorelease(id)
 }
 
 /**
  * Autoreleases the argument by objc_autoreleaseReturnValue call.
  */
-public unsafe func objCAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId {
+protected unsafe func objCAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId {
     objc_autoreleaseReturnValue(id)
 }
 
@@ -377,14 +377,14 @@ public unsafe func objCRelease(id: NativeObjCId): Unit {
 /**
  * Increases the reference counter by one.
  */
-public unsafe func objCRetain(id: NativeObjCId): NativeObjCId {
+protected unsafe func objCRetain(id: NativeObjCId): NativeObjCId {
     objc_retain(id)
 }
 
 /**
  * Autoreleases and retains the argument by objc_retainAutoreleaseReturnValue call.
  */
-public unsafe func objCRetainAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId {
+protected unsafe func objCRetainAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId {
     objc_retainAutoreleaseReturnValue(id)
 }
 
@@ -416,7 +416,7 @@ private unsafe func getIvar(id: NativeObjCId, fieldName: String): NativeObjCIvar
 /**
  * Checks if a given object is an instance of the given class, including superclasses
  */
-public unsafe func isKindOfClass(id: NativeObjCId, clazz: NativeObjCClass): Bool {
+protected unsafe func isKindOfClass(id: NativeObjCId, clazz: NativeObjCClass): Bool {
     var realClass = object_getClass(id);
     while (realClass.isNotNull()) {
         if (realClass.toUIntNative() == clazz.toUIntNative()) {
@@ -430,7 +430,7 @@ public unsafe func isKindOfClass(id: NativeObjCId, clazz: NativeObjCClass): Bool
 /**
  * Checks if a given object is an instance of the given protocol, including superclasses
  */
-public unsafe func conformsToProtocol(id: NativeObjCId, proto: NativeObjCProtocol): Bool {
+protected unsafe func conformsToProtocol(id: NativeObjCId, proto: NativeObjCProtocol): Bool {
     var realClass = object_getClass(id);
     while (realClass.isNotNull()) {
         if (class_conformsToProtocol(realClass, proto)) {
@@ -445,7 +445,7 @@ public unsafe func conformsToProtocol(id: NativeObjCId, proto: NativeObjCProtoco
  * Checks if a given class instances respond to a given selector.
  * Effectively exports Objective-C runtime `class_respondsToSelector` function.
  */
-public unsafe func respondsToSelector(cls: NativeObjCClass, sel: NativeObjCSel): Bool {
+protected unsafe func respondsToSelector(cls: NativeObjCClass, sel: NativeObjCSel): Bool {
     class_respondsToSelector(cls, sel)
 }
 
@@ -453,7 +453,7 @@ public unsafe func respondsToSelector(cls: NativeObjCClass, sel: NativeObjCSel):
  * Checks if a given class instances respond to a given selector.
  * Effectively exports Objective-C runtime `object_getClass` function.
  */
-public unsafe func objectGetClass(id: NativeObjCId): NativeObjCClass {
+protected unsafe func objectGetClass(id: NativeObjCId): NativeObjCClass {
     object_getClass(id)
 }
 
