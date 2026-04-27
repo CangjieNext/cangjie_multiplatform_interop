@@ -366,13 +366,11 @@ static void print_enum_constant_value(
     } else {
         auto& universe = Universe::get();
         if (&canonical_type == &universe.int128()) {
-            output << "ObjCInt128(" << constant.value128_lo<int64_t>() << ", " << constant.value128_hi<int64_t>()
-                   << ')';
+            output << '[' << constant.value128_lo<int64_t>() << ", " << constant.value128_hi<int64_t>() << ']';
             return;
         }
         if (&canonical_type == &universe.uint128()) {
-            output << "ObjCUInt128(" << constant.value128_lo<uint64_t>() << ", " << constant.value128_hi<uint64_t>()
-                   << ')';
+            output << '[' << constant.value128_lo<uint64_t>() << ", " << constant.value128_hi<uint64_t>() << ']';
             return;
         }
     }

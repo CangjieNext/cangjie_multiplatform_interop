@@ -169,8 +169,8 @@ class Universe final {
     PrimitiveTypeSymbol float16_;
     PrimitiveTypeSymbol float32_;
     PrimitiveTypeSymbol float64_;
-    TypeDeclarationSymbol int128_;
-    TypeDeclarationSymbol uint128_;
+    VArraySymbol int128_;
+    VArraySymbol uint128_;
     TypeDeclarationSymbol class_;
     TypeDeclarationSymbol id_;
     TypeDeclarationSymbol sel_;
@@ -272,7 +272,7 @@ public:
         return sel_;
     }
 
-    [[nodiscard]] NamedTypeSymbol* primitive_type(PrimitiveTypeCategory category, size_t size) noexcept;
+    [[nodiscard]] TypeLikeSymbol* primitive_type(PrimitiveTypeCategory category, size_t size) noexcept;
 
     // Find the registered type symbol by its name and kind.  Return nullptr if no
     // such type has been registered.

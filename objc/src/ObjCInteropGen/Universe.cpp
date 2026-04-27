@@ -39,8 +39,8 @@ Universe::Universe()
       float16_{"Float16", PrimitiveTypeCategory::FloatingPoint, PrimitiveSize::Two},
       float32_{"Float32", PrimitiveTypeCategory::FloatingPoint, PrimitiveSize::Four},
       float64_{"Float64", PrimitiveTypeCategory::FloatingPoint, PrimitiveSize::Eight},
-      int128_{NamedTypeSymbol::Kind::Struct, "ObjCInt128"},
-      uint128_{NamedTypeSymbol::Kind::Struct, "ObjCUInt128"},
+      int128_{int64_, 2},
+      uint128_{uint64_, 2},
       class_{NamedTypeSymbol::Kind::Interface, "ObjCClass"},
       id_{NamedTypeSymbol::Kind::Protocol, "ObjCId"},
       sel_{NamedTypeSymbol::Kind::Interface, "SEL"} // "ObjCSelector"
@@ -62,8 +62,6 @@ Universe::Universe()
     register_type(&float16_);
     register_type(&float32_);
     register_type(&float64_);
-    register_type(&int128_);
-    register_type(&uint128_);
     register_type(&class_);
     register_type(&id_);
     register_type(&sel_);
@@ -104,7 +102,7 @@ void Universe::register_type(NamedTypeSymbol* symbol)
     type_order_.emplace_back(type_namespace, name);
 }
 
-NamedTypeSymbol* Universe::primitive_type(PrimitiveTypeCategory category, size_t size) noexcept
+TypeLikeSymbol* Universe::primitive_type(PrimitiveTypeCategory category, size_t size) noexcept
 {
     switch (category) {
         case PrimitiveTypeCategory::Boolean:
