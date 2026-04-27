@@ -271,9 +271,10 @@ bool Type::is_ctype() const noexcept
             return std::none_of(
                 parameters_.begin(), parameters_.end(), [](const auto& parameter) { return !parameter.is_ctype(); });
         case Kind::Block:
+        case Kind::TypeParam:
             return false;
         default:
-            assert(kind_ == Kind::Unit || kind_ == Kind::TypeParam || kind_ == Kind::Unexposed);
+            assert(kind_ == Kind::Unit || kind_ == Kind::Unexposed);
             return true;
     }
 }
