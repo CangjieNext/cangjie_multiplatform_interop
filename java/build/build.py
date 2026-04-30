@@ -342,7 +342,6 @@ def build(args):
     if args.target_lib:
         LOG.info('begin build interoplib for ' + args.target_lib + '\n')
 
-        DYLIB_EXT = dylib_ext(args.target_lib)
         OUT_CINTEROPLIB_O = os.path.join(DIST_DIR, "cinteroplib.o")
 
         if not os.path.exists(DIST_DIR):
@@ -378,6 +377,20 @@ def build(args):
         cjc_SO = cjc_args.copy() + ["--output-type=dylib"]
 
         command(*(cjc_A.copy() + ["jni.cj", "registry.cj"]), cwd=INTEROPLIB_DIR)
+        command(
+            "ld", "-r", "-o", "interoplib.interop.o", "--whole-archive", "-L.", "-linteroplib.interop", "cinteroplib.o",
+            cwd=DIST_DIR,
+        )
+        os.remove(os.path.join(DIST_DIR, "libinteroplib.interop.a"))
+        command(
+            "ar", "-cr", "libinteroplib.interop.a", "interoplib.interop.o",
+            cwd=DIST_DIR,
+        )
+        command(
+            "ranlib", "-D", "libinteroplib.interop.a",
+            cwd=DIST_DIR,
+        )
+
         command(*(cjc_SO.copy() + ["jni.cj", "registry.cj", OUT_CINTEROPLIB_O]), cwd=INTEROPLIB_DIR)
 
         javalib_args = [f"--import-path={DIST_DIR}"] + list(glob.glob(os.path.join(INTEROPLIB_DIR, "javalib") + "/*.cj", recursive=False))
@@ -463,7 +476,6 @@ def install(args):
         runtime = runtime_name(args.target)
 
         DYLIB_EXT = dylib_ext(args.target)
-        OUT_CINTEROPLIB_O = os.path.join(DIST_DIR, "cinteroplib.o")
         OUT_INTEROPLIB_A = os.path.join(DIST_DIR, "libinteroplib.interop.a")
         OUT_INTEROPLIB_SO = os.path.join(DIST_DIR, f"libinteroplib.interop.{DYLIB_EXT}")
         OUT_JAVA_LANG_A = os.path.join(DIST_DIR, "libjava.lang.a")
@@ -472,7 +484,6 @@ def install(args):
         DEST_LIB = prepare_dir(install_path, "lib", runtime)
         install_files(
             DEST_LIB,
-            OUT_CINTEROPLIB_O,
             OUT_INTEROPLIB_A,
             OUT_JAVA_LANG_A
         )
