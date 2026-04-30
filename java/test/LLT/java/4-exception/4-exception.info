@@ -5,7 +5,7 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 // DEPENDENCE: generated original-java
-// RUN-EXEC-0: %compiler -Woff all %compile_shared_lib_opt generated/A.cj -linteroplib.interop -lcinteroplib
+// RUN-EXEC-0: %compiler -Woff all %compile_shared_lib_opt generated/A.cj %cjc_interop_link_java
 // RUN-EXEC-0: %javac %cp_cj_loader_java_interop original-java/Utils.java generated/A.java original-java/Main.java -d .
 // RUN-EXEC-0: %java %cp_cj_loader_java_interop -Djava.library.path=. Main 2>&1 | compare ./%f
 
