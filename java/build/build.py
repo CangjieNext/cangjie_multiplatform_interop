@@ -116,24 +116,24 @@ def fixedEnv(env=None):
     env["ZERO_AR_DATE"] = "1"
     return env
 
-def check_clang(args):
-    # If user didn't specify --target-toolchain, we search for an available compiler in $PATH.
+def check_in_toolchain(args, tool):
+    # If user didn't specify --target-toolchain, we search for an available tool in $PATH.
     # If user did specify --target-toolchain, we search in user given path ONLY. By doing so
-    # user could see a proper 'compiler not found' error if the given path is incorrect.
+    # user could see a proper '... not found' error if the given path is incorrect.
     toolchain_path = args.target_toolchain if args.target_toolchain else None
     if toolchain_path and (not os.path.exists(toolchain_path)):
         LOG.error(f"The given toolchain path does not exist: {toolchain_path}")
 
-    c_compiler = shutil.which("clang", path=toolchain_path)
+    c_tool = shutil.which(tool, path=toolchain_path)
 
-    if c_compiler is None:
+    if c_tool is None:
         if toolchain_path:
-            LOG.error(f"Cannot find clang in the given toolchain path: {toolchain_path}")
+            LOG.error(f"Cannot find {tool} in the given toolchain path: {toolchain_path}")
         else:
-            LOG.error("Cannot find clang in $PATH")
-        fatal("clang is required to build interop libraries")
+            LOG.error(f"Cannot find {tool} in $PATH")
+        fatal(f"{tool} is required to build interop libraries")
 
-    return c_compiler
+    return c_tool
 
 def command(*args, cwd=None, env=None):
     """Execute a child program via 'subprocess.Popen' and log the output"""
@@ -342,14 +342,13 @@ def build(args):
     if args.target_lib:
         LOG.info('begin build interoplib for ' + args.target_lib + '\n')
 
-        DYLIB_EXT = dylib_ext(args.target_lib)
         OUT_CINTEROPLIB_O = os.path.join(DIST_DIR, "cinteroplib.o")
 
         if not os.path.exists(DIST_DIR):
             os.makedirs(DIST_DIR)
 
         #clang c_core.c
-        clang_args = [check_clang(args)]
+        clang_args = [check_in_toolchain(args, "clang")]
         if IS_DARWIN:
             clang_args += ["-D_XOPEN_SOURCE=600"]
         if args.target:
@@ -378,6 +377,25 @@ def build(args):
         cjc_SO = cjc_args.copy() + ["--output-type=dylib"]
 
         command(*(cjc_A.copy() + ["jni.cj", "registry.cj"]), cwd=INTEROPLIB_DIR)
+        command(
+            "ar", "-x", "libinteroplib.interop.a",
+            cwd=DIST_DIR,
+        )
+        ld = check_in_toolchain(args, "ld")
+        command(
+            ld, "-r", "-o", "interoplib.interop.o", "interoplib.interop.o", "cinteroplib.o",
+            cwd=DIST_DIR,
+        )
+        os.remove(os.path.join(DIST_DIR, "libinteroplib.interop.a"))
+        command(
+            "ar", "-cr", "libinteroplib.interop.a", "interoplib.interop.o",
+            cwd=DIST_DIR,
+        )
+        command(
+            "ranlib", "-D", "libinteroplib.interop.a",
+            cwd=DIST_DIR,
+        )
+
         command(*(cjc_SO.copy() + ["jni.cj", "registry.cj", OUT_CINTEROPLIB_O]), cwd=INTEROPLIB_DIR)
 
         javalib_args = [f"--import-path={DIST_DIR}"] + list(glob.glob(os.path.join(INTEROPLIB_DIR, "javalib") + "/*.cj", recursive=False))
@@ -463,7 +481,6 @@ def install(args):
         runtime = runtime_name(args.target)
 
         DYLIB_EXT = dylib_ext(args.target)
-        OUT_CINTEROPLIB_O = os.path.join(DIST_DIR, "cinteroplib.o")
         OUT_INTEROPLIB_A = os.path.join(DIST_DIR, "libinteroplib.interop.a")
         OUT_INTEROPLIB_SO = os.path.join(DIST_DIR, f"libinteroplib.interop.{DYLIB_EXT}")
         OUT_JAVA_LANG_A = os.path.join(DIST_DIR, "libjava.lang.a")
@@ -472,7 +489,6 @@ def install(args):
         DEST_LIB = prepare_dir(install_path, "lib", runtime)
         install_files(
             DEST_LIB,
-            OUT_CINTEROPLIB_O,
             OUT_INTEROPLIB_A,
             OUT_JAVA_LANG_A
         )
