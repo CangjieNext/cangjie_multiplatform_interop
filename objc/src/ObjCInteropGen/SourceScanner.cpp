@@ -790,11 +790,13 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
             return new VArraySymbol(
                 *type_like_symbol(clang_getArrayElementType(type)), static_cast<size_t>(clang_getArraySize(type)));
 
+#if CLANG_VERSION_MAJOR >= 11
         case CXType_Atomic: {
             auto value_type = clang_Type_getValueType(type);
             assert(is_valid(value_type));
             return type_like_symbol(value_type);
         }
+#endif
 
             // We will handle the rest below this switch.
 
