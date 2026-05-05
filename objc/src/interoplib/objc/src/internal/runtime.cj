@@ -186,16 +186,11 @@ protected unsafe func withObjCSuper<R>(id: NativeObjCId, objCClassName: String, 
 
 @Frozen
 /*
- * Performs an `action` within an @autoreleasepool.
- * Note: This function is intended to be used with action returns primitive types. For instancetype(ObjCId) use `autoreleasePoolObj` (or autorelease manually).
+ * Just calls its argument.
+ * Will be removed in the future.
  */
 protected unsafe func withAutoreleasePool<R>(action: () -> R): R where R <: CType {
-    let pool = objc_autoreleasePoolPush()
-    try {
-        action()
-    } finally {
-        objc_autoreleasePoolPop(pool)
-    }
+    action()
 }
 
 /*
