@@ -6,7 +6,7 @@
 
 package java.lang
 
-import interoplib.interop.*
+import java.internal.*
 
 @JavaMirror["java.lang.String"]
 public class JString <: JObject {

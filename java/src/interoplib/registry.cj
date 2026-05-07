@@ -4,7 +4,7 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-package interoplib.interop
+package java.internal
 
 import std.sync.*
 

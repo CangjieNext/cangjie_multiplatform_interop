@@ -6,7 +6,7 @@
 
 package java.lang
 
-import interoplib.interop.*
+import java.internal.*
 
 @JavaMirror["[]"]
 public class JArray<T> <: JObject {

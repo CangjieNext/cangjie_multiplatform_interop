@@ -6,7 +6,7 @@
 
 package java.lang
 
-public import interoplib.interop.*
+public import java.internal.*
 
 /*
  * Warning: package name `java.lang` and `JObject` name do matter for cjc
