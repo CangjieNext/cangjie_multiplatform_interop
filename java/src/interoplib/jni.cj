@@ -76,8 +76,27 @@ class ClassLoading {
         unsafe {
             try (searchName = LibC.mallocCString(name.replace("/", ".")).asResource()) {
                 let envCJ = env.read().read()
-                var callArg = UInt64(envCJ.NewStringUTF(env, searchName.value).toUIntNative())
-                result = jclass(envCJ.CallObjectMethodA(env, classLoader, loadClassMethodID, inout callArg))
+                let args: Array<Java_CFFI_JavaEntity> = [
+                    Java_CFFI_JavaEntity(Java_CFFI_JavaEntityKind.JSTRING, envCJ.NewStringUTF(env, searchName.value)),
+                    Java_CFFI_JavaEntity(false),
+                    Java_CFFI_JavaEntity(Java_CFFI_JavaEntityKind.JOBJECT, classLoader)
+                ]
+                let argsCallNest = Java_CFFI_JavaCallNest(args.size)
+
+                for (i in 0..args.size) {
+                    argsCallNest.array[i] = args[i].asJValue()
+                }
+
+                unsafe {
+                    try (classNameString = LibC.mallocCString("java/lang/Class").asResource()) {
+                        let clazz: jclass = envCJ.FindClass(env, classNameString.value)
+
+                        result = withPinnedArray(argsCallNest.array) { argsPtr: CPointer<jvalue> =>
+                            let envCJ = env.read().read()
+                            return envCJ.CallStaticObjectMethodA(env, clazz, loadClassMethodID, argsPtr)
+                        }
+                    }
+                }
             }
         }
         handlePendingException(env)

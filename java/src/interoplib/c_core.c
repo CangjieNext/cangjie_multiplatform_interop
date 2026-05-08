@@ -256,9 +256,11 @@ JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(JNIEn
 
     (*env)->GetJavaVM(env, &vm);
 
-    jclass clazz = (*env)->GetObjectClass(env, classLoader);
-    jmethodID methodID = (*env)->GetMethodID(env, clazz, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
-
+    jclass clazz = (*env)->FindClass(env, "java/lang/Class");
+    jmethodID methodID = (*env)->GetStaticMethodID(env,
+    clazz,
+    "forName",
+    "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;");
     setJavaVmAndInitClassLoading(vm, env, classLoader, methodID);
 }
 
