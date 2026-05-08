@@ -4,6 +4,7 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
+#include <stddef.h>
 #include <jni.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -244,6 +245,8 @@ static void setEmptyDefaultSIGSEGVHandler() {
     AddHandlerToSignalStack(SIGSEGV, &sa);
 }
 
+static jclass javaLangClass = NULL;
+
 JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(JNIEnv *env, jclass unused, jstring libName, jobject classLoader) {
     JavaVM *vm = NULL;
     jboolean isCopy = false;
@@ -256,10 +259,16 @@ JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(JNIEn
 
     (*env)->GetJavaVM(env, &vm);
 
-    jclass clazz = (*env)->GetObjectClass(env, classLoader);
-    jmethodID methodID = (*env)->GetMethodID(env, clazz, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
-
-    setJavaVmAndInitClassLoading(vm, env, classLoader, methodID);
+    if (javaLangClass == NULL) {
+        jclass localRef = (*env)->FindClass(env, "java/lang/Class");
+        // for now there is no (*env)->DeleteLocalRef for javaLangClass
+        javaLangClass = (jclass)(*env)->NewGlobalRef(env, localRef);
+    }
+    jmethodID methodID = (*env)->GetStaticMethodID(env,
+    javaLangClass,
+    "forName",
+    "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;");
+    setJavaVmAndInitClassLoading(vm, env, classLoader, methodID, javaLangClass);
 }
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
