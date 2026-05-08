@@ -58,12 +58,15 @@ var classLoading = AtomicOptionReference<ClassLoading>()
 class ClassLoading {
     private let classLoader: jobject
     private let loadClassMethodID: jmethodID
+    private let javaLangClass: jclass
 
-    init(classLoader: jobject, loadClassMethodID: jmethodID) {
+    init(classLoader: jobject, loadClassMethodID: jmethodID, javaLangClass: jclass) {
         assert(!classLoader.isNull())
         assert(!loadClassMethodID.isNull())
+        assert(!javaLangClass.isNull())
         this.classLoader = classLoader
         this.loadClassMethodID = loadClassMethodID
+        this.javaLangClass = javaLangClass
     }
 
     /**
@@ -76,8 +79,12 @@ class ClassLoading {
         unsafe {
             try (searchName = LibC.mallocCString(name.replace("/", ".")).asResource()) {
                 let envCJ = env.read().read()
-                var callArg = UInt64(envCJ.NewStringUTF(env, searchName.value).toUIntNative())
-                result = jclass(envCJ.CallObjectMethodA(env, classLoader, loadClassMethodID, inout callArg))
+                let args: VArray<jvalue, $3> = [
+                    envCJ.NewStringUTF(env, searchName.value).toUIntNative(),
+                    0,
+                    UInt64(classLoader.toUIntNative())
+                ]
+                result = envCJ.CallStaticObjectMethodA(env, javaLangClass, loadClassMethodID, inout args)
             }
         }
         handlePendingException(env)
@@ -86,14 +93,14 @@ class ClassLoading {
 }
 
 @C
-func setJavaVmAndInitClassLoading(javaVM: CPointer<JavaVM>, env: JNIEnv_ptr, classLoader: jobject, methodID: jmethodID): Unit {
+func setJavaVmAndInitClassLoading(javaVM: CPointer<JavaVM>, env: JNIEnv_ptr, classLoader: jobject, methodID: jmethodID, javaLangClass: jclass): Unit {
     jvm = javaVM
 
     let classLoaderRef = unsafe {
         let envCJ = env.read().read()
         envCJ.NewGlobalRef(env, classLoader)
     }
-    classLoading.store(ClassLoading(classLoaderRef, methodID))
+    classLoading.store(ClassLoading(classLoaderRef, methodID, javaLangClass))
 }
 
 @C
