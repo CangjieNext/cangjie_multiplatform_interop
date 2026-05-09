@@ -6,7 +6,7 @@
 
 package objc.lang
 
-public import interoplib.objc.*
+import objc.internal.*
 
 public struct ObjCPointer<T> { 
     public ObjCPointer(let ptr: CPointer<Unit>) {}

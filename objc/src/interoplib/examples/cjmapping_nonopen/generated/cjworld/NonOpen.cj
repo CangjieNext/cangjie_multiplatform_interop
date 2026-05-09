@@ -6,7 +6,7 @@
 
 package cjworld
 
-import interoplib.objc.*
+import objc.internal.*
 
 // the class does not keep NativeObjCId as it is not suppose to support Foo overridden in heirs at ObjC side
 public class NonOpen {

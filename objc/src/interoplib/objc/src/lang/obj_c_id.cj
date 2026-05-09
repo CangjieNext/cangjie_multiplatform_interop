@@ -6,7 +6,7 @@
 
 package objc.lang
 
-public import interoplib.objc.*
+public import objc.internal.*
 
 @ObjCMirror
 public interface ObjCId {}

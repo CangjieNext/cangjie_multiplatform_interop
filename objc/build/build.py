@@ -43,13 +43,9 @@ OBJC_NAME_IN_TOML = "objc"
 INTEROPLIB_OUT_PREFIX = os.path.join(INTEROPLIB_OUT, RELEASE, INTEROPLIB_NAME_IN_TOML)
 OBJC_OUT_PREFIX = os.path.join(INTEROPLIB_OUT, RELEASE, OBJC_NAME_IN_TOML)
 
-OUT_INTEROPLIB_COMMON_DYLIB = os.path.join(INTEROPLIB_OUT_PREFIX, f"libinteroplib.common.{DYLIB_EXT}")
-OUT_INTEROPLIB_COMMON_A     = os.path.join(INTEROPLIB_OUT_PREFIX, "libinteroplib.common.a")
-OUT_INTEROPLIB_COMMON_CJO   = os.path.join(INTEROPLIB_OUT_PREFIX, "interoplib.common.cjo")
-
-OUT_INTEROPLIB_OBJC_DYLIB = os.path.join(INTEROPLIB_OUT_PREFIX, f"libinteroplib.objc.{DYLIB_EXT}")
-OUT_INTEROPLIB_OBJC_A     = os.path.join(INTEROPLIB_OUT_PREFIX, "libinteroplib.objc.a")
-OUT_INTEROPLIB_OBJC_CJO   = os.path.join(INTEROPLIB_OUT_PREFIX, "interoplib.objc.cjo")
+OUT_OBJC_INTERNAL_DYLIB = os.path.join(OBJC_OUT_PREFIX, f"libobjc.internal.{DYLIB_EXT}")
+OUT_OBJC_INTERNAL_A     = os.path.join(OBJC_OUT_PREFIX, "libobjc.internal.a")
+OUT_OBJC_INTERNAL_CJO   = os.path.join(OBJC_OUT_PREFIX, "objc.internal.cjo")
 
 OUT_OBJC_LANG_DYLIB = os.path.join(OBJC_OUT_PREFIX, f"libobjc.lang.{DYLIB_EXT}")
 OUT_OBJC_LANG_A     = os.path.join(OBJC_OUT_PREFIX, "libobjc.lang.a")
@@ -207,11 +203,10 @@ def download_and_patch_tinytoml():
             shutil.rmtree(TINYTOML_DIR)
         raise
 
-def replace_in_files(text_to_search, replacement_text, *filenames):
-    for filename in filenames:
-        with fileinput.FileInput(filename, inplace=True) as file:
-            for line in file:
-                print(line.replace(text_to_search, replacement_text), end='')
+def replace_in_file(text_to_search, replacement_text, filename):
+    with fileinput.FileInput(filename, inplace=True) as file:
+        for line in file:
+            print(line.replace(text_to_search, replacement_text), end='')
 
 def build(args):
     """interoplib or objc-interop-gen build"""
@@ -231,16 +226,16 @@ def build(args):
             cjpm_env["SYSROOT_OPTION"] = "--sysroot=" + args.target_sysroot
         # target_toolchain is not used for cjpm
 
-        TOMLS = [os.path.join(INTEROPLIB_DIR, 'interoplib', 'cjpm.toml'), os.path.join(INTEROPLIB_DIR, 'objc', 'cjpm.toml')]
+        TOML = os.path.join(INTEROPLIB_DIR, 'objc', 'cjpm.toml')
 
         # replace "dynamic" => "static" for output-type in cjpm.toml files
-        replace_in_files('output-type = "dynamic"', 'output-type = "static"', TOMLS)
+        replace_in_file('output-type = "dynamic"', 'output-type = "static"', TOML)
 
         LOG.info('build interoplib into static libs:\n')
         command("cjpm", "build", "--target-dir=" + INTEROPLIB_OUT, CJPM_CONFIG, cwd=INTEROPLIB_DIR, env=cjpm_env)
 
         # restore original output-type = "dynamic"
-        replace_in_files('output-type = "static"', 'output-type = "dynamic"', TOMLS)
+        replace_in_file('output-type = "static"', 'output-type = "dynamic"', TOML)
 
         LOG.info('build interoplib into dynamic libs:\n')
         command("cjpm", "build", "--target-dir=" + INTEROPLIB_OUT, CJPM_CONFIG, cwd=INTEROPLIB_DIR, env=cjpm_env)
@@ -256,7 +251,7 @@ def build(args):
         if not IS_DARWIN:
             clang_opts += subprocess.run(['gnustep-config', '--objc-flags'], capture_output=True).stdout.decode().split()
 
-        OBJCLIB_O = os.path.join(INTEROPLIB_OUT_PREFIX, "objclib.o")
+        OBJCLIB_O = os.path.join(prepare_dir(INTEROPLIB_OUT_PREFIX), "objclib.o")
 
         clang_command_o = [clang_compiler, "-fmodules", "-c", "-fPIC"] + clang_opts.copy() + ["-I.", "cjinterop.m", f"-o{OBJCLIB_O}"]
         command(*clang_command_o.copy(), cwd=INTEROPLIB_OBJCLIB_DIR)
@@ -396,8 +391,7 @@ def install(args):
         installation_dir_static = prepare_dir(install_path, "lib", runtime)
         install_files(
             installation_dir_static,
-            OUT_INTEROPLIB_COMMON_A,
-            OUT_INTEROPLIB_OBJC_A,
+            OUT_OBJC_INTERNAL_A,
             OUT_OBJC_LANG_A,
             OUT_INTEROPLIB_OBJCLIB_A
         )
@@ -405,28 +399,28 @@ def install(args):
         installation_dir_dynamic = prepare_dir(install_path, "runtime", "lib", runtime)
         install_files(
             installation_dir_dynamic,
-            OUT_INTEROPLIB_COMMON_DYLIB,
-            OUT_INTEROPLIB_OBJC_DYLIB,
+            OUT_OBJC_INTERNAL_DYLIB,
             OUT_OBJC_LANG_DYLIB,
             OUT_INTEROPLIB_OBJCLIB_DYLIB
         )
 
         if IS_DARWIN:
-            change_install_names(os.path.join(installation_dir_dynamic, "libinteroplib.common.dylib"), [])
             change_install_names(
-                os.path.join(installation_dir_dynamic, "libinteroplib.objc.dylib"),
-                ["libinteroplib.common.dylib"]
+                os.path.join(installation_dir_dynamic, "libobjc.internal.dylib"),
+                []
             )
             change_install_names(
                 os.path.join(installation_dir_dynamic, "libobjc.lang.dylib"),
-                ["libinteroplib.common.dylib", "libinteroplib.objc.dylib"]
+                ["libobjc.internal.dylib"]
             )
-            change_install_names(os.path.join(installation_dir_dynamic, "libinteroplib.objclib.dylib"), [])
+            change_install_names(
+                os.path.join(installation_dir_dynamic, "libinteroplib.objclib.dylib"),
+                []
+            )
 
         install_files(
             prepare_dir(install_path, "modules", runtime),
-            OUT_INTEROPLIB_COMMON_CJO,
-            OUT_INTEROPLIB_OBJC_CJO,
+            OUT_OBJC_INTERNAL_CJO,
             OUT_OBJC_LANG_CJO
         )
 

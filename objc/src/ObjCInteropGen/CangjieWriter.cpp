@@ -1146,8 +1146,7 @@ void write_cangjie()
                 file_output << "import " << import << std::endl;
             }
             if (!generate_definitions_mode()) {
-                file_output << "import interoplib.objc.*\n"
-                               "import objc.lang.*\n\n";
+                file_output << "import objc.lang.*\n\n";
             }
             file_output << output.str();
 
