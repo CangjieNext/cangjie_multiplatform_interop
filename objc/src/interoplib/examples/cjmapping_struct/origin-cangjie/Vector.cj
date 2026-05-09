@@ -6,8 +6,6 @@
 
 package cjworld
 
-import interoplib.objc.*
-
 public struct Vector {
     let x: Int32
     let y: Int32

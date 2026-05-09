@@ -6,6 +6,8 @@
 
 package objc.lang
 
+import objc.internal.*
+
 public struct ObjCFunc<F> {
     @Frozen
     public ObjCFunc(let ptr: CPointer<CFunc<() -> Unit>>) {}
@@ -14,6 +16,6 @@ public struct ObjCFunc<F> {
     }
 
     public unsafe func unsafeGetFunctionPointer(): CPointer<CFunc<() -> Unit>> {
-        return ptr;
+        return ptr
     }
 }

@@ -91,14 +91,14 @@ objc
     objc
     |-- dist
         |-- lib/linux_x86_64_cjnative
-            |-- libinteroplib.common.a
-            |-- libinteroplib.objc.a
+            |-- libobjc.internal.a
+            |-- libobjc.lang.a
         |-- modules/linux_x86_64_cjnative
-            |-- interoplib.common.cjo
-            |-- interoplib.objc.cjo
+            |-- objc.internal.cjo
+            |-- objc.lang.cjo
         |-- runtime/lib/linux_x86_64_cjnative
-            |-- libinteroplib.common.so
-            |-- libinteroplib.objc.so
+            |-- libobjc.internal.so
+            |-- libobjc.lang.so
     ```
     lib产物将会在cangjie-compiler中使用。
 
