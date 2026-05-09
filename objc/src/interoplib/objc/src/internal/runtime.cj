@@ -4,9 +4,8 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-package interoplib.objc
+package objc.internal
 
-import interoplib.common.REGISTRY
 import std.sync.Mutex
 
 /**
@@ -17,7 +16,7 @@ protected type ForwarderMutex = Mutex
 /**
  * id or Instance Method Pointer type.
  */
-public type NativeObjCId = CPointer<Unit>
+protected type NativeObjCId = CPointer<Unit>
 
 /**
  * SEL.
@@ -68,11 +67,6 @@ protected type RegistryId = Int64
  * An exception that has to be used to mark an unreachable code (e.g. instantiation @ObjCImpl objects from Cangjie side).
  */
 protected class ObjCUnreachableCodeException <: Exception {}
-
-/**
- * An exception that has to be used when runtime calls for method unimplemented in Mirror from protocol.
- */
-public class ObjCOptionalMethodUnimplementedException <: Exception {}
 
 /**
  * An exception that has to be used when runtime calls static methods directly on interfaces (protocols).
@@ -370,7 +364,7 @@ protected unsafe func objCAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId
 /**
  * Decreases the reference counter by one.
  */
-public unsafe func objCRelease(id: NativeObjCId): Unit {
+protected unsafe func objCRelease(id: NativeObjCId): Unit {
     objc_release(id)
 }
 

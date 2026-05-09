@@ -207,11 +207,10 @@ def download_and_patch_tinytoml():
             shutil.rmtree(TINYTOML_DIR)
         raise
 
-def replace_in_files(text_to_search, replacement_text, *filenames):
-    for filename in filenames:
-        with fileinput.FileInput(filename, inplace=True) as file:
-            for line in file:
-                print(line.replace(text_to_search, replacement_text), end='')
+def replace_in_file(text_to_search, replacement_text, filename):
+    with fileinput.FileInput(filename, inplace=True) as file:
+        for line in file:
+            print(line.replace(text_to_search, replacement_text), end='')
 
 def build(args):
     """interoplib or objc-interop-gen build"""
@@ -231,16 +230,16 @@ def build(args):
             cjpm_env["SYSROOT_OPTION"] = "--sysroot=" + args.target_sysroot
         # target_toolchain is not used for cjpm
 
-        TOMLS = [os.path.join(INTEROPLIB_DIR, 'interoplib', 'cjpm.toml'), os.path.join(INTEROPLIB_DIR, 'objc', 'cjpm.toml')]
+        TOML = os.path.join(INTEROPLIB_DIR, 'objc', 'cjpm.toml')
 
         # replace "dynamic" => "static" for output-type in cjpm.toml files
-        replace_in_files('output-type = "dynamic"', 'output-type = "static"', TOMLS)
+        replace_in_file('output-type = "dynamic"', 'output-type = "static"', TOML)
 
         LOG.info('build interoplib into static libs:\n')
         command("cjpm", "build", "--target-dir=" + INTEROPLIB_OUT, CJPM_CONFIG, cwd=INTEROPLIB_DIR, env=cjpm_env)
 
         # restore original output-type = "dynamic"
-        replace_in_files('output-type = "static"', 'output-type = "dynamic"', TOMLS)
+        replace_in_file('output-type = "static"', 'output-type = "dynamic"', TOML)
 
         LOG.info('build interoplib into dynamic libs:\n')
         command("cjpm", "build", "--target-dir=" + INTEROPLIB_OUT, CJPM_CONFIG, cwd=INTEROPLIB_DIR, env=cjpm_env)

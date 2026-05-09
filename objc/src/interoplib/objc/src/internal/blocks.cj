@@ -4,7 +4,7 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-package interoplib.objc
+package objc.internal
 
 import std.sync.*
 
@@ -32,13 +32,13 @@ protected struct NativeBlockDescriptorABI {
 * default values are defaults that we provide when constructing block from Cangjie
 */
 @C
-public struct NativeBlockABI {
-    protected NativeBlockABI(
+protected struct NativeBlockABI {
+    public NativeBlockABI(
         public let isa!: CPointer<Unit>,
         public let flags!: Int32, // see ABI description
         public let reserved!: Int32, // must be zero
         public let invoke!: CPointer<CFunc<(CPointer<NativeBlockABI>) -> Unit>>, // the actual function pointer to implementation
-        protected let descriptor!: CPointer<NativeBlockDescriptorABI> // pointer to descriptor
+        public let descriptor!: CPointer<NativeBlockDescriptorABI> // pointer to descriptor
     ) {}
 }
 
@@ -46,7 +46,7 @@ public struct NativeBlockABI {
 * for blocks created from Cangjie, we additionally store the registry id in the structure
 */
 @C
-public struct CangjieBlockABI {
+protected struct CangjieBlockABI {
     public CangjieBlockABI(
         let base!: NativeBlockABI,
         let registryId!: RegistryId
@@ -78,7 +78,7 @@ protected func cangjieBlockCopy(src: CPointer<NativeBlockABI>, _: CPointer<Nativ
 * default disposed callback, decrement the counter and if it reaches 0, remove and free the object
 */
 @C
-public func cangjieBlockDispose(src: CPointer<NativeBlockABI>): Unit {
+protected func cangjieBlockDispose(src: CPointer<NativeBlockABI>): Unit {
     unsafe {
         let regid = CPointer<CangjieBlockABI>(src).read().registryId
         if (getFromRegistryById<ObjCLambdaWrapper>(regid).counter.fetchSub(1) <= 2) {

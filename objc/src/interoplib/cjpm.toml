@@ -5,7 +5,7 @@
 # See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 [workspace]
-  members = ["interoplib", "objc"]
+  members = ["objc"]
   build-members = []
   test-members = []
   compile-option = ""
@@ -14,7 +14,7 @@
   target-dir = ""
 
 [dependencies]
-interoplib = { path = "interoplib" }
+objc = { path = "objc" }
 
 [profile.customized-option]
   cfg_darwin_objc = "${TARGET_OPTION} ${SYSROOT_OPTION} --int-overflow wrapping -lobjc"

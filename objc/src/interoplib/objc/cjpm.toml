@@ -12,7 +12,7 @@
   target-dir = ""
   src-dir = ""
   output-type = "dynamic"
-  compile-option = ""
+  compile-option = "-Woff unused"
   override-compile-option = ""
   link-option = ""
   package-configuration = {}
