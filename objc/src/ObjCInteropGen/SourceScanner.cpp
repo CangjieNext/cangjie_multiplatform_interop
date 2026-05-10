@@ -23,12 +23,12 @@
 #include "Strings.h"
 #include "Universe.h"
 
-static bool operator==(const CXType& lhs, const CXType& rhs) noexcept
+[[nodiscard]] static bool operator==(const CXType& lhs, const CXType& rhs) noexcept
 {
     return !!clang_equalTypes(lhs, rhs);
 }
 
-static bool operator==(const CXCursor& lhs, const CXCursor& rhs) noexcept
+[[nodiscard]] static bool operator==(const CXCursor& lhs, const CXCursor& rhs) noexcept
 {
     return !!clang_equalCursors(lhs, rhs);
 }
@@ -36,7 +36,7 @@ static bool operator==(const CXCursor& lhs, const CXCursor& rhs) noexcept
 namespace objcgen {
 
 struct CXTypeHash {
-    size_t operator()(const CXType& x) const noexcept
+    [[nodiscard]] size_t operator()(const CXType& x) const noexcept
     {
         constexpr unsigned hashBase = 31;
         // Beware: libclang implementation details
@@ -45,36 +45,25 @@ struct CXTypeHash {
 };
 
 struct CXCursorHash {
-    size_t operator()(const CXCursor& x) const noexcept
+    [[nodiscard]] size_t operator()(const CXCursor& x) const noexcept
     {
         return clang_hashCursor(x);
     }
 };
 
-class ClangVisitor : NonCopyable {
-    static CXChildVisitResult visit(CXCursor cursor, CXCursor parent, void* data)
-    {
-        return static_cast<ClangVisitor*>(data)->visit_impl(cursor, parent);
-    }
-
+class SourceScanner final : NonCopyable {
 public:
-    virtual ~ClangVisitor() = default;
-
-    bool visit(CXCursor cursor)
+    void visit(const CXCursor& cursor)
     {
-        return clang_visitChildren(cursor, visit, this) != 0;
+        clang_visitChildren(cursor, visit, this);
     }
 
-protected:
-    virtual CXChildVisitResult visit_impl(CXCursor cursor, CXCursor parent) = 0;
-};
-
-class SourceScanner final : public ClangVisitor {
+private:
     // See the comment in CXType_ObjCTypeParam case in type_like_symbol.
     TypeDeclarationSymbol* last_objc_type_ = nullptr;
 
     // Nesting stack.
-    std::deque<Symbol*> current_;
+    std::deque<FileLevelSymbol*> current_;
 
     // We have to name the anonymous types, use declaring file name + incrementing index suffix
     std::unordered_map<CXType, NamedTypeSymbol*, CXTypeHash> anonymous_;
@@ -122,31 +111,29 @@ class SourceScanner final : public ClangVisitor {
         return nullptr;
     }
 
-    [[nodiscard]] TypeDeclarationSymbol* current_type_declaration() const
+    [[nodiscard]] TypeDeclarationSymbol& current_type_declaration() const
     {
         auto* named_type = current_type();
         assert(named_type);
-        auto* type_declaration = dynamic_cast<TypeDeclarationSymbol*>(named_type);
-        assert(type_declaration);
-        return type_declaration;
+        return named_type->as<TypeDeclarationSymbol>();
     }
 
-    [[nodiscard]] std::size_t level() const
+    [[nodiscard]] std::size_t level() const noexcept
     {
         return current_.size();
     }
 
-    [[nodiscard]] bool is_on_top_level() const
+    [[nodiscard]] bool is_on_top_level() const noexcept
     {
         return current_.empty();
     }
 
-    [[nodiscard]] bool current_top_is_type() const
+    [[nodiscard]] bool current_top_is_type() const noexcept
     {
         return !current_.empty() && dynamic_cast<NamedTypeSymbol*>(current_.back());
     }
 
-    [[nodiscard]] bool current_top_is_non_type() const
+    [[nodiscard]] bool current_top_is_non_type() const noexcept
     {
         return !current_.empty() && dynamic_cast<NonTypeSymbol*>(current_.back());
     }
@@ -160,84 +147,71 @@ class SourceScanner final : public ClangVisitor {
         return top && top->kind() == NonTypeSymbol::Kind::Property;
     }
 
-    Symbol* push_current(NamedTypeSymbol* symbol, const bool is_objc)
+    [[nodiscard]] NamedTypeSymbol& push_current(NamedTypeSymbol& symbol, const bool is_objc)
     {
-        using Kind = NamedTypeSymbol::Kind;
-        assert(symbol);
-        assert(is_objc == (symbol->is(Kind::Interface) || symbol->is(Kind::Protocol) || symbol->is(Kind::Category)));
+        assert(is_objc ==
+            (symbol.is(NamedTypeSymbol::Kind::Interface) || symbol.is(NamedTypeSymbol::Kind::Protocol) ||
+                symbol.is(NamedTypeSymbol::Kind::Category)));
 
-        current_.push_back(symbol);
+        current_.push_back(&symbol);
 
         if (is_objc) {
-            last_objc_type_ = current_type_declaration();
-            assert(last_objc_type_);
+            last_objc_type_ = &current_type_declaration();
         }
 
         return symbol;
     }
 
-    Symbol* push_current(NonTypeSymbol* symbol)
+    [[nodiscard]] NonTypeSymbol& push_current(NonTypeSymbol& symbol)
     {
-        assert(symbol);
-        current_.push_back(symbol);
+        current_.push_back(&symbol);
         return symbol;
     }
 
-    Symbol* push_current(NonTypeSymbol& symbol)
-    {
-        return push_current(std::addressof(symbol));
-    }
-
-    auto* push_current(EnumConstantSymbol& constant)
+    [[nodiscard]] FileLevelSymbol*& push_current(EnumConstantSymbol& constant)
     {
         return current_.emplace_back(&constant);
     }
 
-    void pop_current([[maybe_unused]] Symbol* symbol)
+    void pop_current([[maybe_unused]] const FileLevelSymbol& symbol)
     {
-        assert(symbol);
         assert(!current_.empty());
-        assert(current_.back() == symbol);
+        assert(current_.back() == &symbol);
         current_.pop_back();
     }
 
-    [[nodiscard]] Symbol* push_top_level_function(const CXCursor& cursor, std::string&& name);
+    [[nodiscard]] TypeDeclarationSymbol& get_target_type_declaration();
 
-    [[nodiscard]] Symbol* push_property(
+    [[nodiscard]] NonTypeSymbol& push_top_level_function(const CXCursor& cursor, std::string&& name);
+
+    [[nodiscard]] NonTypeSymbol& push_property(
         std::string&& name, std::string&& getter, std::string&& setter, uint16_t modifiers);
 
-    [[nodiscard]] Symbol* push_member_method(CXCursor cursor, std::string&& name, uint16_t modifiers);
+    [[nodiscard]] NonTypeSymbol& push_member_method(const CXCursor& cursor, std::string&& name, uint16_t modifiers);
 
-    [[nodiscard]] Symbol* push_constructor(CXCursor cursor, std::string&& name);
+    [[nodiscard]] NonTypeSymbol& push_constructor(const CXCursor& cursor, std::string&& name);
 
-    [[nodiscard]] NamedTypeSymbol* named_type_symbol(CXType type);
+    [[nodiscard]] NamedTypeSymbol* named_type_symbol(const CXType& type);
 
-    [[nodiscard]] TypeDeclarationSymbol* type_symbol(CXType type);
+    [[nodiscard]] TypeDeclarationSymbol* type_symbol(const CXType& type);
 
-    [[nodiscard]] std::string new_anonymous_name(CXCursor decl);
+    [[nodiscard]] std::string new_anonymous_name(const CXCursor& decl);
 
-    [[nodiscard]] TypeLikeSymbol* add_type(NamedTypeSymbol::Kind kind, const std::string& name, const CXType& type);
+    [[nodiscard]] TypeLikeSymbol* add_type(
+        NamedTypeSymbol::Kind kind, const std::string& name, const CXType& type);
 
     template <class FuncLikeTypeSymbol>
     [[nodiscard]] FuncLikeTypeSymbol* create_func_like_type_symbol(const CXType& type);
 
-    [[nodiscard]] TypeLikeSymbol* type_like_symbol(CXType type);
+    [[nodiscard]] TypeLikeSymbol* type_like_symbol(const CXType& type);
 
-public:
-    explicit SourceScanner() = default;
+    [[nodiscard]] static CXChildVisitResult visit(CXCursor cursor, CXCursor parent, void* data)
+    {
+        return reinterpret_cast<SourceScanner*>(data)->visit_impl(cursor, parent);
+    }
 
-    SourceScanner(const SourceScanner& other) = delete;
+    CXChildVisitResult visit_impl(const CXCursor& cursor, const CXCursor& parent);
 
-    SourceScanner(SourceScanner&& other) noexcept = delete;
-
-    SourceScanner& operator=(const SourceScanner& other) = delete;
-
-    SourceScanner& operator=(SourceScanner&& other) noexcept = delete;
-
-protected:
-    CXChildVisitResult visit_impl(CXCursor cursor, CXCursor parent) override;
-
-private:
     bool visit_parameter_declaration(std::string cursor_name, const CXType& cursor_type);
 
     /**
@@ -394,15 +368,14 @@ ClangSessionImpl::~ClangSessionImpl()
     return location.file_.stem().u8string();
 }
 
-static bool set_definition_location(const CXCursor& decl, FileLevelSymbol* symbol)
+static bool set_definition_location(const CXCursor& decl, FileLevelSymbol& symbol)
 {
     assert(is_valid(decl));
-    assert(symbol);
     auto loc = get_location(decl);
     if (loc.is_null()) {
         return false;
     }
-    symbol->set_definition_location(loc);
+    symbol.set_definition_location(loc);
     return true;
 }
 
@@ -442,7 +415,7 @@ template <class Decl>
     return PrimitiveTypeCategory::Unit;
 }
 
-NamedTypeSymbol* SourceScanner::named_type_symbol(CXType type)
+NamedTypeSymbol* SourceScanner::named_type_symbol(const CXType& type)
 {
     auto* symbol = type_like_symbol(type);
     auto* named = dynamic_cast<NamedTypeSymbol*>(symbol);
@@ -453,7 +426,7 @@ NamedTypeSymbol* SourceScanner::named_type_symbol(CXType type)
     return original;
 }
 
-TypeDeclarationSymbol* SourceScanner::type_symbol(CXType type)
+TypeDeclarationSymbol* SourceScanner::type_symbol(const CXType& type)
 {
     auto* symbol = named_type_symbol(type);
     auto* result = dynamic_cast<TypeDeclarationSymbol*>(symbol);
@@ -474,7 +447,7 @@ template <class FuncLikeTypeSymbol> FuncLikeTypeSymbol* SourceScanner::create_fu
     return new FuncLikeTypeSymbol(parameters, return_type);
 }
 
-std::string SourceScanner::new_anonymous_name(CXCursor decl)
+std::string SourceScanner::new_anonymous_name(const CXCursor& decl)
 {
     assert(is_anonymous(decl));
     auto file_name = declaring_file_name(decl);
@@ -510,7 +483,7 @@ TypeLikeSymbol* SourceScanner::add_type(const NamedTypeSymbol::Kind kind, const 
             anonymous_.emplace(type, symbol);
         }
 
-        auto has_definition_location = set_definition_location(decl, symbol);
+        auto has_definition_location = set_definition_location(decl, *symbol);
         if (!has_definition_location && type.kind == CXType_Typedef && name != "instancetype") {
             // The type has a declaration that has no file location.  This means a built-in
             // clang type, for example:
@@ -536,26 +509,33 @@ TypeLikeSymbol* SourceScanner::add_type(const NamedTypeSymbol::Kind kind, const 
         }
     }
 
-    Universe::get().register_type(symbol);
+    Universe::get().register_type(*symbol);
 
     return symbol;
 }
 
-static NamedTypeSymbol* protocol_symbol(CXType objc_object_type, unsigned i)
+[[nodiscard]] static TypeDeclarationSymbol& get_type_declaration(
+    const CXCursor& cursor, NamedTypeSymbol::Kind kind, const std::string& name)
+{
+    auto& universe = Universe::get();
+    auto* result = universe.type(kind, name);
+    if (result) {
+        return result->as<TypeDeclarationSymbol>();
+    }
+    auto& new_result = *new TypeDeclarationSymbol(kind, name);
+    universe.register_type(new_result);
+    set_definition_location(cursor, new_result);
+    return new_result;
+}
+
+static TypeDeclarationSymbol& protocol_symbol(const CXType& objc_object_type, unsigned i)
 {
     assert(objc_object_type.kind == CXType_ObjCObject);
     assert(i < clang_Type_getNumObjCProtocolRefs(objc_object_type));
     auto protocol_decl = clang_Type_getObjCProtocolDecl(objc_object_type, i);
     assert(protocol_decl.kind == CXCursor_ObjCProtocolDecl);
-    auto protocol_name = as_string(clang_getCursorSpelling(protocol_decl));
-    auto& universe = Universe::get();
-    auto* result = universe.type(NamedTypeSymbol::Kind::Protocol, protocol_name);
-    if (!result) {
-        result = new TypeDeclarationSymbol(NamedTypeSymbol::Kind::Protocol, protocol_name);
-        universe.register_type(result);
-        set_definition_location(protocol_decl, result);
-    }
-    return result;
+    return get_type_declaration(
+        protocol_decl, NamedTypeSymbol::Kind::Protocol, as_string(clang_getCursorSpelling(protocol_decl)));
 }
 
 struct UndecorateResult {
@@ -620,6 +600,22 @@ static UndecorateResult undecorate_parameter_type_name(const std::string& decora
     return *new VArraySymbol(universe.int8(), static_cast<size_t>(size));
 }
 
+class CategoryDeclarationSymbol final : public TypeDeclarationSymbol {
+public:
+    explicit CategoryDeclarationSymbol(std::string name, TypeDeclarationSymbol& interface) noexcept
+        : TypeDeclarationSymbol(Kind::Category, std::move(name)), interface_(&interface)
+    {
+    }
+
+    [[nodiscard]] TypeDeclarationSymbol& interface() const noexcept
+    {
+        return *interface_;
+    }
+
+private:
+    TypeDeclarationSymbol* const interface_;
+};
+
 const TypeDeclarationSymbol& SourceScanner::get_owner_generic_type() const
 {
     // Non-ObjC type declarations nested in ObjC interfaces/protocols are visited
@@ -644,13 +640,12 @@ const TypeDeclarationSymbol& SourceScanner::get_owner_generic_type() const
     // defined in the middle of the NSSet<ElementT> definition and references the
     // ElementT type parameter.
     if (!is_on_top_level()) {
-        const auto* owner_type = current_type_declaration();
-        assert(owner_type);
-        switch (owner_type->kind()) {
+        auto& owner_type = current_type_declaration();
+        switch (owner_type.kind()) {
             case NamedTypeSymbol::Kind::Interface:
             case NamedTypeSymbol::Kind::Protocol:
             case NamedTypeSymbol::Kind::Category:
-                return *owner_type;
+                return owner_type;
             default:
                 break;
         }
@@ -661,7 +656,7 @@ const TypeDeclarationSymbol& SourceScanner::get_owner_generic_type() const
     return *last_objc_type_;
 }
 
-TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
+TypeLikeSymbol* SourceScanner::type_like_symbol(const CXType& type)
 {
     assert(type.kind != CXType_Invalid);
 
@@ -691,11 +686,11 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
                     case 1:
                         // In Cangjie, `id` qualified with just one protocol can be represented as a
                         // reference-to-interface.
-                        return protocol_symbol(type, 0);
+                        return &protocol_symbol(type, 0);
                     default:
                         auto* result = new ConstructedTypeSymbol(id_type);
                         for (decltype(num_protocols) i = 0; i < num_protocols; ++i) {
-                            result->add_parameter(protocol_symbol(type, i));
+                            result->add_parameter(&protocol_symbol(type, i));
                         }
                         return result;
                 }
@@ -763,10 +758,9 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
                 auto parameter_name = parameter->name();
                 if (parameter_name == undecorated_type_name) {
                     if (owner_type.kind() == NamedTypeSymbol::Kind::Category) {
-                        assert(dynamic_cast<const CategoryDeclarationSymbol*>(&owner_type));
-                        const auto* interface = static_cast<const CategoryDeclarationSymbol&>(owner_type).interface();
-                        assert(parameter_count == interface->parameter_count());
-                        parameter = interface->parameter(i);
+                        auto& interface = owner_type.as<CategoryDeclarationSymbol>().interface();
+                        assert(parameter_count == interface.parameter_count());
+                        parameter = interface.parameter(i);
                     }
                     if (narrowing_protocol_name.empty()) {
                         return parameter;
@@ -878,15 +872,17 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
     return this->add_type(type_kind, type_name, type);
 }
 
-Symbol* SourceScanner::push_property(std::string&& name, std::string&& getter, std::string&& setter, uint16_t modifiers)
+TypeDeclarationSymbol& SourceScanner::get_target_type_declaration()
+{
+    auto& decl = current_type_declaration();
+    return decl.is(NamedTypeSymbol::Kind::Category) ? decl.as<CategoryDeclarationSymbol>().interface() : decl;
+}
+
+NonTypeSymbol& SourceScanner::push_property(std::string&& name, std::string&& getter, std::string&& setter, uint16_t modifiers)
 {
     assert(current_top_is_type());
-    auto* decl = current_type_declaration();
-    if (decl->is(NamedTypeSymbol::Kind::Category)) {
-        assert(dynamic_cast<CategoryDeclarationSymbol*>(decl));
-        decl = static_cast<CategoryDeclarationSymbol*>(decl)->interface();
-    }
-    return push_current(decl->add_property(std::move(name), getter, setter, modifiers));
+    return push_current(
+        get_target_type_declaration().add_property(std::move(name), std::move(getter), std::move(setter), modifiers));
 }
 
 static bool is_init_method(CXCursor cursor) noexcept
@@ -1000,7 +996,7 @@ static std::optional<CXType> nullable_overridden(CXCursor cursor)
     return std::nullopt;
 }
 
-Symbol* SourceScanner::push_top_level_function(const CXCursor& cursor, std::string&& name)
+NonTypeSymbol& SourceScanner::push_top_level_function(const CXCursor& cursor, std::string&& name)
 {
     assert(is_on_top_level());
     auto cx_result_type = clang_getCursorResultType(cursor);
@@ -1014,18 +1010,14 @@ Symbol* SourceScanner::push_top_level_function(const CXCursor& cursor, std::stri
         modifiers |= ModifierInternalLinkage;
     }
     auto& function = Universe::get().register_top_level_function(std::move(name), *result_type, modifiers);
-    set_definition_location(cursor, &function);
-    return push_current(&function);
+    set_definition_location(cursor, function);
+    return push_current(function);
 }
 
-Symbol* SourceScanner::push_member_method(CXCursor cursor, std::string&& name, uint16_t modifiers)
+NonTypeSymbol& SourceScanner::push_member_method(const CXCursor& cursor, std::string&& name, uint16_t modifiers)
 {
     assert(current_top_is_type() || current_top_is_property());
-    auto* decl = current_type_declaration();
-    if (decl->is(NamedTypeSymbol::Kind::Category)) {
-        assert(dynamic_cast<CategoryDeclarationSymbol*>(decl));
-        decl = static_cast<CategoryDeclarationSymbol*>(decl)->interface();
-    }
+    auto& decl = get_target_type_declaration();
     auto cx_result_type = clang_getCursorResultType(cursor);
 
     // In Cangjie, Option is not covariant.  If either overridden or overrider is
@@ -1053,19 +1045,15 @@ Symbol* SourceScanner::push_member_method(CXCursor cursor, std::string&& name, u
     if (is_nullable(cx_result_type)) {
         modifiers |= ModifierNullable;
     }
-    return push_current(decl->add_member_method(std::move(name), type_like_symbol(cx_result_type), modifiers));
+    return push_current(decl.add_member_method(std::move(name), type_like_symbol(cx_result_type), modifiers));
 }
 
-Symbol* SourceScanner::push_constructor(CXCursor cursor, std::string&& name)
+NonTypeSymbol& SourceScanner::push_constructor(const CXCursor& cursor, std::string&& name)
 {
     assert(current_top_is_type());
     auto result_type = clang_getCursorResultType(cursor);
-    auto* decl = current_type_declaration();
-    if (decl->is(NamedTypeSymbol::Kind::Category)) {
-        assert(dynamic_cast<CategoryDeclarationSymbol*>(decl));
-        decl = static_cast<CategoryDeclarationSymbol*>(decl)->interface();
-    }
-    return push_current(decl->add_constructor(std::move(name), type_like_symbol(result_type)));
+    auto& decl = get_target_type_declaration();
+    return push_current(decl.add_constructor(std::move(name), type_like_symbol(result_type)));
 }
 
 constexpr auto WordsInAPInt = 2;
@@ -1105,7 +1093,7 @@ bool SourceScanner::visit_parameter_declaration(std::string cursor_name, const C
     return !non_type.is_property();
 }
 
-CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
+CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCursor& parent)
 {
     assert(is_valid(cursor));
     assert(is_valid(parent));
@@ -1166,7 +1154,7 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
         return CXChildVisit_Continue;
     }
 
-    Symbol* pushed = nullptr;
+    FileLevelSymbol* pushed = nullptr;
     auto recurse = true;
 
     switch (cursor_kind) {
@@ -1207,50 +1195,32 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
             assert(is_on_top_level());
             assert(!is_valid(type)); // Protocol declarations are funny like that.
             assert(is_defining(cursor));
-            auto& universe = Universe::get();
-            auto* decl = universe.type(NamedTypeSymbol::Kind::Protocol, name);
-            if (!decl) {
-                decl = new TypeDeclarationSymbol(NamedTypeSymbol::Kind::Protocol, name);
-                universe.register_type(decl);
-                set_definition_location(cursor, decl);
-            }
-            pushed = push_current(decl, true);
+            pushed = &push_current(get_type_declaration(cursor, NamedTypeSymbol::Kind::Protocol, name), true);
             break;
         }
         case CXCursor_ObjCInterfaceDecl: {
             assert(!current_type());
             assert(is_on_top_level());
             assert(is_defining(type, cursor));
-            auto& universe = Universe::get();
-            auto* named = universe.type(NamedTypeSymbol::Kind::Interface, name);
-            if (!named) {
-                auto* decl = new TypeDeclarationSymbol(NamedTypeSymbol::Kind::Interface, name);
-                universe.register_type(decl);
-                set_definition_location(cursor, decl);
-                named = decl;
-            }
-            pushed = push_current(named, true);
+            pushed = &push_current(get_type_declaration(cursor, NamedTypeSymbol::Kind::Interface, name), true);
             break;
         }
         case CXCursor_TemplateTypeParameter: {
             if (is_valid(type) && type.kind == CXType_ObjCTypeParam && is_valid(parent)) {
                 switch (parent.kind) {
                     case CXCursor_ObjCInterfaceDecl:
-                    case CXCursor_ObjCCategoryDecl:
+                    case CXCursor_ObjCCategoryDecl: {
                         assert(current_top_is_type());
+                        auto& decl = current_type_declaration();
+                        assert(
+                            (parent.kind == CXCursor_ObjCInterfaceDecl && decl.is(NamedTypeSymbol::Kind::Interface)) ||
+                            (parent.kind == CXCursor_ObjCCategoryDecl && decl.is(NamedTypeSymbol::Kind::Category)));
+                        assert(is_canonical(cursor));
+                        assert(is_defining(cursor));
 
-                        {
-                            auto* decl = current_type_declaration();
-                            assert((parent.kind == CXCursor_ObjCInterfaceDecl &&
-                                       decl->is(NamedTypeSymbol::Kind::Interface)) ||
-                                (parent.kind == CXCursor_ObjCCategoryDecl &&
-                                    decl->is(NamedTypeSymbol::Kind::Category)));
-                            assert(is_canonical(cursor));
-                            assert(is_defining(cursor));
-
-                            decl->add_parameter(name);
-                        }
+                        decl.add_parameter(name);
                         break;
+                    }
                     default:
                         break;
                 }
@@ -1275,9 +1245,8 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
             const auto interface_type = clang_getCursorType(target);
             assert(interface_type.kind == CXType_ObjCInterface);
             auto* decl = named_type_symbol(interface_type);
-            assert(dynamic_cast<TypeDeclarationSymbol*>(decl));
-            pushed = push_current(
-                new CategoryDeclarationSymbol(std::string(cpp.getName()), static_cast<TypeDeclarationSymbol*>(decl)),
+            pushed = &push_current(
+                *new CategoryDeclarationSymbol(std::string(cpp.getName()), decl->as<TypeDeclarationSymbol>()),
                 true);
             break;
         }
@@ -1285,29 +1254,26 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
         case CXCursor_UnionDecl: {
             assert(type.kind == CXType_Record);
             auto* decl = named_type_symbol(type);
-            pushed = push_current(decl, false);
+            pushed = &push_current(decl->as<TypeDeclarationSymbol>(), false);
             break;
         }
         case CXCursor_EnumDecl: {
             assert(type.kind == CXType_Enum);
-            auto* decl = named_type_symbol(type);
+            auto& decl = named_type_symbol(type)->as<EnumDeclarationSymbol>();
             auto underlying_type = clang_getEnumDeclIntegerType(cursor);
             assert(is_valid(underlying_type));
             auto* underlying_type_symbol = type_like_symbol(underlying_type);
             assert(underlying_type_symbol);
-            assert(dynamic_cast<const EnumDeclarationSymbol*>(decl));
-            static_cast<EnumDeclarationSymbol&>(*decl).set_underlying_type(*underlying_type_symbol);
-            pushed = push_current(decl, false);
+            decl.set_underlying_type(*underlying_type_symbol);
+            pushed = &push_current(decl, false);
             break;
         }
         case CXCursor_ObjCSuperClassRef: {
             assert(current_top_is_type());
             assert(level() == 1);
-            assert(current_type_declaration()->is(NamedTypeSymbol::Kind::Interface));
+            assert(current_type_declaration().is(NamedTypeSymbol::Kind::Interface));
             assert(parent.kind == CXCursor_ObjCInterfaceDecl);
-            auto* base = type_like_symbol(type);
-            assert(dynamic_cast<TypeDeclarationSymbol*>(base));
-            current_type_declaration()->add_base(static_cast<TypeDeclarationSymbol&>(*base));
+            current_type_declaration().add_base(type_like_symbol(type)->as<TypeDeclarationSymbol>());
             break;
         }
         case CXCursor_ObjCProtocolRef: {
@@ -1326,23 +1292,22 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
                 using Kind = NamedTypeSymbol::Kind;
                 assert(current_top_is_type());
                 assert(level() == 1);
-                auto* type_decl = current_type_declaration();
-                [[maybe_unused]] const auto kind = type_decl->kind();
-                assert((is_interface && kind == Kind::Interface) || (is_protocol && kind == Kind::Protocol));
+                auto& type_decl = current_type_declaration();
+                assert((is_interface && type_decl.kind() == Kind::Interface) ||
+                    (is_protocol && type_decl.kind() == Kind::Protocol));
                 const auto referenced = clang_getCursorReferenced(cursor);
                 assert(is_valid(referenced));
-                const auto referenced_type = as_string(clang_getCursorSpelling(referenced));
-                auto* protocol = Universe::get().type(Kind::Protocol, referenced_type);
-                assert(dynamic_cast<TypeDeclarationSymbol*>(protocol));
-                type_decl->add_base(static_cast<TypeDeclarationSymbol&>(*protocol));
+                type_decl.add_base(Universe::get()
+                        .type(Kind::Protocol, as_string(clang_getCursorSpelling(referenced)))
+                        ->as<TypeDeclarationSymbol>());
             }
 
             break;
         }
         case CXCursor_ObjCInstanceMethodDecl: {
-            pushed = is_init_method(cursor) ? push_constructor(cursor, std::move(name))
-                                            : push_member_method(cursor, std::move(name),
-                                                  clang_Cursor_isObjCOptional(cursor) ? ModifierOptional : 0);
+            pushed = &(is_init_method(cursor) ? push_constructor(cursor, std::move(name))
+                                              : push_member_method(cursor, std::move(name),
+                                                    clang_Cursor_isObjCOptional(cursor) ? ModifierOptional : 0));
             this->func_parameter_index_ = 0;
             break;
         }
@@ -1351,7 +1316,7 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
             if (clang_Cursor_isObjCOptional(cursor)) {
                 modifiers |= ModifierOptional;
             }
-            pushed = push_member_method(cursor, std::move(name), modifiers);
+            pushed = &push_member_method(cursor, std::move(name), modifiers);
             this->func_parameter_index_ = 0;
             break;
         }
@@ -1367,7 +1332,7 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
             if (clang_Cursor_isObjCOptional(cursor)) {
                 modifiers |= ModifierOptional;
             }
-            pushed = push_property(std::move(name), as_string(clang_Cursor_getObjCPropertyGetterName(cursor)),
+            pushed = &push_property(std::move(name), as_string(clang_Cursor_getObjCPropertyGetterName(cursor)),
                 as_string(clang_Cursor_getObjCPropertySetterName(cursor)), modifiers);
             break;
         }
@@ -1385,12 +1350,12 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
                     recurse = false;
                     break;
                 case clang::ObjCIvarDecl::AccessControl::Public:
-                    pushed = push_current(current_type_declaration()->add_instance_variable(
+                    pushed = &push_current(current_type_declaration().add_instance_variable(
                         name, type_like_symbol(type), is_nullable(type) ? ModifierNullable : 0));
                     break;
                 default:
                     assert(access_control == clang::ObjCIvarDecl::AccessControl::Protected);
-                    pushed = push_current(current_type_declaration()->add_instance_variable(
+                    pushed = &push_current(current_type_declaration().add_instance_variable(
                         name, type_like_symbol(type), ModifierProtected | (is_nullable(type) ? ModifierNullable : 0)));
                     break;
             }
@@ -1407,7 +1372,7 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
             if (clang_Cursor_isBitField(cursor)) {
                 modifiers |= ModifierBitField;
             }
-            pushed = push_current(current_type_declaration()->add_field(name, type_like_symbol(type), modifiers));
+            pushed = &push_current(current_type_declaration().add_field(name, type_like_symbol(type), modifiers));
             break;
         }
         case CXCursor_EnumConstantDecl: {
@@ -1415,9 +1380,8 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
             assert(is_canonical(cursor));
             assert(is_defining(cursor));
             auto* decl = current_type();
-            assert(dynamic_cast<const EnumDeclarationSymbol*>(decl));
-            auto& enum_decl = static_cast<EnumDeclarationSymbol&>(*decl);
-            pushed = push_current(enum_decl.add_constant(std::move(name), get_enum_constant_value(cursor)));
+            pushed = push_current(decl->as<EnumDeclarationSymbol>().add_constant(
+                std::move(name), get_enum_constant_value(cursor)));
             break;
         }
         case CXCursor_ParmDecl:
@@ -1428,7 +1392,7 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
             }
             break;
         case CXCursor_FunctionDecl:
-            pushed = push_top_level_function(cursor, std::move(name));
+            pushed = &push_top_level_function(cursor, std::move(name));
             this->func_parameter_index_ = 0;
             break;
         case CXCursor_VarDecl: {
@@ -1450,7 +1414,7 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
     }
 
     if (pushed) {
-        pop_current(pushed);
+        pop_current(*pushed);
     }
 
     return CXChildVisit_Continue;
