@@ -22,6 +22,11 @@ void check_marked_symbols()
                 assert(input_file);
                 std::cerr << input_file->path().u8string() << ": union `" << type.name()
                           << "` is an unsupported feature" << std::endl;
+            } else if (type.is(NamedTypeSymbol::Kind::Unexposed)) {
+                const auto* input_file = type.defining_file();
+                assert(input_file);
+                std::cerr << input_file->path().u8string() << ": type `" << type.name()
+                          << "` is unsupported" << std::endl;
             }
             if (auto* t = dynamic_cast<TypeDeclarationSymbol*>(&type)) {
                 for (const auto& member : t->members()) {

@@ -860,9 +860,15 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(const CXType& type)
             break;
         }
 
-        default:
-            assert(is_builtin(type));
-            return &primitive_type(type);
+        default: {
+            if (is_builtin(type)) {
+                return &primitive_type(type);
+            }
+
+            auto type_name = get_type_name(type);
+            auto* result = Universe::get().type(type_name);
+            return new UnexposedTypeSymbol(type_name, result ? *result : primitive_type(type));
+        }
     }
 
     if (auto* type_symbol = Universe::get().type(type_kind, type_name)) {
