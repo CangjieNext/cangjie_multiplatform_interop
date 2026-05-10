@@ -11,7 +11,7 @@
 #include "InputFile.h"
 #include "Logging.h"
 #include "Package.h"
-#include "SingleDeclarationSymbolVisitor.h"
+#include "SymbolVisitor.h"
 #include "Universe.h"
 
 namespace objcgen {

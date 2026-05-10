@@ -15,13 +15,14 @@
 #include <unordered_map>
 #include <vector>
 
+#include "NonCopyable.h"
 #include "Symbol.h"
 
 namespace objcgen {
 
 class Package;
 
-class PackageFilter {
+class PackageFilter : NonCopyable {
     const Package* package_;
 
 public:
@@ -155,7 +156,7 @@ public:
     }
 };
 
-class Package final {
+class Package final : NonCopyable {
     std::string cangjie_name_;
     std::string output_path_;
     const PackageFilter* filters_ = nullptr;

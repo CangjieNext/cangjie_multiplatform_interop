@@ -51,7 +51,7 @@ struct CXCursorHash {
     }
 };
 
-class ClangVisitor {
+class ClangVisitor : NonCopyable {
     static CXChildVisitResult visit(CXCursor cursor, CXCursor parent, void* data)
     {
         return static_cast<ClangVisitor*>(data)->visit_impl(cursor, parent);

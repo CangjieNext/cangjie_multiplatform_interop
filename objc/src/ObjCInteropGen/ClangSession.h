@@ -12,9 +12,11 @@
 #include <string>
 #include <vector>
 
+#include "NonCopyable.h"
+
 namespace objcgen {
 
-class ClangSession {
+class ClangSession : NonCopyable {
 public:
     [[nodiscard]] static std::unique_ptr<ClangSession> create();
 

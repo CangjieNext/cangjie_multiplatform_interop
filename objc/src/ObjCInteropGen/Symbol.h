@@ -22,6 +22,7 @@ class Package;
 class PackageFile;
 class ParameterSymbol;
 class Symbol;
+class SymbolVisitor;
 struct TypeMapping;
 
 enum class SymbolPrintFormat {
@@ -205,42 +206,6 @@ protected:
 
 std::ostream& operator<<(std::ostream& stream, const SymbolPrinter& symbolPrinter);
 
-enum class SymbolProperty {
-    None,
-    TypeArgument,
-    Base,
-    Member,
-    TupleItem,
-    FunctionParametersTuple,
-    FunctionReturnType,
-    AliasTarget,
-    ParameterType,
-    ReturnType,
-};
-
-class SymbolVisitor {
-public:
-    virtual ~SymbolVisitor() = default;
-
-    void recurse(FileLevelSymbol* value);
-
-    void visit(FileLevelSymbol* owner, FileLevelSymbol* value, const SymbolProperty property)
-    {
-        assert((!!owner) == (property != SymbolProperty::None));
-        if (value) {
-            visit_impl(owner, value, property);
-        }
-    }
-
-    void visit(FileLevelSymbol* symbol)
-    {
-        visit(nullptr, symbol, SymbolProperty::None);
-    }
-
-protected:
-    virtual void visit_impl(FileLevelSymbol* owner, FileLevelSymbol* value, SymbolProperty property) = 0;
-};
-
 enum class OutputStatus { Undefined, Root, Referenced, ReferencedMarked, MultiReferenced };
 
 class FileLevelSymbol : public Symbol {
@@ -322,9 +287,9 @@ protected:
     {
     }
 
-    virtual void visit_impl(SymbolVisitor& visitor) = 0;
+    friend class SymbolVisitor;
 
-    friend void SymbolVisitor::recurse(FileLevelSymbol*);
+    virtual void visit_impl(SymbolVisitor& visitor) = 0;
 };
 
 class TypeLikeSymbol : public FileLevelSymbol {
@@ -446,10 +411,7 @@ public:
 
     void print(std::ostream& stream, SymbolPrintFormat format) override;
 
-    void visit_impl(SymbolVisitor& visitor) override
-    {
-        visitor.visit(this, pointee_, SymbolProperty::TypeArgument);
-    }
+    void visit_impl(SymbolVisitor& visitor) override;
 
     [[nodiscard]] PointerTypeSymbol* map() override;
 
@@ -502,10 +464,7 @@ public:
 
     void print(std::ostream& stream, SymbolPrintFormat format) override;
 
-    void visit_impl(SymbolVisitor& visitor) override
-    {
-        visitor.visit(this, element_type_, SymbolProperty::TypeArgument);
-    }
+    void visit_impl(SymbolVisitor& visitor) override;
 
     [[nodiscard]] VArraySymbol* map() override;
 
@@ -686,12 +645,7 @@ private:
         return true;
     }
 
-    void visit_impl(SymbolVisitor& visitor) override
-    {
-        if (underlying_type_) {
-            visitor.visit(this, underlying_type_, SymbolProperty::ReturnType);
-        }
-    }
+    void visit_impl(SymbolVisitor& visitor) override;
 
     [[nodiscard]] EnumDeclarationSymbol* original() noexcept override
     {
