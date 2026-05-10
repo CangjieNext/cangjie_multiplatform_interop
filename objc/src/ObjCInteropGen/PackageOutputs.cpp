@@ -106,6 +106,10 @@ static std::string compute_output_path_by_root_name(const std::string_view packa
 std::string compute_output_path(
     const std::string& name, const toml::Table& config, const std::string_view package_cangjie_name)
 {
+    if (config.find("output-path") != config.end() && config.find("output-root") != config.end()) {
+        fatal("`packages` entry ", name, " has mutually exclusive `output-path` and `output-root` properties");
+    }
+
     return get_string_value(config, name, "output-path", [&name, &package_cangjie_name](const auto& config) {
         const auto output_root =
             get_string_value(config, name, "output-root", [&name](const auto&) { return compute_output_root(name); });
