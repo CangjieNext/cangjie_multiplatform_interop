@@ -37,7 +37,7 @@ std::string get_string_value(
     return package_name_string;
 }
 
-[[nodiscard]] PackageFilter* create_filter(const Package* package, const toml::Table& table);
+[[nodiscard]] PackageFilter* create_filter(const Package* package, const toml::Value& node);
 
 std::string compute_output_path(
     const std::string& name, const toml::Table& config, std::string_view package_cangjie_name);

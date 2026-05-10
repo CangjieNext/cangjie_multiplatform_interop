@@ -56,11 +56,7 @@ static Package* create_package(std::size_t package_index, const toml::Table& con
     if (filters_it == config.end()) {
         fatal("`packages` entry ", name_desc, " should define `filters` property");
     }
-    const auto& filters_any = filters_it->second;
-    if (!filters_any.is<toml::Table>()) {
-        fatal("`packages` entry ", name_desc, " property `filters` should be a TOML table");
-    }
-    const auto& filters = filters_any.as<toml::Table>();
+    const auto& filters = filters_it->second;
 
     if (packages.by_cangjie_name(package_cangjie_name)) {
         fatal("There are multiple `packages` entries with the same `package-name` value `", package_cangjie_name, "`");
