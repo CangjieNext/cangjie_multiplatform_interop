@@ -28,17 +28,16 @@ enum class SymbolProperty {
 
 class SymbolVisitor : NonCopyable {
 public:
+    explicit SymbolVisitor(const bool allow_recurse)
+        : initial_allow_recurse_(allow_recurse), allow_recurse_(allow_recurse)
+    {
+    }
+
     virtual ~SymbolVisitor() = default;
 
     void recurse(FileLevelSymbol* value);
 
-    void visit(FileLevelSymbol* owner, FileLevelSymbol* value, const SymbolProperty property)
-    {
-        assert((!!owner) == (property != SymbolProperty::None));
-        if (value) {
-            visit_impl(owner, value, property);
-        }
-    }
+    void visit(FileLevelSymbol* owner, FileLevelSymbol* value, const SymbolProperty property);
 
     void visit(FileLevelSymbol* symbol)
     {
@@ -47,22 +46,10 @@ public:
 
 protected:
     virtual void visit_impl(FileLevelSymbol* owner, FileLevelSymbol* value, SymbolProperty property) = 0;
-};
 
-class SingleDeclarationSymbolVisitor : public SymbolVisitor {
+private:
     bool initial_allow_recurse_;
     bool allow_recurse_;
-
-public:
-    explicit SingleDeclarationSymbolVisitor(const bool allow_recurse)
-        : initial_allow_recurse_(allow_recurse), allow_recurse_(allow_recurse)
-    {
-    }
-
-protected:
-    virtual void visit_impl(FileLevelSymbol* owner, FileLevelSymbol* value, SymbolProperty property, bool foreign) = 0;
-
-    void visit_impl(FileLevelSymbol* owner, FileLevelSymbol* value, SymbolProperty property) final;
 };
 
 } // namespace objcgen

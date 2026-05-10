@@ -95,29 +95,21 @@ static bool mark_roots()
     return success;
 }
 
-class SymbolReferenceCollector final : public SingleDeclarationSymbolVisitor {
+class SymbolReferenceCollector final : public SymbolVisitor {
 
 public:
     [[nodiscard]] explicit SymbolReferenceCollector(FileLevelSymbol& symbol)
-        : SingleDeclarationSymbolVisitor(true), symbol_(symbol)
+        : SymbolVisitor(true), symbol_(symbol)
     {
     }
-
-    SymbolReferenceCollector(const SymbolReferenceCollector& other) = delete;
-
-    SymbolReferenceCollector(SymbolReferenceCollector&& other) noexcept = delete;
-
-    SymbolReferenceCollector& operator=(const SymbolReferenceCollector& other) = delete;
-
-    SymbolReferenceCollector& operator=(SymbolReferenceCollector&& other) noexcept = delete;
 
     void visit()
     {
-        SingleDeclarationSymbolVisitor::visit(&symbol_);
+        SymbolVisitor::visit(&symbol_);
     }
 
 protected:
-    void visit_impl(FileLevelSymbol* owner, FileLevelSymbol* value, SymbolProperty, bool) override
+    void visit_impl(FileLevelSymbol* owner, FileLevelSymbol* value, SymbolProperty) override
     {
         assert(value);
         if (!owner) {
