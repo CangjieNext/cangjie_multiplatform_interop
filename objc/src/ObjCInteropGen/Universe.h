@@ -181,7 +181,7 @@ public:
 
     NonTypeSymbol& register_top_level_function(std::string name, TypeLikeSymbol& return_type, uint16_t modifiers);
 
-    void register_type(NamedTypeSymbol* symbol);
+    void register_type(NamedTypeSymbol& symbol);
 
     [[nodiscard]] auto& unit() noexcept
     {

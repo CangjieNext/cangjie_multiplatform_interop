@@ -282,6 +282,23 @@ public:
 
     void print_referencing_packages_info() const;
 
+    template <class To> [[nodiscard]] bool is() const noexcept
+    {
+        return dynamic_cast<const To*>(this) != nullptr;
+    }
+
+    template <class To> [[nodiscard]] const To& as() const noexcept
+    {
+        assert(is<To>());
+        return static_cast<const To&>(*this);
+    }
+
+    template <class To> [[nodiscard]] To& as() noexcept
+    {
+        assert(is<To>());
+        return static_cast<To&>(*this);
+    }
+
 protected:
     explicit FileLevelSymbol(std::string name) noexcept : Symbol(std::move(name))
     {
@@ -974,22 +991,6 @@ public:
 
 protected:
     void visit_impl(SymbolVisitor& visitor) override;
-};
-
-class CategoryDeclarationSymbol final : public TypeDeclarationSymbol {
-public:
-    explicit CategoryDeclarationSymbol(std::string name, TypeDeclarationSymbol* interface)
-        : TypeDeclarationSymbol(Kind::Category, std::move(name)), interface_(interface)
-    {
-    }
-
-    TypeDeclarationSymbol* interface() const noexcept
-    {
-        return interface_;
-    }
-
-private:
-    TypeDeclarationSymbol* const interface_;
 };
 
 class TupleTypeSymbol final : public TypeLikeSymbol {

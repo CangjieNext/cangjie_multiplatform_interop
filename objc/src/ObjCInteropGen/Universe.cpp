@@ -49,22 +49,22 @@ Universe::Universe()
         map.reserve(PREALLOCATED_TYPE_COUNT);
     }
     type_order_.reserve(PREALLOCATED_TYPE_COUNT);
-    register_type(&unit_);
-    register_type(&bool_);
-    register_type(&int8_);
-    register_type(&int16_);
-    register_type(&int32_);
-    register_type(&int64_);
-    register_type(&uint8_);
-    register_type(&uint16_);
-    register_type(&uint32_);
-    register_type(&uint64_);
-    register_type(&float16_);
-    register_type(&float32_);
-    register_type(&float64_);
-    register_type(&class_);
-    register_type(&id_);
-    register_type(&sel_);
+    register_type(unit_);
+    register_type(bool_);
+    register_type(int8_);
+    register_type(int16_);
+    register_type(int32_);
+    register_type(int64_);
+    register_type(uint8_);
+    register_type(uint16_);
+    register_type(uint32_);
+    register_type(uint64_);
+    register_type(float16_);
+    register_type(float32_);
+    register_type(float64_);
+    register_type(class_);
+    register_type(id_);
+    register_type(sel_);
 }
 
 NonTypeSymbol& Universe::register_top_level_function(std::string name, TypeLikeSymbol& return_type, uint16_t modifiers)
@@ -88,17 +88,15 @@ NonTypeSymbol& Universe::register_top_level_function(std::string name, TypeLikeS
     }
 }
 
-void Universe::register_type(NamedTypeSymbol* symbol)
+void Universe::register_type(NamedTypeSymbol& symbol)
 {
-    assert(symbol);
-    const auto kind = symbol->kind();
-    const auto name = std::string(symbol->name());
-    const auto type_namespace = kind_to_typename(kind);
+    const auto name = std::string(symbol.name());
+    const auto type_namespace = kind_to_typename(symbol.kind());
 
     auto& types_map = this->types_map(type_namespace);
     assert(types_map.find(name) == types_map.end());
 
-    types_map.emplace(name, symbol);
+    types_map.emplace(name, &symbol);
     type_order_.emplace_back(type_namespace, name);
 }
 
