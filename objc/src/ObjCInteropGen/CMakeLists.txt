@@ -17,6 +17,8 @@ add_executable(ObjCInteropGen
         Config.h
         Diagnostics.cpp
         Diagnostics.h
+        ExpandString.cpp
+        ExpandString.h
         FatalException.h
         InputFile.cpp
         InputFile.h

@@ -8,6 +8,7 @@
 
 #include "CangjieWriter.h"
 #include "Diagnostics.h"
+#include "ExpandString.h"
 #include "FatalException.h"
 #include "Logging.h"
 #include "Mappings.h"
@@ -67,6 +68,9 @@ int main(int argc, char* argv[])
                 return 0;
             }
         }
+
+        add_constant("PWD", std::filesystem::current_path().u8string());
+
         std::size_t verbosityVal = 0;
         bool config_specified = false;
         for (int i = 1; i < argc; i++) {
