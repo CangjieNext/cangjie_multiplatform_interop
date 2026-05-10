@@ -226,7 +226,7 @@ static bool is_ctype_by_default(NamedTypeSymbol::Kind kind, std::string_view nam
         // `is_ctype_` will be set to `false`.
         case NamedTypeSymbol::Kind::Struct:
         case NamedTypeSymbol::Kind::Union:
-            return name != "ObjCPointer" && name != "ObjCFunc" && name != "ObjCBlock";
+            return name != "ObjCPointer" && name != "ObjCFunc" && name != "ObjCBlock" && name != "__va_list_tag";
         default:
             return false;
     }
@@ -571,14 +571,15 @@ void VArraySymbol::print(std::ostream& stream, SymbolPrintFormat format)
 }
 
 void VArraySymbol::print_default_value(
-    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format, TypeLikeSymbol& type_alias)
+    std::ostream& stream, const NonTypeSymbol& symbol, SymbolPrintFormat format,
+    [[maybe_unused]] TypeLikeSymbol& type_alias)
 {
     stream << '[';
     if (size_) {
-        element_type_->print_default_value(stream, symbol, format, type_alias);
+        element_type_->print_default_value(stream, symbol, format, *element_type_);
         for (size_t i = 1; i < size_; ++i) {
             stream << ", ";
-            element_type_->print_default_value(stream, symbol, format, type_alias);
+            element_type_->print_default_value(stream, symbol, format, *element_type_);
         }
     }
     stream << ']';

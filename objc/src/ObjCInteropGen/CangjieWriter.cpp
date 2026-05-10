@@ -724,6 +724,9 @@ static bool is_field_type_supported(DeclKind decl_kind, TypeLikeSymbol& type, co
     if (!normal_mode()) {
         return true;
     }
+    if (type.name() == "IMP" || &type == &Universe::get().sel()) {
+        return false;
+    }
     switch (decl_kind) {
         case DeclKind::CStruct:
             assert(type.is_ctype());
