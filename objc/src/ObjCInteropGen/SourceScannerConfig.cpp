@@ -12,6 +12,7 @@
 
 #include "ClangSession.h"
 #include "Config.h"
+#include "ExpandString.h"
 #include "FatalException.h"
 #include "Logging.h"
 
@@ -145,6 +146,14 @@ static void parse_sources(const toml::Table& options, const std::string& source_
     toml_array_to_vector(options, source_name, arguments, "arguments-prepend");
     toml_array_to_vector(options, source_name, arguments, "arguments");
     toml_array_to_vector(options, source_name, arguments, "arguments-append");
+
+    for (auto& item : files) {
+        item = expand_string(item);
+    }
+
+    for (auto& item : arguments) {
+        item = expand_string(item);
+    }
 
     session.parse_sources(files, arguments);
 }
