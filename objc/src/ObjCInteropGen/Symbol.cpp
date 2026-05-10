@@ -142,7 +142,7 @@ void NamedTypeSymbol::print(std::ostream& stream, SymbolPrintFormat format)
 TypeLikeSymbol* NamedTypeSymbol::map()
 {
     if (auto* mapping = this->mapping())
-        return mapping->map(this);
+        return &(mapping->map(*this));
 
     if (const auto parameter_count = this->parameter_count(); parameter_count) {
         std::vector<TypeLikeSymbol*> arguments;

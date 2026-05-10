@@ -288,7 +288,7 @@ static void set_type_mappings()
     for (auto&& type : Universe::get().all_declarations()) {
         for (auto mapping_ptr : mappings) {
             auto& mapping = *mapping_ptr;
-            if (mapping.can_map(&type)) {
+            if (mapping.can_map(type)) {
                 type.set_mapping(&mapping);
             }
         }
