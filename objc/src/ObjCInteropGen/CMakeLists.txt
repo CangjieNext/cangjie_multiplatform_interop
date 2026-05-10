@@ -30,19 +30,20 @@ add_executable(ObjCInteropGen
         MarkPackage.h
         Mode.cpp
         Mode.h
+        NonCopyable.h
         Package.cpp
         Package.h
         PackageConfig.h
         PackageFilters.cpp
         PackageOutputs.cpp
-        SingleDeclarationSymbolVisitor.cpp
-        SingleDeclarationSymbolVisitor.h
         SourceScanner.cpp
         SourceScannerConfig.cpp
         SourceScannerConfig.h
         Strings.h
         Symbol.cpp
         Symbol.h
+        SymbolVisitor.cpp
+        SymbolVisitor.h
         TomlParseError.h
         Transform.cpp
         Transform.h

@@ -11,6 +11,7 @@
 #include <deque>
 #include <unordered_map>
 
+#include "NonCopyable.h"
 #include "Symbol.h"
 
 namespace objcgen {
@@ -129,7 +130,7 @@ private:
     std::deque<NonTypeSymbol> members_;
 };
 
-class Universe final {
+class Universe final : NonCopyable {
     using type_map_t = std::unordered_map<std::string, NamedTypeSymbol*>;
 
     template <class TypeSymbol> friend class UniverseIterator;

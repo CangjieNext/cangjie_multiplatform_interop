@@ -13,8 +13,9 @@
 
 #include "Logging.h"
 #include "Mode.h"
+#include "NonCopyable.h"
 #include "Package.h"
-#include "SingleDeclarationSymbolVisitor.h"
+#include "SymbolVisitor.h"
 #include "Strings.h"
 #include "Universe.h"
 
@@ -123,7 +124,7 @@ private:
 static std::string_view current_package_name;
 static std::set<std::string> imports;
 
-class PackageFileScope final {
+class PackageFileScope final : NonCopyable {
     const std::string_view package_name_;
 
 public:

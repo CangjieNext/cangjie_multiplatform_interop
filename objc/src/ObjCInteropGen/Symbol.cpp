@@ -12,6 +12,7 @@
 #include "Mappings.h"
 #include "Mode.h"
 #include "Package.h"
+#include "SymbolVisitor.h"
 #include "Universe.h"
 
 namespace objcgen {
@@ -65,11 +66,6 @@ std::ostream& operator<<(std::ostream& stream, const SymbolPrinter& symbolPrinte
 {
     symbolPrinter.symbol_.print(stream, symbolPrinter.format_);
     return stream;
-}
-
-void SymbolVisitor::recurse(FileLevelSymbol* value)
-{
-    value->visit_impl(*this);
 }
 
 void NamedTypeSymbol::rename(const std::string_view new_name)
@@ -360,6 +356,13 @@ void EnumDeclarationSymbol::print_default_value(
     underlying_type_->canonical_type().print_default_value(stream, symbol, format, type_alias);
 }
 
+void EnumDeclarationSymbol::visit_impl(SymbolVisitor& visitor)
+{
+    if (underlying_type_) {
+        visitor.visit(this, underlying_type_, SymbolProperty::ReturnType);
+    }
+}
+
 void PrimitiveTypeSymbol::print_default_value(std::ostream& stream, [[maybe_unused]] const NonTypeSymbol& symbol,
     [[maybe_unused]] SymbolPrintFormat format, [[maybe_unused]] TypeLikeSymbol& type_alias)
 {
@@ -549,6 +552,11 @@ void PointerTypeSymbol::print_default_value(std::ostream& stream, [[maybe_unused
     stream << (!is_ctype() || format == SymbolPrintFormat::EmitCangjieStrict ? "(CPointer<Unit>())" : "()");
 }
 
+void PointerTypeSymbol::visit_impl(SymbolVisitor& visitor)
+{
+    visitor.visit(this, pointee_, SymbolProperty::TypeArgument);
+}
+
 void VArraySymbol::print(std::ostream& stream, SymbolPrintFormat format)
 {
     stream << name() << '<';
@@ -574,6 +582,11 @@ void VArraySymbol::print_default_value(
         }
     }
     stream << ']';
+}
+
+void VArraySymbol::visit_impl(SymbolVisitor& visitor)
+{
+    visitor.visit(this, element_type_, SymbolProperty::TypeArgument);
 }
 
 void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor)
