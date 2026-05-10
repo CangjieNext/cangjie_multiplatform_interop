@@ -162,6 +162,7 @@ class SourceScanner final : public ClangVisitor {
 
     Symbol* push_current(NamedTypeSymbol* symbol, const bool is_objc)
     {
+        using Kind = NamedTypeSymbol::Kind;
         assert(symbol);
         assert(is_objc == (symbol->is(Kind::Interface) || symbol->is(Kind::Protocol) || symbol->is(Kind::Category)));
 
