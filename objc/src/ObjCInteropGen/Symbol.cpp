@@ -226,7 +226,7 @@ static bool is_ctype_by_default(NamedTypeSymbol::Kind kind, std::string_view nam
         // `is_ctype_` will be set to `false`.
         case NamedTypeSymbol::Kind::Struct:
         case NamedTypeSymbol::Kind::Union:
-            return name != "ObjCPointer" && name != "ObjCFunc" && name != "ObjCBlock";
+            return name != "ObjCPointer" && name != "ObjCFunc" && name != "ObjCBlock" && name != "__va_list_tag";
         default:
             return false;
     }

@@ -77,6 +77,8 @@ private:
     // It doesn't appear there is a way around it, other than to keep track of what we already visited.
     std::unordered_set<CXCursor, CXCursorHash> visited_;
 
+    std::unordered_set<std::string> used_symbols_;
+
     // When a function is processed, and the function returns a function pointer
     // defined in-place, then the visitor visits the return type parameters as
     // direct children of the function, before the parameters of the function.  That
@@ -219,6 +221,8 @@ private:
      * belongs to.
      */
     [[nodiscard]] const TypeDeclarationSymbol& get_owner_generic_type() const;
+
+    [[nodiscard]] bool mark_symbol_used(const CXCursor& cursor);
 };
 
 class ClangSessionImpl final : public ClangSession {
@@ -450,7 +454,17 @@ template <class FuncLikeTypeSymbol> FuncLikeTypeSymbol* SourceScanner::create_fu
 std::string SourceScanner::new_anonymous_name(const CXCursor& decl)
 {
     assert(is_anonymous(decl));
-    auto file_name = declaring_file_name(decl);
+    auto file_name_original = declaring_file_name(decl);
+    std::string file_name;
+    file_name.reserve(file_name_original.size());
+    for (char c : file_name_original) {
+        if (isalnum(c) || c == '_') {
+            file_name += c;
+        } else {
+            file_name += '_';
+        }
+    }
+
     std::uint64_t index = 1;
     if (auto&& [item, inserted] = anonymous_count_.insert({file_name, index}); !inserted) {
         index = ++item->second;
@@ -654,6 +668,12 @@ const TypeDeclarationSymbol& SourceScanner::get_owner_generic_type() const
     assert(last_objc_type_->is(NamedTypeSymbol::Kind::Interface) ||
         last_objc_type_->is(NamedTypeSymbol::Kind::Protocol) || last_objc_type_->is(NamedTypeSymbol::Kind::Category));
     return *last_objc_type_;
+}
+
+bool SourceScanner::mark_symbol_used(const CXCursor& cursor)
+{
+    auto name = as_string(clang_getCursorUSR(cursor));
+    return used_symbols_.emplace(std::move(name)).second;
 }
 
 TypeLikeSymbol* SourceScanner::type_like_symbol(const CXType& type)
@@ -1398,8 +1418,12 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             }
             break;
         case CXCursor_FunctionDecl:
-            pushed = &push_top_level_function(cursor, std::move(name));
-            this->func_parameter_index_ = 0;
+            if (mark_symbol_used(cursor)) {
+                pushed = &push_top_level_function(cursor, std::move(name));
+                this->func_parameter_index_ = 0;
+            } else {
+                recurse = false;
+            }
             break;
         case CXCursor_VarDecl: {
             // We don't support variables (generic C interop) at the moment.
