@@ -31,9 +31,11 @@ using namespace objcgen;
 static void show_help(const char* executable)
 {
     std::cout << "Usage: " << (executable ? std::filesystem::path(executable).filename().string() : "ObjCInteropGen")
-              << " [-v] config-file.toml\n";
+              << " [options] config-file.toml\n";
     std::cout << "    -v\n";
     std::cout << "        increase logging verbosity level (can be applied multiple times)\n";
+    std::cout << "    -D <macro>=<value>\n";
+    std::cout << "        define <macro> to <value>" << std::endl;
 }
 
 static std::optional<std::string_view> get_arg_value(const char* const argv[], int& arg_index, std::string_view name)
@@ -82,6 +84,33 @@ int main(int argc, char* argv[])
             if (starts_with(arg, "-v")) {
                 verbosityVal += arg.length() - 1;
                 verbosity = static_cast<LogLevel>(verbosityVal);
+                continue;
+            }
+
+            if (starts_with(arg, "-D")) {
+                std::string_view definition;
+                if (arg.length() == 2) {
+                    if (++i < argc) {
+                        definition = argv[i];
+                    } else {
+                        std::cerr << "Macro definition of the <macro>=<value> form is expected" << std::endl;
+                        show_help(argv[0]);
+                        return 1;
+                    }
+                } else {
+                    definition = arg.substr(2);
+                }
+
+                const auto equals = definition.find('=');
+                if (equals == std::string_view::npos) {
+                    std::cerr << "Macro definition of the <macro>=<value> form is expected" << std::endl;
+                    show_help(argv[0]);
+                    return 1;
+                }
+
+                const std::string_view macro = definition.substr(0, equals);
+                const std::string_view value = definition.substr(equals + 1);
+                add_constant(macro, value);
                 continue;
             }
 
