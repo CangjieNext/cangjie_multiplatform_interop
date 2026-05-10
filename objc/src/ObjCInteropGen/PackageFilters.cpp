@@ -239,14 +239,11 @@ PackageFilter* create_filter(const Package* package, const toml::Table& table)
             return create_set_filter(package, set_intersect_it->second, SetOperation::Intersection);
         }
 
-        if (set_not_it == e) {
-            fatal("`packages` entry `", package->cangjie_name(), "` filter is unknown");
+        if (set_not_it != e) {
+            return new NotFilter(package, create_filter(package, set_not_it->second));
         }
-        const auto& set_not_any = set_not_it->second;
-        if (!set_not_any.is<toml::Table>()) {
-            fatal("`packages` entry `", package->cangjie_name(), "` not filter must be a TOML table");
-        }
-        return new NotFilter(package, create_filter(package, set_not_any.as<toml::Table>()));
+
+        fatal("`packages` entry `", package->cangjie_name(), "` filter is unknown");
     }();
 
     if (filter_it != e || filter_not_it != e) {
