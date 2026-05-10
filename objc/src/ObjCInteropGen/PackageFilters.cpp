@@ -172,14 +172,8 @@ static PackageFilter* create_set_filter(const Package* package, const toml::Valu
     if (!node.is<toml::Array>()) {
         fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter must be an array of filters");
     }
-    std::size_t i = 0;
     for (auto&& item_any : node.as<toml::Array>()) {
-        if (!item_any.is<toml::Table>()) {
-            fatal("`packages` entry `", package->cangjie_name(), "` ", mode_name, " filter #", i,
-                " must be a TOML table");
-        }
-        result->add_argument(create_filter(package, item_any.as<toml::Table>()));
-        i++;
+        result->add_argument(create_filter(package, item_any));
     }
 
     if (result->size() == 0) {
