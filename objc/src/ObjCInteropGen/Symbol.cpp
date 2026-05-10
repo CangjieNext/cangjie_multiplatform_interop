@@ -815,8 +815,7 @@ void TypeAliasSymbol::print_default_value(
 TypeLikeSymbol& TypeAliasSymbol::canonical_type()
 {
     auto* target = this->target();
-    assert(target);
-    return target->canonical_type();
+    return target ? target->canonical_type() : *this;
 }
 
 bool NonTypeSymbol::is_ctype() const noexcept
