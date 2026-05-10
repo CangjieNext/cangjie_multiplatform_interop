@@ -38,7 +38,7 @@ public:
 
             if (verbosity >= LogLevel::TRACE) {
                 std::cerr << "`packages` entry `" << package_name() << "` " << mode_name_ << " filter (`" << pattern_
-                          << "`) does" << (match ? "" : " NOT") << " match entity `" << entity_name << "`" << std::endl;
+                          << "`) does" << (match ? "" : " NOT") << " match entity `" << entity_name << '`' << std::endl;
             }
 
             return match;
