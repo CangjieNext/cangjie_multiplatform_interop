@@ -133,22 +133,39 @@ static void apply_mixin(
 
     const auto& mixin = mixin_any.as<toml::Table>();
     auto mixin_sources_it = mixin.find("sources");
-    if (mixin_sources_it == mixin.end()) {
-        fatal("`sources-mixins` entry `", mixin_name, "` has no `sources` entry");
+    if (mixin_sources_it != mixin.end()) {
+        const auto& mixin_sources_any = mixin_sources_it->second;
+        if (mixin_sources_any.is<toml::Array>()) {
+            if (!is_mixin_applicable(source_name, mixin_name, mixin_sources_any.as<toml::Array>())) {
+                return;
+            }
+        } else if (mixin_sources_any.is<std::string>()) {
+            std::string item_name = "`sources-mixins` " + mixin_name + " `sources` property";
+            if (!is_mixin_applicable(source_name, item_name, mixin_sources_any.as<std::string>())) {
+                return;
+            }
+        } else {
+            fatal("`sources-mixins` ", mixin_name, " must have `sources` filter string or TOML array property");
+        }
+    } else if (verbosity >= LogLevel::DIAGNOSTIC) {
+        std::cerr << "`sources-mixins` " << mixin_name << " is applicable to all `sources` entries" << std::endl;
     }
 
-    const auto& mixin_sources_any = mixin_sources_it->second;
-    if (!mixin_sources_any.is<toml::Array>()) {
-        fatal("`sources-mixins` ", mixin_name, " must have `sources` filter TOML array property");
-    }
-
-    if (is_mixin_applicable(source_name, mixin_name, mixin_sources_any.as<toml::Array>())) {
-        apply_mixin(source_name, mixin_name, table, mixin);
-    }
+    apply_mixin(source_name, mixin_name, table, mixin);
 }
 
 static void apply_mixins(const toml::Value& mixins_any, const std::string& source_name, toml::Table& entry)
 {
+    if (mixins_any.is<toml::Array>()) {
+        std::uint64_t i = 0;
+        for (auto&& mixin_any : mixins_any.as<toml::Array>()) {
+            std::string mixin_name = "item #" + std::to_string(i);
+            apply_mixin(source_name, mixin_name, entry, mixin_any);
+            i++;
+        }
+        return;
+    }
+
     if (mixins_any.is<toml::Table>()) {
         for (auto&& [mixin_key, mixin_any] : mixins_any.as<toml::Table>()) {
             std::string mixin_name = "entry `" + mixin_key + '`';
