@@ -62,13 +62,18 @@ void SymbolVisitor::recurse(FileLevelSymbol* value)
     value->visit_impl(*this);
 }
 
-void SingleDeclarationSymbolVisitor::visit_impl(
+void SymbolVisitor::visit(
     FileLevelSymbol* owner, FileLevelSymbol* value, const SymbolProperty property)
 {
+    assert((!!owner) == (property != SymbolProperty::None));
+    if (!value) {
+        return;
+    }
+
     if (!allow_recurse_) {
         if (should_always_collect(property)) {
             assert(dynamic_cast<TypeLikeSymbol*>(value));
-            visit_impl(owner, value, property, true);
+            visit_impl(owner, value, property);
             recurse(value);
             return;
         }
@@ -77,7 +82,7 @@ void SingleDeclarationSymbolVisitor::visit_impl(
         return;
     }
 
-    visit_impl(owner, value, property, !allow_recurse_);
+    visit_impl(owner, value, property);
 
     if (initial_allow_recurse_ && should_disable_recursion(property)) {
         assert(allow_recurse_);

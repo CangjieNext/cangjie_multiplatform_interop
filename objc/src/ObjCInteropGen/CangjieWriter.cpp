@@ -142,14 +142,6 @@ public:
         current_package_name = {};
         imports.clear();
     }
-
-    PackageFileScope(const PackageFileScope& other) = delete;
-
-    PackageFileScope(PackageFileScope&& other) noexcept = delete;
-
-    PackageFileScope& operator=(const PackageFileScope& other) = delete;
-
-    PackageFileScope& operator=(PackageFileScope&& other) noexcept = delete;
 };
 
 static std::string symbol_to_import_name(const FileLevelSymbol& symbol)
@@ -165,22 +157,14 @@ static std::string symbol_to_import_name(const FileLevelSymbol& symbol)
     return {};
 }
 
-class ImportCollectVisitor final : public SingleDeclarationSymbolVisitor {
+class ImportCollectVisitor final : public SymbolVisitor {
 public:
-    [[nodiscard]] explicit ImportCollectVisitor() : SingleDeclarationSymbolVisitor(false)
+    [[nodiscard]] explicit ImportCollectVisitor() : SymbolVisitor(false)
     {
     }
 
-    ImportCollectVisitor(const ImportCollectVisitor& other) = delete;
-
-    ImportCollectVisitor(ImportCollectVisitor&& other) noexcept = delete;
-
-    ImportCollectVisitor& operator=(const ImportCollectVisitor& other) = delete;
-
-    ImportCollectVisitor& operator=(ImportCollectVisitor&& other) noexcept = delete;
-
 protected:
-    void visit_impl(FileLevelSymbol* owner, FileLevelSymbol* value, SymbolProperty symbol_property, bool) override
+    void visit_impl(FileLevelSymbol* owner, FileLevelSymbol* value, SymbolProperty symbol_property) override
     {
         assert(value);
 

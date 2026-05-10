@@ -35,14 +35,6 @@ public:
 
     [[nodiscard]] virtual bool apply(std::string_view entity_name) const = 0;
 
-    PackageFilter(const PackageFilter& other) = delete;
-
-    PackageFilter(PackageFilter&& other) noexcept = delete;
-
-    PackageFilter& operator=(const PackageFilter& other) = delete;
-
-    PackageFilter& operator=(PackageFilter&& other) noexcept = delete;
-
     [[nodiscard]] const Package* package() const
     {
         return package_;
@@ -170,14 +162,6 @@ public:
     }
 
     ~Package() = default;
-
-    Package(const Package& other) = delete;
-
-    Package(Package&& other) noexcept = delete;
-
-    Package& operator=(const Package& other) = delete;
-
-    Package& operator=(Package&& other) noexcept = delete;
 
     [[nodiscard]] const auto& cangjie_name() const noexcept
     {
