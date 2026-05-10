@@ -10,6 +10,7 @@
 #include <iostream>
 #include <unordered_set>
 
+#include "ExpandString.h"
 #include "FatalException.h"
 #include "Logging.h"
 #include "TomlParseError.h"
@@ -72,7 +73,8 @@ static toml::Value parse_toml_file(const std::string& path, std::unordered_set<s
         fatal("TOML file `", path, "` is recursive");
     }
 
-    if (!std::filesystem::exists(path)) {
+    std::filesystem::path path_fs = std::filesystem::absolute(path);
+    if (!std::filesystem::exists(path_fs)) {
         fatal("TOML file `", path, "` doesn't exist");
     }
 
@@ -85,21 +87,38 @@ static toml::Value parse_toml_file(const std::string& path, std::unordered_set<s
         if (!imports_any->is<toml::Array>()) {
             fatal("`imports` in `", path, "` should be a TOML array of strings");
         }
+
+        assert(path_fs.has_parent_path());
+        std::filesystem::path import_path_root = path_fs.parent_path();
+
         std::size_t i = 0;
         for (auto&& item_any : imports_any->as<toml::Array>()) {
             if (!item_any.is<std::string>()) {
                 fatal("`imports` in `", path, "` item #", i, " should be a string");
             }
-            const auto& import_path = item_any.as<std::string>();
-            if (import_path.empty()) {
+            const auto& import_path_original_string = item_any.as<std::string>();
+            if (import_path_original_string.empty()) {
                 fatal("`imports` in `", path, "` item #", i, " is empty");
             }
 
-            auto import_config = parse_toml_file(import_path, imported);
+            const std::filesystem::path import_path_original = expand_string(import_path_original_string);
+            std::filesystem::path import_path_modified;
+            if (import_path_original.is_absolute()) {
+                import_path_modified = import_path_original;
+            } else {
+                import_path_modified = import_path_root / import_path_original;
+
+                if (!std::filesystem::exists(import_path_modified) && std::filesystem::exists(import_path_original)) {
+                    std::cerr << "Consider using $PWD to reference TOML file `" << import_path_original_string << "` from `"
+                        << path << '`' << std::endl;
+                }
+            }
+
+            auto import_config = parse_toml_file(import_path_modified.u8string(), imported);
             assert(import_config.is<toml::Table>());
 
             if (verbosity >= LogLevel::INFO) {
-                std::cerr << "Merging TOML file `" << import_path << "` into `" << path << "`" << std::endl;
+                std::cerr << "Merging TOML file `" << import_path_original_string << "` into `" << path << "`" << std::endl;
             }
 
             merge_to_left(parse_result.value, import_config.as<toml::Table>());
