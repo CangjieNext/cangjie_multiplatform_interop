@@ -73,7 +73,7 @@ static std::string compute_output_path_by_root_path(const std::string_view packa
     return result;
 }
 
-static std::string compute_output_path_by_root_name(const std::string_view package_name,
+[[nodiscard]] static std::string compute_output_path_by_root_name(const std::string_view package_name,
     const std::string_view output_root_name, const std::string_view package_cangjie_name)
 {
     if (const auto* output_roots_any = config.find("output-roots")) {

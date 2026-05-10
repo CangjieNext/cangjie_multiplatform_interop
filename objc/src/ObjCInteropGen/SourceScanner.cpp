@@ -298,7 +298,7 @@ ClangSessionImpl::~ClangSessionImpl()
     return c_string;
 }
 
-[[nodiscard]] static bool is_valid(CXCursor cursor)
+[[nodiscard]] static bool is_valid(const CXCursor& cursor)
 {
     if (clang_Cursor_isNull(cursor))
         return false;
@@ -307,12 +307,12 @@ ClangSessionImpl::~ClangSessionImpl()
     return true;
 }
 
-[[nodiscard]] static bool is_valid(CXType type)
+[[nodiscard]] static bool is_valid(const CXType& type)
 {
     return type.kind != CXType_Invalid;
 }
 
-[[nodiscard]] static bool is_builtin(CXType type)
+[[nodiscard]] static bool is_builtin(const CXType& type)
 {
     assert(is_valid(type));
     const auto kind = type.kind;
@@ -329,13 +329,13 @@ ClangSessionImpl::~ClangSessionImpl()
     return false;
 }
 
-[[nodiscard]] static bool is_anonymous(CXCursor cursor)
+[[nodiscard]] static bool is_anonymous(const CXCursor& cursor)
 {
     assert(is_valid(cursor));
     return !!clang_Cursor_isAnonymous(cursor) || !!clang_Cursor_isAnonymousRecordDecl(cursor);
 }
 
-[[nodiscard]] static bool is_canonical(CXCursor cursor)
+[[nodiscard]] static bool is_canonical(const CXCursor& cursor)
 {
     assert(is_valid(cursor));
     const auto canonical = clang_getCanonicalCursor(cursor);
@@ -343,7 +343,7 @@ ClangSessionImpl::~ClangSessionImpl()
     return cursor == canonical;
 }
 
-[[nodiscard]] static bool is_defining(CXCursor cursor)
+[[nodiscard]] static bool is_defining(const CXCursor& cursor)
 {
     assert(is_valid(cursor));
     const auto definition = clang_getCursorDefinition(cursor);
@@ -352,7 +352,7 @@ ClangSessionImpl::~ClangSessionImpl()
     return cursor == definition;
 }
 
-[[nodiscard]] static bool is_defining(CXType type, CXCursor cursor)
+[[nodiscard]] static bool is_defining(const CXType& type, const CXCursor& cursor)
 {
     assert(is_valid(type));
     assert(is_valid(cursor));
