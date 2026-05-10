@@ -289,6 +289,12 @@ static void set_type_mappings()
         for (auto mapping_ptr : mappings) {
             auto& mapping = *mapping_ptr;
             if (mapping.can_map(type)) {
+                if (type.mapping()) {
+                    std::cerr << "Warning: multiple mappings can be applied to type `" << type.name()
+                              << "`.  Only the first one will be used." << std::endl;
+                    break;
+                }
+
                 type.set_mapping(&mapping);
             }
         }
