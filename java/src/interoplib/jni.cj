@@ -50,7 +50,11 @@ protected class JNIException <: Exception {
     public var jException = jthrowable()
 }
 
-public const INTEROPLIB_VERSION: Int64 = 9
+/**
+ * Version value should be the same as for cjc for the same SDK.
+ * Version value must be bumped up on: API changes in interop library that require compatibility with cjc.
+ */
+protected const INTEROPLIB_VERSION: Int64 = 10
 
 var jvm = CPointer<JavaVM>()
 var classLoading = AtomicOptionReference<ClassLoading>()
@@ -968,7 +972,7 @@ private func withPinnedArray<T, R>(array: Array<T>, action: (array: CPointer<T>)
     }
 }
 
-public enum Java_CFFI_JavaEntityKind <: ToString {
+protected enum Java_CFFI_JavaEntityKind <: ToString {
     | JVOID
     | JOBJECT
     | JWEAK
@@ -1023,7 +1027,7 @@ private unsafe func reinterpretCast<A, B>(value: B): A where A <: CType, B <: CT
     newValue
 }
 
-public struct Java_CFFI_JavaEntity {
+protected struct Java_CFFI_JavaEntity {
     let kind: Java_CFFI_JavaEntityKind
     private let value: jvalue
 
