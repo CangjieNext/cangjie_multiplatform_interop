@@ -1250,19 +1250,27 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             break;
         }
         case CXCursor_ObjCInstanceMethodDecl: {
-            pushed = &(is_init_method(cursor) ? push_constructor(cursor, std::move(name))
-                                              : push_member_method(cursor, std::move(name),
-                                                    clang_Cursor_isObjCOptional(cursor) ? ModifierOptional : 0));
-            this->func_parameter_index_ = 0;
+            if (mark_symbol_used(cursor)) {
+                pushed = &(is_init_method(cursor) ? push_constructor(cursor, std::move(name))
+                                                  : push_member_method(cursor, std::move(name),
+                                                        clang_Cursor_isObjCOptional(cursor) ? ModifierOptional : 0));
+                this->func_parameter_index_ = 0;
+            } else {
+                recurse = false;
+            }
             break;
         }
         case CXCursor_ObjCClassMethodDecl: {
-            uint16_t modifiers = ModifierStatic;
-            if (clang_Cursor_isObjCOptional(cursor)) {
-                modifiers |= ModifierOptional;
+            if (mark_symbol_used(cursor)) {
+                uint16_t modifiers = ModifierStatic;
+                if (clang_Cursor_isObjCOptional(cursor)) {
+                    modifiers |= ModifierOptional;
+                }
+                pushed = &push_member_method(cursor, std::move(name), modifiers);
+                this->func_parameter_index_ = 0;
+            } else {
+                recurse = false;
             }
-            pushed = &push_member_method(cursor, std::move(name), modifiers);
-            this->func_parameter_index_ = 0;
             break;
         }
         case CXCursor_ObjCPropertyDecl: {

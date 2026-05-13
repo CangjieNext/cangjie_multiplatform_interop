@@ -435,6 +435,13 @@ static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method
 
 static bool same_types(TypeLikeSymbol* type1, TypeLikeSymbol* type2)
 {
+    if (type1->is<TypeParameterSymbol>()) {
+        type1 = &Universe::get().id();
+    }
+    if (type2->is<TypeParameterSymbol>()) {
+        type2 = &Universe::get().id();
+    }
+
     auto* alias = dynamic_cast<TypeAliasSymbol*>(type1);
     if (alias) {
         type1 = &alias->canonical_type();
