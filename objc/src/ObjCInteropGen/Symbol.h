@@ -832,6 +832,7 @@ class TypeDeclarationSymbol : public NamedTypeSymbol {
     bool is_ctype_;
     bool contains_pointer_or_func_ = false;
     bool static_instance_clashes_resolved_ = false;
+    bool override_returns_resolved_ = false;
 
 public:
     struct ParameterCollection final : SymbolChildren<TypeDeclarationSymbol, TypeParameterSymbol> {
@@ -973,6 +974,17 @@ public:
     [[nodiscard]] bool is_file_level() const noexcept override
     {
         return true;
+    }
+
+    [[nodiscard]] bool are_override_return_clashes_resolved() const noexcept
+    {
+        return override_returns_resolved_;
+    }
+
+    void mark_override_return_clashes_resolved() noexcept
+    {
+        assert(!override_returns_resolved_);
+        override_returns_resolved_ = true;
     }
 
     [[nodiscard]] bool are_static_instance_clashes_resolved() const noexcept
@@ -1365,9 +1377,23 @@ public:
         return modifiers_ & ModifierNullable;
     }
 
+    void set_nullable(bool nullable) noexcept
+    {
+        if (nullable) {
+            modifiers_ |= ModifierNullable;
+        } else {
+            modifiers_ &= ~ModifierNullable;
+        }
+    }
+
     [[nodiscard]] bool is_override() const noexcept
     {
         return modifiers_ & ModifierOverride;
+    }
+
+    void set_override() noexcept
+    {
+        modifiers_ |= ModifierOverride;
     }
 
     [[nodiscard]] bool is_optional() const noexcept

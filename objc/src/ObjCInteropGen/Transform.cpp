@@ -14,6 +14,108 @@
 
 namespace objcgen {
 
+[[nodiscard]] static bool is_base_of(const TypeDeclarationSymbol& base, TypeDeclarationSymbol& derived) noexcept
+{
+    if (&base == &derived) {
+        return true;
+    }
+    for (auto& b : derived.bases()) {
+        if (is_base_of(base, b)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void fix_override_return_types(TypeDeclarationSymbol& type) noexcept;
+
+static void fix_override_return_types(TypeDeclarationSymbol& subclass, TypeDeclarationSymbol& superclass) noexcept
+{
+    // Recursively process `superclass` and its ancestor hierarchy.
+    fix_override_return_types(superclass);
+
+    // Asserting that `superclass` is an ancestor of `subclass`, this loop
+    // recursively resolves clashes between `subclass` and each of the ancestors of
+    // `superclass`, starting from the root(s), sequentially.
+    for (auto& super_superclass : superclass.bases()) {
+        fix_override_return_types(subclass, super_superclass);
+    }
+
+    // This loop resolves clashes between `subclass` and `superclass`, where the
+    // latter is asserted to be one of the ancestors of the former.
+    for (auto& submember : subclass.members()) {
+        if (submember.kind() == NonTypeSymbol::Kind::MemberMethod) {
+            for (auto& supermember : superclass.members()) {
+                if (supermember.kind() == NonTypeSymbol::Kind::MemberMethod &&
+                    supermember.is_static() == submember.is_static() &&
+                    supermember.selector() == submember.selector()) {
+                    submember.set_override();
+                    auto& supermember_type = *supermember.return_type();
+                    auto& submember_type = *submember.return_type();
+                    if (supermember.is_nullable()) {
+                        if (!submember.is_nullable()) {
+                            submember.set_nullable(true);
+                        }
+
+                        // Both are Option.  Must be the same type.
+                        submember.set_return_type(&supermember_type);
+                    } else {
+                        if (submember.is_nullable()) {
+                            submember.set_nullable(false);
+                        }
+
+                        // Both are non-Option.  Either they must be the same or the overridden must be
+                        // the base of the overrider.
+                        auto* submember_type_decl =
+                            dynamic_cast<TypeDeclarationSymbol*>(&submember_type);
+                        if (submember_type_decl) {
+                            auto* supermember_type_decl =
+                                dynamic_cast<TypeDeclarationSymbol*>(&supermember_type);
+                            if (supermember_type_decl) {
+                                if (!is_base_of(*supermember_type_decl, *submember_type_decl)) {
+                                    submember.set_return_type(&supermember_type);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+static void fix_override_return_types(TypeDeclarationSymbol& type) noexcept
+{
+    if (type.are_override_return_clashes_resolved()) {
+        return;
+    }
+
+    // Recursively call this function for all ancestors, then resolve conflicts
+    // between this class and each of the ancestors.
+    for (auto& supertype : type.bases()) {
+        fix_override_return_types(type, supertype);
+    }
+
+    type.mark_override_return_clashes_resolved();
+}
+
+/**
+ * 1) In Cangjie, Option is not covariant.  If the overridden and overrider have
+ * different nullabilities, fix the result type of the overrider.
+ *
+ * 2) In Cangjie, Option is not covariant.  If both the overridden and overrider
+ * are nullable, ensure that the overrider does not change the result type.
+ *
+ * 3) In Objective-C, contravariant return types are allowed.  That will not
+ * compile in Cangjie. Fix the result type of the overrider accordingly.
+ */
+static void fix_override_return_types()
+{
+    for (auto& type : Universe::get().type_definitions()) {
+        fix_override_return_types(type);
+    }
+}
+
 static void resolve_static_instance_clash(Symbol& symbol, bool is_static)
 {
     symbol.rename(std::string(symbol.name()).append(is_static ? "Static" : "Instance"));
@@ -341,7 +443,19 @@ static void do_map()
 
 void apply_transforms()
 {
+    // 1) Resolve contravariance and nullability clashes in return types of override
+    // methods.
+    // 2) Set ModifierOverride where needed.
+    fix_override_return_types();
+
+    // 1) Resolve class/protocol name clashes.
+    // 2) Remove duplicate member declarations.
+    // 3) Rename methods in accordance with their Objective-C selectors.
+    // 4) Resolve static/instance name clashes.
+    // 5) Resolve global function - class/protocol/structure name clashes.
     do_rename();
+
+    // Apply mappings
     set_type_mappings();
     do_map();
 }

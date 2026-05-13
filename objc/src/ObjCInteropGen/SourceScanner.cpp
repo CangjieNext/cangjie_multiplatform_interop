@@ -917,49 +917,6 @@ static bool is_init_method(CXCursor cursor) noexcept
     return cursor_to_decl<clang::ObjCMethodDecl>(cursor).getMethodFamily() == clang::ObjCMethodFamily::OMF_init;
 }
 
-class OverriddenCursors final {
-public:
-    [[nodiscard]] static OverriddenCursors get(CXCursor cursor)
-    {
-        CXCursor* overridden_cursors;
-        unsigned num_overridden_cursors;
-        clang_getOverriddenCursors(cursor, &overridden_cursors, &num_overridden_cursors);
-        assert((num_overridden_cursors != 0) == (overridden_cursors != nullptr));
-        return OverriddenCursors(overridden_cursors, num_overridden_cursors);
-    }
-
-    OverriddenCursors(const OverriddenCursors&) = delete;
-
-    ~OverriddenCursors()
-    {
-        clang_disposeOverriddenCursors(overridden_cursors_);
-    }
-
-    [[nodiscard]] const CXCursor* begin() const noexcept
-    {
-        return overridden_cursors_;
-    }
-
-    [[nodiscard]] const CXCursor* end() const noexcept
-    {
-        return end_;
-    }
-
-    [[nodiscard]] bool empty() const noexcept
-    {
-        return overridden_cursors_ == end_;
-    }
-
-private:
-    CXCursor* const overridden_cursors_;
-    const CXCursor* const end_;
-
-    OverriddenCursors(CXCursor* overridden_cursors, unsigned num_overridden_cursors) noexcept
-        : overridden_cursors_(overridden_cursors), end_(overridden_cursors + num_overridden_cursors)
-    {
-    }
-};
-
 [[nodiscard]] static bool is_attributed_type_nullable(const CXType& type, CXTypeKind modified_type_kind)
 {
     switch (modified_type_kind) {
@@ -1007,21 +964,6 @@ static bool is_nullable(CXType type)
     }
 }
 
-static std::optional<CXType> nullable_overridden(CXCursor cursor)
-{
-    for (const auto& overridden_cursor : OverriddenCursors::get(cursor)) {
-        auto overridden_result_type = nullable_overridden(overridden_cursor);
-        if (overridden_result_type) {
-            return overridden_result_type;
-        }
-        auto ort = clang_getCursorResultType(overridden_cursor);
-        if (is_nullable(ort)) {
-            return ort;
-        }
-    }
-    return std::nullopt;
-}
-
 NonTypeSymbol& SourceScanner::push_top_level_function(const CXCursor& cursor, std::string&& name)
 {
     assert(is_on_top_level());
@@ -1045,29 +987,6 @@ NonTypeSymbol& SourceScanner::push_member_method(const CXCursor& cursor, std::st
     assert(current_top_is_type() || current_top_is_property());
     auto& decl = get_target_type_declaration();
     auto cx_result_type = clang_getCursorResultType(cursor);
-
-    // In Cangjie, Option is not covariant.  If either overridden or overrider is
-    // nullable, do not change the result type of the overrider.
-    auto nullable_overridden_result_type = nullable_overridden(cursor);
-    if (nullable_overridden_result_type) {
-        cx_result_type = *nullable_overridden_result_type;
-    }
-    auto overridden_cursors = OverriddenCursors::get(cursor);
-    if (!overridden_cursors.empty()) {
-        modifiers |= ModifierOverride;
-        if (cx_result_type.kind == CXType_ObjCId) {
-            for (const auto& overridden_cursor : overridden_cursors) {
-                auto overridden_result_type = clang_getCursorResultType(overridden_cursor);
-                if (overridden_result_type.kind != CXType_ObjCId) {
-                    // In Objective-C, contravariant return types are allowed. That will not compile
-                    // in Cangjie, as `id` is not a subtype of pointer-to-class. To make it
-                    // compilable, do not change the result type in such cases.
-                    cx_result_type = overridden_result_type;
-                    break;
-                }
-            }
-        }
-    }
     if (is_nullable(cx_result_type)) {
         modifiers |= ModifierNullable;
     }
