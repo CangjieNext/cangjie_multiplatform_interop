@@ -572,6 +572,9 @@ static void print_optional(std::ostream& output, const NonTypeSymbol& member)
         if (member.is_property() && normal_mode()) {
             return;
         }
+        if (member.is_override()) {
+            return;
+        }
         if (generate_definitions_mode()) {
             output << "// ";
         }
