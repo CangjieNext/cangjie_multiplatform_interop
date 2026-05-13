@@ -6,9 +6,7 @@
 
 package objc.internal
 
-import std.sync.Mutex
-
-protected let REGISTRY: Registry = Registry()
+protected let REGISTRY = Registry()
 
 // TODO: make lock-free concurrent if it will improve performance
 protected class Registry {
@@ -17,7 +15,7 @@ protected class Registry {
     private var freeList: Array<Int64>
     private var freeSize: Int64
 
-    private let mutex = Mutex()
+    private static let LOCK = SpinLock()
 
     Registry() {
         objId = 0
@@ -26,7 +24,7 @@ protected class Registry {
     }
 
     public unsafe func put(any: Any): Int64 {
-        synchronized(mutex) {
+        synchronized (LOCK) {
             var id: Int64
 
             if (freeSize > 0) {
@@ -48,13 +46,13 @@ protected class Registry {
     }
 
     public unsafe func get<T>(id: Int64): ?T {
-        synchronized(mutex) {
+        synchronized (LOCK) {
             mockRegistry[id] as T
         }
     }
 
     public unsafe func remove(id: Int64): Unit {
-        synchronized(mutex) {
+        synchronized (LOCK) {
             mockRegistry[id] = zeroValue<Any>()
 
             if (freeSize == freeList.size) {

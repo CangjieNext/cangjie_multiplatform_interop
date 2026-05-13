@@ -347,7 +347,7 @@ def build(args):
         ar = check_in_toolchain(args, "llvm-ar") if args.target and ("android" in args.target) else "ar"
         ranlib = check_in_toolchain(args, "llvm-ranlib") if args.target and ("android" in args.target) else "ranlib"
 
-        #clang c_core.c
+        # clang c_core.c
         clang_args = [clang]
         if IS_DARWIN:
             clang_args += ["-D_XOPEN_SOURCE=600"]
@@ -362,7 +362,9 @@ def build(args):
         clang_O += ["c_core.c"]
         command(*clang_O, cwd=INTEROPLIB_DIR)
 
-        #cjc jni.cj registry.cj
+        # cjc java.internal
+        SRC_JAVA_INTERNAL = ["jni.cj", "registry.cj", "spin_lock.cj"]
+
         cjc_args = ["cjc"] + list(CJC_BASE_ARGS)
         if args.target:
             cjc_args += ["--target=" + args.target]
@@ -374,7 +376,7 @@ def build(args):
         cjc_A = cjc_args.copy() + ["--output-type=staticlib"]
         cjc_SO = cjc_args.copy() + ["--output-type=dylib"]
 
-        command(*(cjc_A.copy() + ["jni.cj", "registry.cj"]), cwd=INTEROPLIB_DIR)
+        command(*(cjc_A.copy() + SRC_JAVA_INTERNAL), cwd=INTEROPLIB_DIR)
         command(
             ar, "-x", "libjava.internal.a",
             cwd=DIST_DIR,
@@ -395,12 +397,14 @@ def build(args):
             cwd=DIST_DIR,
         )
 
-        command(*(cjc_SO.copy() + ["jni.cj", "registry.cj", OUT_CINTEROPLIB_O]), cwd=INTEROPLIB_DIR)
+        command(*(cjc_SO.copy() + SRC_JAVA_INTERNAL + [OUT_CINTEROPLIB_O]), cwd=INTEROPLIB_DIR)
 
+        # cjc java.lang
         javalib_args = [f"--import-path={DIST_DIR}"] + list(glob.glob(os.path.join(INTEROPLIB_DIR, "javalib") + "/*.cj", recursive=False))
         command(*(cjc_A.copy() + javalib_args.copy()), cwd=INTEROPLIB_DIR)
         command(*(cjc_SO.copy() + javalib_args.copy() + ["-L" + DIST_DIR, "-ljava.internal"]), cwd=INTEROPLIB_DIR)
 
+        # javac library-loader.jar
         command(
             "javac", "-d", DIST_DIR, "-source", "8", "-target", "8", "LibraryLoader.java", "$$NativeConstructorMarker.java", "ClassAnalyser.java", "MethodDef.java",
             cwd=INTEROPLIB_DIR,
