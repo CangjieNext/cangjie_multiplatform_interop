@@ -11,13 +11,14 @@ import std.sync.*
 let SIZE_LIMIT = 48 * 1024
 
 var registry = Registry()
-private var mutex = Mutex()
 
 protected class Registry {
     var mockRegistry: Array<Any>
     var objId: Int64
     var freeList: Array<Int64>
     var freeSize: Int64
+
+    private static let lock = SpinLock()
 
     init() {
         mockRegistry = Array<Any>(SIZE_LIMIT) { _ => unsafe { zeroValue<Any>() } }
@@ -27,7 +28,7 @@ protected class Registry {
     }
 
     public func put(any: Any): Int64 {
-        synchronized(mutex) {
+        synchronized (lock) {
             var id: Int64
 
             if (freeSize > 0) {
@@ -49,13 +50,13 @@ protected class Registry {
     }
 
     public func get<T>(id: Int64): ?T {
-        synchronized(mutex) {
+        synchronized (lock) {
             mockRegistry[id] as T
         }
     }
 
     public func remove(id: Int64): Unit {
-        synchronized(mutex) {
+        synchronized (lock) {
             mockRegistry[id] = unsafe { zeroValue<Any>() }
 
             freeList[freeSize] = id

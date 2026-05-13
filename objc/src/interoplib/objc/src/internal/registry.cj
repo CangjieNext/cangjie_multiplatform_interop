@@ -17,7 +17,7 @@ protected class Registry {
     private var freeList: Array<Int64>
     private var freeSize: Int64
 
-    private let mutex = Mutex()
+    private static let lock = SpinLock()
 
     Registry() {
         objId = 0
@@ -26,7 +26,7 @@ protected class Registry {
     }
 
     public unsafe func put(any: Any): Int64 {
-        synchronized(mutex) {
+        synchronized (lock) {
             var id: Int64
 
             if (freeSize > 0) {
@@ -48,13 +48,13 @@ protected class Registry {
     }
 
     public unsafe func get<T>(id: Int64): ?T {
-        synchronized(mutex) {
+        synchronized (lock) {
             mockRegistry[id] as T
         }
     }
 
     public unsafe func remove(id: Int64): Unit {
-        synchronized(mutex) {
+        synchronized (lock) {
             mockRegistry[id] = zeroValue<Any>()
 
             if (freeSize == freeList.size) {
