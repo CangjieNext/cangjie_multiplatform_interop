@@ -469,6 +469,9 @@ static void print_objc_optional(std::ostream& output, const NonTypeSymbol& membe
         if (member.is_property() && normal_mode()) {
             return;
         }
+        if (member.is_override()) {
+            return;
+        }
         if (generate_definitions_mode()) {
             output << "// ";
         }
