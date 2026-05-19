@@ -321,6 +321,8 @@ public:
 
     void print(std::ostream& stream, PrintFormat format) const;
 
+    void print_default_value(std::ostream& stream, PrintFormat format) const;
+
 private:
     [[nodiscard]] Nullability init_nullability(Nullability nullability) noexcept;
 
@@ -386,6 +388,11 @@ private:
     const Kind kind_;
 };
 
+/**
+ * Just 4 objects of this type exist: Universe::pointer(), Universe::func(),
+ * Universe::block(), Universe::varray().  They correspond respectively to
+ * ObjCPointer/CPointer, ObjCFunc/CFunc, ObjCBlock, VArray.
+ */
 class BuiltInTypeSymbol final : public NamedTypeSymbol {
 public:
     explicit BuiltInTypeSymbol(std::string name) : NamedTypeSymbol(Kind::BuiltIn, std::move(name))
@@ -456,9 +463,9 @@ public:
     {
     }
 
-    [[nodiscard]] TypeLikeSymbol& underlying_type() const noexcept;
+    [[nodiscard]] NamedTypeSymbol& underlying_type() const noexcept;
 
-    void set_underlying_type(TypeLikeSymbol& underlying_type) noexcept
+    void set_underlying_type(NamedTypeSymbol& underlying_type) noexcept
     {
         underlying_type_ = &underlying_type;
     }
@@ -491,7 +498,7 @@ private:
         return constants_.empty();
     }
 
-    TypeLikeSymbol* underlying_type_ = nullptr;
+    NamedTypeSymbol* underlying_type_ = nullptr;
     std::vector<EnumConstantSymbol> constants_;
 };
 
@@ -503,7 +510,7 @@ enum class PrimitiveTypeCategory : std::uint8_t {
     Boolean,
 };
 
-enum class PrimitiveSize : uint8_t { Zero = 0, One = 1, Two = 2, Four = 4, Eight = 8, Sixteen = 16 };
+enum class PrimitiveSize : uint8_t { Zero = 0, One = 1, Two = 2, Four = 4, Eight = 8 };
 
 class PrimitiveTypeSymbol final : public NamedTypeSymbol {
 public:
@@ -542,14 +549,14 @@ private:
         return category_ == PrimitiveTypeCategory::Unit;
     }
 
-    PrimitiveTypeCategory category_;
-    PrimitiveSize size_;
+    const PrimitiveTypeCategory category_;
+    const PrimitiveSize size_;
 };
 
 /**
- * Either an Objective-C compiler primitive built-in type not properly supported
- * in Cangjie (for example, __int128), or a type that libclang does not provide
- * enough info about (CXType_Unexposed).
+ * Either a type that libclang does not provide enough info about
+ * (CXType_Unexposed), or an Objective-C type not supported in Cangjie (for
+ * example, __int128).
  *
  * For fields and variables, this type is mapped to a primitive or to VArray of
  * the corresponding size.
@@ -560,17 +567,14 @@ private:
  */
 class UnexposedTypeSymbol final : public NamedTypeSymbol {
 public:
+    [[nodiscard]] UnexposedTypeSymbol(std::string name, size_t size);
+
     [[nodiscard]] const Type& underlying_type() const noexcept
     {
         return underlying_type_;
     }
 
 private:
-    [[nodiscard]] UnexposedTypeSymbol(std::string name, Type underlying_type) noexcept
-        : NamedTypeSymbol(Kind::Unexposed, std::move(name)), underlying_type_(underlying_type)
-    {
-    }
-
     void print(std::ostream& stream, PrintFormat format) const override;
 
     [[nodiscard]] bool is_file_level() const noexcept override
@@ -587,7 +591,7 @@ private:
         return true;
     }
 
-    Type underlying_type_;
+    const Type underlying_type_;
 };
 
 using Modifiers = uint16_t;

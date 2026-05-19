@@ -303,168 +303,75 @@ private:
     return DefaultValuePrinter(Printer(type, format));
 }
 
-static void print_tricky_default_value(std::ostream& stream, std::string_view type_name)
-{
-    // The dirty trick is applied for printing default values of:
-    // - Interface types -- instances of the interface type cannot be created.
-    // - @ObjCMirror classes -- they do not have a primary constructor.
-    stream << "Option<" << type_name << ">.None.getOrThrow()";
-}
-
 static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter& op)
 {
-    const auto& type = op.type_printer_.obj();
-    if (type.is_cj_option()) {
-        return stream << "None";
-    }
-    const auto& type_symbol = type.symbol();
-    if (is<const TypeParameterSymbol&>(type_symbol)) {
-        print_tricky_default_value(stream, "ObjCId");
-        return stream;
-    }
-    switch (type.kind()) {
-        case Type::Kind::Pointer:
-            return stream << op.type_printer_
-                          << (!type.is_ctype() || op.type_printer_.format() == PrintFormat::EmitCangjieStrict
-                                     ? "(CPointer<Unit>())"
-                                     : "()");
-        case Type::Kind::Function:
-            return stream << op.type_printer_
-                          << (!type.is_ctype() || op.type_printer_.format() == PrintFormat::EmitCangjieStrict
-                                     ? "(CPointer<CFunc<() -> Unit>>())"
-                                     : "(CPointer<Unit>())");
-        case Type::Kind::Block:
-            return stream << op.type_printer_ << "(CPointer<NativeBlockABI>())";
-        case Type::Kind::VArray: {
-            stream << '[';
-            auto varray_size = type.varray_size();
-            if (varray_size) {
-                auto value = default_value(type.varray_element_type(), op.type_printer_.format());
-                stream << value;
-                for (size_t i = 1; i < varray_size; ++i) {
-                    stream << ", " << value;
-                }
-            }
-            return stream << ']';
-        }
-        default:
-            break;
-    }
-    const auto* named_type = dynamic_cast<const NamedTypeSymbol*>(&type_symbol);
-    if (named_type) {
-        switch (named_type->kind()) {
-            case NamedTypeSymbol::Kind::Primitive:
-                switch (as<const PrimitiveTypeSymbol&>(*named_type).category()) {
-                    case PrimitiveTypeCategory::Boolean:
-                        return stream << "false";
-
-                    case PrimitiveTypeCategory::SignedInteger:
-                    case PrimitiveTypeCategory::UnsignedInteger:
-                        return stream << '0';
-
-                    case PrimitiveTypeCategory::FloatingPoint:
-                        return stream << "0.0";
-
-                    case PrimitiveTypeCategory::Unit:
-                        return stream << "()";
-
-                    default:
-                        break;
-                }
-                break;
-            case NamedTypeSymbol::Kind::TypeDef: {
-                assert(dynamic_cast<const TypeAliasSymbol*>(named_type));
-                auto canonical_type = type.canonical_type();
-                const auto* named_target = dynamic_cast<const NamedTypeSymbol*>(&canonical_type.symbol());
-                if (named_target) {
-                    switch (named_target->kind()) {
-                        case NamedTypeSymbol::Kind::Interface:
-                        case NamedTypeSymbol::Kind::Protocol:
-                            break;
-                        default:
-                            return stream << default_value(canonical_type, op.type_printer_.format());
-                            break;
-                    }
-                }
-                break;
-            }
-            case NamedTypeSymbol::Kind::Unexposed:
-                return stream << default_value(
-                           as<const UnexposedTypeSymbol&>(*named_type).underlying_type(), op.type_printer_.format());
-            case NamedTypeSymbol::Kind::Enum:
-                return stream << default_value(Type(as<const EnumDeclarationSymbol&>(*named_type).underlying_type()),
-                           op.type_printer_.format());
-            case NamedTypeSymbol::Kind::Interface:
-            case NamedTypeSymbol::Kind::Protocol:
-                print_tricky_default_value(stream, named_type->name());
-                return stream;
-            default:
-                break;
-        }
-    }
-    return stream << emit_cangjie(type) << "()";
+    op.type_printer_.obj().print_default_value(stream, op.type_printer_.format());
+    return stream;
 }
 
 static void print_enum_constant_value(
-    std::ostream& output, const TypeLikeSymbol& underlying_type, const EnumConstantSymbol& constant)
+    std::ostream& output, const NamedTypeSymbol& underlying_type, const EnumConstantSymbol& constant)
 {
     const auto& canonical_type_symbol = underlying_type.kind() == NamedTypeSymbol::Kind::TypeDef
-        ? as<const TypeAliasSymbol&>(underlying_type).canonical_type_symbol()
+        ? as<const NamedTypeSymbol&>(as<const TypeAliasSymbol&>(underlying_type).canonical_type_symbol())
         : underlying_type;
-    const auto* primitive_type = dynamic_cast<const PrimitiveTypeSymbol*>(&canonical_type_symbol);
-    if (primitive_type) {
+    if (canonical_type_symbol.kind() == NamedTypeSymbol::Kind::Primitive) {
+        const auto& primitive_type = as<const PrimitiveTypeSymbol&>(canonical_type_symbol);
         // Avoid the "number exceeds the value range of type" Cangjie compiler error by
         // printing the value in a type-specific way.
-        switch (primitive_type->category()) {
-            case PrimitiveTypeCategory::SignedInteger:
-                switch (primitive_type->size()) {
-                    case PrimitiveSize::One:
-                        output << static_cast<int>(constant.value<int8_t>());
-                        return;
-                    case PrimitiveSize::Two:
-                        output << constant.value<int16_t>();
-                        return;
-                    case PrimitiveSize::Four:
-                        output << constant.value<int32_t>();
-                        return;
-                    case PrimitiveSize::Eight:
-                        output << constant.value<int64_t>();
-                        return;
-                    default:
-                        break;
-                }
-                break;
-            case PrimitiveTypeCategory::UnsignedInteger:
-                switch (primitive_type->size()) {
-                    case PrimitiveSize::One:
-                        output << static_cast<uint32_t>(constant.value<uint8_t>());
-                        return;
-                    case PrimitiveSize::Two:
-                        output << constant.value<uint16_t>();
-                        return;
-                    case PrimitiveSize::Four:
-                        output << constant.value<uint32_t>();
-                        return;
-                    // PrimitiveSize::Eight is handled properly by fallback case.
-                    default:
-                        break;
-                }
-                break;
+        auto category = primitive_type.category();
+        auto size = primitive_type.size();
+        if (category == PrimitiveTypeCategory::SignedInteger) {
+            switch (size) {
+                case PrimitiveSize::One:
+                    output << static_cast<int>(constant.value<int8_t>());
+                    return;
+                case PrimitiveSize::Two:
+                    output << constant.value<int16_t>();
+                    return;
+                case PrimitiveSize::Four:
+                    output << constant.value<int32_t>();
+                    return;
+                default:
+                    assert(size == PrimitiveSize::Eight);
+                    output << constant.value<int64_t>();
+                    return;
+            }
+        }
+        assert(category == PrimitiveTypeCategory::UnsignedInteger);
+        switch (size) {
+            case PrimitiveSize::One:
+                output << static_cast<uint32_t>(constant.value<uint8_t>());
+                return;
+            case PrimitiveSize::Two:
+                output << constant.value<uint16_t>();
+                return;
+            case PrimitiveSize::Four:
+                output << constant.value<uint32_t>();
+                return;
             default:
-                break;
-        }
-    } else {
-        auto& universe = Universe::get();
-        if (&canonical_type_symbol == &universe.int128()) {
-            output << '[' << constant.value128_lo<int64_t>() << ", " << constant.value128_hi<int64_t>() << ']';
-            return;
-        }
-        if (&canonical_type_symbol == &universe.uint128()) {
-            output << '[' << constant.value128_lo<uint64_t>() << ", " << constant.value128_hi<uint64_t>() << ']';
-            return;
+                assert(size == PrimitiveSize::Eight);
+                output << constant.value<uint64_t>();
+                return;
         }
     }
-    output << constant.value<uint64_t>();
+
+    // This is _int128 or unsigned _int128 represented respectively as
+    // VArray<Int64, $2> or VArray<UInt64, $2>
+    assert(canonical_type_symbol.kind() == NamedTypeSymbol::Kind::Unexposed);
+    const auto& type = as<const UnexposedTypeSymbol&>(canonical_type_symbol).underlying_type();
+    assert(type.kind() == Type::Kind::VArray);
+    assert(type.varray_size() == 2);
+    const auto& element_type = type.varray_element_type().symbol();
+    auto& universe = Universe::get();
+    output << '[';
+    if (&element_type == &universe.int64()) {
+        output << constant.value128_lo<int64_t>() << ", " << constant.value128_hi<int64_t>();
+    } else {
+        assert(&element_type == &universe.uint64());
+        output << constant.value128_lo<uint64_t>() << ", " << constant.value128_hi<uint64_t>();
+    }
+    output << ']';
 }
 
 [[nodiscard]] static bool is_objc_compatible_parameters(const NonTypeSymbol& method) noexcept
