@@ -456,6 +456,116 @@ void Type::print(std::ostream& stream, PrintFormat format) const
     }
 }
 
+static void print_tricky_default_value(std::ostream& stream, std::string_view type_name)
+{
+    // The dirty trick is applied for printing default values of:
+    // - Interface types -- instances of the interface type cannot be created.
+    // - @ObjCMirror classes -- they do not have a primary constructor.
+    stream << "Option<" << type_name << ">.None.getOrThrow()";
+}
+
+void Type::print_default_value(std::ostream& stream, PrintFormat format) const
+{
+    if (is_cj_option()) {
+        stream << "None";
+        return;
+    }
+    const auto& type_symbol = symbol();
+    if (is<const TypeParameterSymbol&>(type_symbol)) {
+        print_tricky_default_value(stream, "ObjCId");
+        return;
+    }
+    switch (kind_) {
+        case Kind::Pointer:
+            print(stream, format);
+            stream << (!is_ctype() || format == PrintFormat::EmitCangjieStrict ? "(CPointer<Unit>())" : "()");
+            return;
+        case Type::Kind::Function:
+            print(stream, format);
+            stream << (!is_ctype() || format == PrintFormat::EmitCangjieStrict ? "(CPointer<CFunc<() -> Unit>>())"
+                                                                               : "(CPointer<Unit>())");
+            return;
+        case Type::Kind::Block:
+            print(stream, format);
+            stream << "(unsafe { ";
+            print_func_like(stream, "zeroValue", format);
+            stream << "() })";
+            return;
+        case Type::Kind::VArray:
+            stream << '[';
+            if (varray_size_) {
+                const auto& element_type = varray_element_type();
+                element_type.print_default_value(stream, format);
+                for (size_t i = 1; i < varray_size_; ++i) {
+                    stream << ", ";
+                    element_type.print_default_value(stream, format);
+                }
+            }
+            stream << ']';
+            return;
+        default:
+            break;
+    }
+    const auto* named_type = dynamic_cast<const NamedTypeSymbol*>(&type_symbol);
+    if (named_type) {
+        switch (named_type->kind()) {
+            case NamedTypeSymbol::Kind::Primitive:
+                switch (as<const PrimitiveTypeSymbol&>(*named_type).category()) {
+                    case PrimitiveTypeCategory::Boolean:
+                        stream << "false";
+                        return;
+
+                    case PrimitiveTypeCategory::SignedInteger:
+                    case PrimitiveTypeCategory::UnsignedInteger:
+                        stream << '0';
+                        return;
+
+                    case PrimitiveTypeCategory::FloatingPoint:
+                        stream << "0.0";
+                        return;
+
+                    case PrimitiveTypeCategory::Unit:
+                        stream << "()";
+                        return;
+
+                    default:
+                        break;
+                }
+                break;
+            case NamedTypeSymbol::Kind::TypeDef: {
+                assert(dynamic_cast<const TypeAliasSymbol*>(named_type));
+                auto canonical_type = this->canonical_type();
+                const auto* named_target = dynamic_cast<const NamedTypeSymbol*>(&canonical_type.symbol());
+                if (named_target) {
+                    switch (named_target->kind()) {
+                        case NamedTypeSymbol::Kind::Interface:
+                        case NamedTypeSymbol::Kind::Protocol:
+                            break;
+                        default:
+                            canonical_type.print_default_value(stream, format);
+                            return;
+                    }
+                }
+                break;
+            }
+            case NamedTypeSymbol::Kind::Unexposed:
+                as<const UnexposedTypeSymbol&>(*named_type).underlying_type().print_default_value(stream, format);
+                return;
+            case NamedTypeSymbol::Kind::Enum:
+                Type(as<const EnumDeclarationSymbol&>(*named_type).underlying_type())
+                    .print_default_value(stream, format);
+                return;
+            case NamedTypeSymbol::Kind::Interface:
+            case NamedTypeSymbol::Kind::Protocol:
+                print_tricky_default_value(stream, named_type->name());
+                return;
+            default:
+                break;
+        }
+    }
+    stream << emit_cangjie(*this) << "()";
+}
+
 Nullability Type::init_nullability(Nullability nullability) noexcept
 {
     switch (kind_) {
@@ -535,7 +645,7 @@ TypeLikeSymbol& NamedTypeSymbol::map()
     }
 }
 
-TypeLikeSymbol& EnumDeclarationSymbol::underlying_type() const noexcept
+NamedTypeSymbol& EnumDeclarationSymbol::underlying_type() const noexcept
 {
     return underlying_type_ ? *underlying_type_ : Universe::get().int32();
 }
@@ -552,6 +662,33 @@ void EnumDeclarationSymbol::visit_impl(SymbolVisitor& visitor) const
     if (underlying_type_) {
         visitor.visit_type(*underlying_type_);
     }
+}
+
+[[nodiscard]] static Type underlying_unexposed_type(size_t size)
+{
+    auto& universe = Universe::get();
+    switch (size) {
+        case 0:
+            return Type(universe.unit());
+        case sizeof(uint8_t):
+            return Type(universe.uint8());
+        case sizeof(uint16_t):
+            return Type(universe.uint16());
+        case sizeof(uint32_t):
+            return Type(universe.uint32());
+        case sizeof(uint64_t):
+            return Type(universe.uint64());
+        default:
+            return !(size % sizeof(uint64_t)) ? Type(Type(universe.uint64()), size / sizeof(uint64_t))
+                : !(size % sizeof(uint32_t))  ? Type(Type(universe.uint32()), size / sizeof(uint32_t))
+                : !(size % sizeof(uint16_t))  ? Type(Type(universe.uint16()), size / sizeof(uint16_t))
+                                              : Type(Type(universe.uint8()), size / sizeof(uint8_t));
+    }
+}
+
+UnexposedTypeSymbol::UnexposedTypeSymbol(std::string name, size_t size)
+    : NamedTypeSymbol(Kind::Unexposed, std::move(name)), underlying_type_(underlying_unexposed_type(size))
+{
 }
 
 void UnexposedTypeSymbol::print(std::ostream& stream, PrintFormat format) const

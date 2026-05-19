@@ -197,8 +197,7 @@ private:
 
     [[nodiscard]] std::string new_anonymous_name(const CXCursor& decl);
 
-    [[nodiscard]] Type add_type(
-        NamedTypeSymbol::Kind kind, std::string name, const CXType& type, Nullability nullability);
+    template <CXTypeKind kind> [[nodiscard]] Type get_type_symbol(const CXType& type, Nullability nullability);
 
     [[nodiscard]] Type create_func_like_type(BuiltInTypeSymbol& func_like_symbol, const CXType& type);
 
@@ -275,23 +274,6 @@ ClangSessionImpl::~ClangSessionImpl()
     return type.kind != CXType_Invalid;
 }
 
-[[nodiscard]] static bool is_builtin(const CXType& type)
-{
-    assert(is_valid(type));
-    const auto kind = type.kind;
-    if (kind >= CXType_FirstBuiltin && kind <= CXType_LastBuiltin) {
-        switch (kind) {
-            case CXType_ObjCId:
-            case CXType_ObjCClass:
-            case CXType_ObjCSel:
-                return false;
-            default:
-                return true;
-        }
-    }
-    return false;
-}
-
 [[nodiscard]] static bool is_anonymous(const CXCursor& cursor)
 {
     assert(is_valid(cursor));
@@ -357,15 +339,13 @@ ClangSessionImpl::~ClangSessionImpl()
     return location.file_.stem().u8string();
 }
 
-static bool set_definition_location(const CXCursor& decl, FileLevelSymbol& symbol)
+static void set_definition_location(const CXCursor& decl, FileLevelSymbol& symbol)
 {
     assert(is_valid(decl));
     auto loc = get_location(decl);
-    if (loc.is_null()) {
-        return false;
+    if (!loc.is_null()) {
+        symbol.set_definition_location(loc);
     }
-    symbol.set_definition_location(loc);
-    return true;
 }
 
 template <class Decl>
@@ -379,29 +359,6 @@ template <class Decl>
 [[nodiscard]] static clang::QualType type_to_qual_type(const CXType& type)
 {
     return clang::QualType::getFromOpaquePtr(type.data[0]);
-}
-
-[[nodiscard]] static PrimitiveTypeCategory get_primitive_category(const CXType& type)
-{
-    if (type.kind == CXType_Bool) {
-        // For binary compatibility with Cangjie's `Bool`, we do not support platforms
-        // where `sizeof(_Bool) != 1`
-        assert(clang_Type_getSizeOf(type) == 1);
-
-        return PrimitiveTypeCategory::Boolean;
-    }
-
-    const auto cpp = type_to_qual_type(type);
-    if (cpp->isUnsignedIntegerOrEnumerationType()) {
-        return PrimitiveTypeCategory::UnsignedInteger;
-    }
-    if (cpp->isSignedIntegerOrEnumerationType()) {
-        return PrimitiveTypeCategory::SignedInteger;
-    }
-    if (cpp->isFloatingType()) {
-        return PrimitiveTypeCategory::FloatingPoint;
-    }
-    return PrimitiveTypeCategory::Unit;
 }
 
 Type SourceScanner::create_func_like_type(BuiltInTypeSymbol& func_like_symbol, const CXType& type)
@@ -444,48 +401,115 @@ std::string SourceScanner::new_anonymous_name(const CXCursor& decl)
     }
 }
 
-Type SourceScanner::add_type(NamedTypeSymbol::Kind kind, std::string name, const CXType& type, Nullability nullability)
+[[nodiscard]] static std::string get_type_name(const CXCursor& decl, const CXType& type)
 {
-    NamedTypeSymbol* symbol;
-    switch (kind) {
-        case NamedTypeSymbol::Kind::TypeDef:
-            symbol = new TypeAliasSymbol(std::move(name));
+    auto type_name = as_string(clang_getTypeSpelling(type));
+    if constexpr (CLANG_VERSION_MAJOR < 16) {
+        remove_prefix_in_place(type_name, "const ");
+        remove_prefix_in_place(type_name, "volatile ");
+        if (ends_with(type_name, "*restrict")) {
+            remove_prefix_in_place(type_name, "restrict");
+        }
+    }
+    remove_prefix_in_place(type_name, "__strong ");
+    remove_prefix_in_place(type_name, "__unsafe_unretained ");
+    remove_prefix_in_place(type_name, "__autoreleasing ");
+    switch (decl.kind) {
+        case CXCursor_StructDecl:
+            remove_prefix_in_place(type_name, "struct ");
             break;
-        case NamedTypeSymbol::Kind::Enum:
-            symbol = new EnumDeclarationSymbol(std::move(name));
+        case CXCursor_UnionDecl:
+            remove_prefix_in_place(type_name, "union ");
+            break;
+        case CXCursor_EnumDecl:
+            remove_prefix_in_place(type_name, "enum ");
             break;
         default:
-            symbol = new TypeDeclarationSymbol(kind, std::move(name));
             break;
     }
+    return type_name;
+}
 
-    if (const auto decl = clang_getTypeDeclaration(type); decl.kind != CXCursor_NoDeclFound) {
-        if (is_anonymous(decl)) {
-            assert(anonymous_.find(type) == anonymous_.end());
-            anonymous_.try_emplace(type, symbol);
+template <CXTypeKind type_kind> Type SourceScanner::get_type_symbol(const CXType& type, Nullability nullability)
+{
+    constexpr auto can_be_anonymous = type_kind == CXType_Record || type_kind == CXType_Enum;
+    if constexpr (can_be_anonymous) {
+        auto it = anonymous_.find(type);
+        if (it != anonymous_.end()) {
+            return Type(*it->second, nullability);
         }
+    }
 
-        auto has_definition_location = set_definition_location(decl, *symbol);
-        if (!has_definition_location && type.kind == CXType_Typedef) {
-            // The type has a declaration that has no file location.  This means a built-in
-            // clang type, for example:
-            //
-            //   Protocol          - a built-in interface
-            //   __builtin_va_list - alias for `char*`
-            //   __uuint128_t      - alias for `unsigned __int128`.
-            //
-            // The declaration of such a type is not visited by libclang.  That is, the
-            // mirror type will not be declared, which could result in cjc compiler errors.
-            // If the built-in type is actually a typedef (alias), we will return its target
-            // type obtained via libclang API.
-            auto cx_target = clang_getTypedefDeclUnderlyingType(decl);
-            if (cx_target.kind != CXType_Invalid) {
-                return type_like_symbol(cx_target, nullability);
+    auto decl = clang_getTypeDeclaration(type);
+    Location loc;
+    if (is_valid(decl)) {
+        loc = get_location(decl);
+        if constexpr (type_kind == CXType_Typedef) {
+            if (loc.is_null()) {
+                // The type has a declaration that has no file location.  This means a built-in
+                // clang type, for example:
+                //
+                //   Protocol          - a built-in interface
+                //   __builtin_va_list - alias for `char*`
+                //   __uuint128_t      - alias for `unsigned __int128`.
+                //
+                // The declaration of such a type is not visited by libclang.  That is, the
+                // mirror type will not be declared, which could result in cjc compiler errors.
+                // If the built-in type is actually a typedef (alias), we will return its target
+                // type obtained via libclang API.
+                auto cx_target = clang_getTypedefDeclUnderlyingType(decl);
+                if (cx_target.kind != CXType_Invalid) {
+                    return type_like_symbol(cx_target, nullability);
+                }
             }
         }
     }
 
-    Universe::get().register_type(*symbol);
+    bool anonymous = can_be_anonymous && is_anonymous(decl);
+    std::string name = anonymous ? new_anonymous_name(decl) : get_type_name(decl, type);
+
+    NamedTypeSymbol::Kind symbol_kind;
+    if constexpr (type_kind == CXType_Typedef) {
+        symbol_kind = NamedTypeSymbol::Kind::TypeDef;
+    } else if constexpr (type_kind == CXType_Unexposed) {
+        symbol_kind = NamedTypeSymbol::Kind::Unexposed;
+    } else if constexpr (type_kind == CXType_Enum) {
+        symbol_kind = NamedTypeSymbol::Kind::Enum;
+    } else if constexpr (type_kind == CXType_ObjCInterface) {
+        symbol_kind =
+            decl.kind == CXCursor_ObjCProtocolDecl ? NamedTypeSymbol::Kind::Protocol : NamedTypeSymbol::Kind::Interface;
+    } else {
+        static_assert(type_kind == CXType_Record);
+        symbol_kind = decl.kind == CXCursor_UnionDecl ? NamedTypeSymbol::Kind::Union : NamedTypeSymbol::Kind::Struct;
+    }
+
+    auto& universe = Universe::get();
+    auto* symbol = universe.type(symbol_kind, name);
+    if (!symbol) {
+        if constexpr (type_kind == CXType_Typedef) {
+            symbol = new TypeAliasSymbol(std::move(name));
+        } else if constexpr (type_kind == CXType_Unexposed) {
+            auto size = clang_Type_getSizeOf(type);
+            symbol = new UnexposedTypeSymbol(std::move(name), size < 0 ? 0 : static_cast<size_t>(size));
+        } else if constexpr (type_kind == CXType_Enum) {
+            symbol = new EnumDeclarationSymbol(std::move(name));
+        } else {
+            static_assert(type_kind == CXType_ObjCInterface || type_kind == CXType_Record);
+            symbol = new TypeDeclarationSymbol(symbol_kind, std::move(name));
+        }
+        if (!loc.is_null()) {
+            symbol->set_definition_location(loc);
+        }
+
+        if constexpr (can_be_anonymous) {
+            if (anonymous) {
+                assert(anonymous_.find(type) == anonymous_.end());
+                anonymous_.try_emplace(type, symbol);
+            }
+        }
+
+        universe.register_type(*symbol);
+    }
 
     return Type(*symbol, nullability);
 }
@@ -564,85 +588,65 @@ static UndecorateResult undecorate_parameter_type_name(const std::string& decora
     return {without_prefix.substr(0, opening_bracket), protocols};
 }
 
-[[nodiscard]] std::string get_type_name(const CXType& type)
+[[nodiscard]] static PrimitiveTypeSymbol* primitive_type(const CXType& type)
 {
-    auto type_name = as_string(clang_getTypeSpelling(type));
-    if constexpr (CLANG_VERSION_MAJOR < 16) {
-        remove_prefix_in_place(type_name, "const ");
-        remove_prefix_in_place(type_name, "volatile ");
-        if (ends_with(type_name, "*restrict")) {
-            remove_prefix_in_place(type_name, "restrict");
+    assert(type.kind >= CXType_FirstBuiltin && type.kind <= CXType_LastBuiltin && type.kind != CXType_NullPtr &&
+        type.kind != CXType_Overload && type.kind != CXType_Dependent && type.kind != CXType_ObjCId &&
+        type.kind != CXType_ObjCClass && type.kind != CXType_ObjCSel);
+    auto& universe = Universe::get();
+    switch (type.kind) {
+        case CXType_Void:
+            return &universe.unit();
+        case CXType_Bool:
+            // For binary compatibility with Cangjie's `Bool`, we do not support platforms
+            // where `sizeof(_Bool) != 1`
+            assert(clang_Type_getSizeOf(type) == 1);
+
+            return &universe.boolean();
+        default:
+            break;
+    }
+    auto size = clang_Type_getSizeOf(type);
+    auto cpp = type_to_qual_type(type);
+    if (cpp->isSignedIntegerOrEnumerationType()) {
+        switch (static_cast<PrimitiveSize>(size)) {
+            case PrimitiveSize::One:
+                return &universe.int8();
+            case PrimitiveSize::Two:
+                return &universe.int16();
+            case PrimitiveSize::Four:
+                return &universe.int32();
+            case PrimitiveSize::Eight:
+                return &universe.int64();
+            default:
+                break;
+        }
+    } else if (cpp->isUnsignedIntegerOrEnumerationType()) {
+        switch (static_cast<PrimitiveSize>(size)) {
+            case PrimitiveSize::One:
+                return &universe.uint8();
+            case PrimitiveSize::Two:
+                return &universe.uint16();
+            case PrimitiveSize::Four:
+                return &universe.uint32();
+            case PrimitiveSize::Eight:
+                return &universe.uint64();
+            default:
+                break;
+        }
+    } else if (cpp->isFloatingType()) {
+        switch (static_cast<PrimitiveSize>(size)) {
+            case PrimitiveSize::Two:
+                return &universe.float16();
+            case PrimitiveSize::Four:
+                return &universe.float32();
+            case PrimitiveSize::Eight:
+                return &universe.float64();
+            default:
+                break;
         }
     }
-    remove_prefix_in_place(type_name, "__strong ");
-    remove_prefix_in_place(type_name, "__unsafe_unretained ");
-    remove_prefix_in_place(type_name, "__autoreleasing ");
-    return type_name;
-}
-
-[[nodiscard]] static NamedTypeSymbol* primitive_type_symbol(PrimitiveTypeCategory category, long long size) noexcept
-{
-    auto& universe = Universe::get();
-    auto s = size < 0 ? PrimitiveSize::Zero : static_cast<PrimitiveSize>(size);
-    switch (category) {
-        case PrimitiveTypeCategory::Boolean:
-            return s == PrimitiveSize::One ? &universe.boolean() : nullptr;
-        case PrimitiveTypeCategory::SignedInteger:
-            switch (s) {
-                case PrimitiveSize::One:
-                    return &universe.int8();
-                case PrimitiveSize::Two:
-                    return &universe.int16();
-                case PrimitiveSize::Four:
-                    return &universe.int32();
-                case PrimitiveSize::Eight:
-                    return &universe.int64();
-                case PrimitiveSize::Sixteen:
-                    return &universe.int128();
-                default:
-                    return nullptr;
-            }
-        case PrimitiveTypeCategory::UnsignedInteger:
-            switch (s) {
-                case PrimitiveSize::One:
-                    return &universe.uint8();
-                case PrimitiveSize::Two:
-                    return &universe.uint16();
-                case PrimitiveSize::Four:
-                    return &universe.uint32();
-                case PrimitiveSize::Eight:
-                    return &universe.uint64();
-                case PrimitiveSize::Sixteen:
-                    return &universe.uint128();
-                default:
-                    return nullptr;
-            }
-        case PrimitiveTypeCategory::FloatingPoint:
-            switch (s) {
-                case PrimitiveSize::Two:
-                    return &universe.float16();
-                case PrimitiveSize::Four:
-                    return &universe.float32();
-                case PrimitiveSize::Eight:
-                    return &universe.float64();
-                default:
-                    return nullptr;
-            }
-        default:
-            return category == PrimitiveTypeCategory::Unit && s == PrimitiveSize::Zero ? &universe.unit() : nullptr;
-    }
-}
-
-[[nodiscard]] static Type primitive_type(const CXType& type) noexcept
-{
-    auto size = clang_Type_getSizeOf(type);
-    auto* type_symbol = primitive_type_symbol(get_primitive_category(type), size);
-    if (type_symbol) {
-        return Type(*type_symbol);
-    }
-    auto& universe = Universe::get();
-    return size > 0 ? Type(Type(universe.int8()), static_cast<size_t>(size))
-                    : Type(universe.unexposed(), {Type(universe.unit())});
+    return size <= 0 ? &universe.unit() : nullptr;
 }
 
 class CategoryDeclarationSymbol final : public TypeDeclarationSymbol {
@@ -716,8 +720,6 @@ Type SourceScanner::type_like_symbol(const CXType& type, Nullability nullability
 #endif
 
     switch (type.kind) {
-            // The following are derivative classes (not definitions):
-
         case CXType_ObjCObject: {
             auto baseCXType = clang_Type_getObjCObjectBaseType(type);
             if (baseCXType.kind == CXType_ObjCId) {
@@ -774,18 +776,15 @@ Type SourceScanner::type_like_symbol(const CXType& type, Nullability nullability
         case CXType_Elaborated:
             return type_like_symbol(clang_Type_getNamedType(type), nullability);
 
-        // Libclang bug? When CXTranslationUnit_IncludeAttributedTypes is specified, the
-        // type kind of some objects is unexpectedly and incorrectly reported as
-        // CXType_Unexposed rather than CXType_Attributed.
         case CXType_Unexposed: {
+            // Libclang bug?  When CXTranslationUnit_IncludeAttributedTypes is specified,
+            // the type kind of some objects is unexpectedly and incorrectly reported as
+            // CXType_Unexposed rather than CXType_Attributed.  Try to call
+            // clang_Type_getModifiedType.  If it returns a valid type, assume it is
+            // actually CXType_Attributed.
             auto modified_type = clang_Type_getModifiedType(type);
-            if (modified_type.kind != CXType_Invalid) {
-                // Assume this is actually CXType_Attributed
-                return type_like_symbol(modified_type, get_nullability(type));
-            }
-            auto& universe = Universe::get();
-            auto* result = universe.type(get_type_name(type));
-            return result ? Type(universe.unexposed(), {Type(*result)}) : primitive_type(type);
+            return modified_type.kind == CXType_Invalid ? get_type_symbol<CXType_Unexposed>(type, nullability)
+                                                        : type_like_symbol(modified_type, get_nullability(type));
         }
 
         case CXType_Attributed: {
@@ -833,84 +832,35 @@ Type SourceScanner::type_like_symbol(const CXType& type, Nullability nullability
         }
 #endif
 
-            // We will handle the rest below this switch.
-
-        default:;
-    }
-
-    if (const auto it = anonymous_.find(type); it != anonymous_.end()) {
-        return Type(*it->second, nullability);
-    }
-
-    // This is a type which requires definition.
-
-    std::string type_name;
-    NamedTypeSymbol::Kind type_kind;
-
-    switch (type.kind) {
         case CXType_ObjCId:
             return Type(Universe::get().id(), nullability);
+
         case CXType_ObjCClass:
             return Type(Universe::get().clazz(), nullability);
+
         case CXType_ObjCSel:
             return Type(Universe::get().sel(), nullability);
-        case CXType_Typedef:
-            type_kind = NamedTypeSymbol::Kind::TypeDef;
-            type_name = get_type_name(type);
-            // TODO: clang_getCanonicalType(type) if needed
-            break;
 
         case CXType_ObjCInterface:
-            type_name = get_type_name(type);
-            type_kind = NamedTypeSymbol::Kind::Interface;
             assert(clang_getCanonicalType(type) == type);
-            break;
+            return get_type_symbol<CXType_ObjCInterface>(type, nullability);
 
-        case CXType_Record: {
-            const auto decl = clang_getTypeDeclaration(type);
-            assert(is_valid(decl));
-            if (decl.kind == CXCursor_UnionDecl) {
-                type_kind = NamedTypeSymbol::Kind::Union;
-            } else {
-                assert(decl.kind == CXCursor_StructDecl);
-                type_kind = NamedTypeSymbol::Kind::Struct;
-            }
-            if (is_anonymous(decl)) {
-                type_name = new_anonymous_name(decl);
-            } else {
-                type_name = get_type_name(type);
-                if (type_kind == NamedTypeSymbol::Kind::Union) {
-                    remove_prefix_in_place(type_name, "union ");
-                } else {
-                    assert(type_kind == NamedTypeSymbol::Kind::Struct);
-                    remove_prefix_in_place(type_name, "struct ");
-                }
-            }
-            break;
+        case CXType_Typedef:
+            // TODO: clang_getCanonicalType(type) if needed
+            return get_type_symbol<CXType_Typedef>(type, nullability);
+
+        case CXType_Record:
+            return get_type_symbol<CXType_Record>(type, nullability);
+
+        case CXType_Enum:
+            return get_type_symbol<CXType_Enum>(type, nullability);
+
+        default: {
+            auto* primitive_type_symbol = primitive_type(type);
+            return primitive_type_symbol ? Type(*primitive_type_symbol)
+                                         : get_type_symbol<CXType_Unexposed>(type, nullability);
         }
-
-        case CXType_Enum: {
-            type_kind = NamedTypeSymbol::Kind::Enum;
-            const auto decl = clang_getTypeDeclaration(type);
-            if (is_anonymous(decl)) {
-                type_name = new_anonymous_name(decl);
-            } else {
-                type_name = get_type_name(type);
-                remove_prefix_in_place(type_name, "enum ");
-            }
-            break;
-        }
-
-        default:
-            assert(is_builtin(type));
-            return primitive_type(type);
     }
-
-    if (auto* type_symbol = Universe::get().type(type_kind, type_name)) {
-        return Type(*type_symbol, nullability);
-    }
-
-    return this->add_type(type_kind, type_name, type, nullability);
 }
 
 TypeDeclarationSymbol& SourceScanner::get_target_type_declaration()

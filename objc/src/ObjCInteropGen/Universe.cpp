@@ -34,8 +34,6 @@ Universe::Universe()
       float16_("Float16", PrimitiveTypeCategory::FloatingPoint, PrimitiveSize::Two),
       float32_("Float32", PrimitiveTypeCategory::FloatingPoint, PrimitiveSize::Four),
       float64_("Float64", PrimitiveTypeCategory::FloatingPoint, PrimitiveSize::Eight),
-      int128_(int64_, 2),
-      uint128_(uint64_, 2),
       class_(NamedTypeSymbol::Kind::Interface, "ObjCClass"),
       id_(NamedTypeSymbol::Kind::Protocol, "ObjCId"),
       sel_(NamedTypeSymbol::Kind::Interface, "SEL" /* "ObjCSelector" */),
@@ -46,8 +44,7 @@ Universe::Universe()
       func_({}),
 
       block_("ObjCBlock"),
-      varray_("VArray"),
-      unexposed_("")
+      varray_("VArray")
 {
     for (auto& map : types_) {
         map.reserve(PREALLOCATED_TYPE_COUNT);

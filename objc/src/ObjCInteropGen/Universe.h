@@ -156,8 +156,6 @@ class Universe final : private NonCopyable {
     PrimitiveTypeSymbol float16_;
     PrimitiveTypeSymbol float32_;
     PrimitiveTypeSymbol float64_;
-    VArraySymbol int128_;
-    VArraySymbol uint128_;
     TypeDeclarationSymbol class_;
     TypeDeclarationSymbol id_;
     TypeDeclarationSymbol sel_;
@@ -165,7 +163,6 @@ class Universe final : private NonCopyable {
     BuiltInTypeSymbol func_;
     BuiltInTypeSymbol block_;
     BuiltInTypeSymbol varray_;
-    BuiltInTypeSymbol unexposed_;
 
 public:
     [[nodiscard]] static Universe& get();
@@ -239,16 +236,6 @@ public:
         return float64_;
     }
 
-    [[nodiscard]] auto& int128() noexcept
-    {
-        return int128_;
-    }
-
-    [[nodiscard]] auto& uint128() noexcept
-    {
-        return uint128_;
-    }
-
     [[nodiscard]] auto& clazz() noexcept
     {
         return class_;
@@ -282,11 +269,6 @@ public:
     [[nodiscard]] auto& varray() noexcept
     {
         return varray_;
-    }
-
-    [[nodiscard]] auto& unexposed() noexcept
-    {
-        return unexposed_;
     }
 
     // Find the registered type symbol by its name and kind.  Return nullptr if no
