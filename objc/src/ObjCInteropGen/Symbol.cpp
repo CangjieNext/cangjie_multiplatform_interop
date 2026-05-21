@@ -646,7 +646,8 @@ TypeLikeSymbol& NamedTypeSymbol::map()
 
 NamedTypeSymbol& EnumDeclarationSymbol::underlying_type() const noexcept
 {
-    return underlying_type_ ? *underlying_type_ : Universe::get().int32();
+    assert(underlying_type_);
+    return *underlying_type_;
 }
 
 EnumConstantSymbol& EnumDeclarationSymbol::add_constant(std::string name, const std::array<uint64_t, 2>& value)

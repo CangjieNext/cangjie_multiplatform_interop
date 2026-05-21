@@ -492,7 +492,10 @@ template <CXTypeKind type_kind> Type SourceScanner::get_type_symbol(const CXType
             auto size = clang_Type_getSizeOf(type);
             symbol = new UnexposedTypeSymbol(std::move(name), size < 0 ? 0 : static_cast<size_t>(size));
         } else if constexpr (type_kind == CXType_Enum) {
-            symbol = new EnumDeclarationSymbol(std::move(name));
+            auto underlying_type = clang_getEnumDeclIntegerType(decl);
+            assert(is_valid(underlying_type));
+            symbol = new EnumDeclarationSymbol(
+                std::move(name), type_like_symbol(underlying_type).symbol().as<NamedTypeSymbol>());
         } else {
             static_assert(type_kind == CXType_ObjCInterface || type_kind == CXType_Record);
             symbol = new TypeDeclarationSymbol(symbol_kind, std::move(name));
@@ -1121,20 +1124,14 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             break;
         }
         case CXCursor_StructDecl:
-        case CXCursor_UnionDecl: {
+        case CXCursor_UnionDecl:
             assert(type.kind == CXType_Record);
             pushed = &push_current(type_like_symbol(type).symbol().as<TypeDeclarationSymbol>(), false);
             break;
-        }
-        case CXCursor_EnumDecl: {
+        case CXCursor_EnumDecl:
             assert(type.kind == CXType_Enum);
-            auto& decl = type_like_symbol(type).symbol().as<EnumDeclarationSymbol>();
-            auto underlying_type = clang_getEnumDeclIntegerType(cursor);
-            assert(is_valid(underlying_type));
-            decl.set_underlying_type(type_like_symbol(underlying_type).symbol().as<NamedTypeSymbol>());
-            pushed = &push_current(decl, false);
+            pushed = &push_current(type_like_symbol(type).symbol().as<EnumDeclarationSymbol>(), false);
             break;
-        }
         case CXCursor_ObjCSuperClassRef:
             assert(current_top_is_type());
             assert(level() == 1);
