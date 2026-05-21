@@ -232,7 +232,7 @@ public:
 
     Type(Type varray_element_type, size_t varray_size);
 
-    explicit operator bool() const noexcept
+    [[nodiscard]] bool has_symbol_assigned() const noexcept
     {
         return symbol_;
     }
@@ -824,14 +824,14 @@ private:
 
     [[nodiscard]] bool is_ctype() const noexcept override
     {
-        return target_ && target_.is_ctype();
+        return target_.has_symbol_assigned() && target_.is_ctype();
     }
 
     void visit_impl(SymbolVisitor& visitor) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
-        return target_ && target_.contains_pointer_or_func();
+        return target_.has_symbol_assigned() && target_.contains_pointer_or_func();
     }
 
     Type target_;

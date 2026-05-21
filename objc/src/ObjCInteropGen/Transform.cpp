@@ -416,7 +416,7 @@ static void do_map()
             }
         } else if (auto* alias = dynamic_cast<TypeAliasSymbol*>(&decl)) {
             auto& target = alias->target();
-            if (target) {
+            if (target.has_symbol_assigned()) {
                 target.map();
             }
         }

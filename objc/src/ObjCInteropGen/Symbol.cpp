@@ -317,7 +317,7 @@ const TypeLikeSymbol& Type::canonical_type_symbol() const noexcept
 
 bool Type::is_optionable_reference() const noexcept
 {
-    return *this && symbol_->is_optionable_reference();
+    return symbol_ && symbol_->is_optionable_reference();
 }
 
 bool Type::is_cj_direct_option() const noexcept
@@ -869,7 +869,7 @@ TypeAliasSymbol::TypeAliasSymbol(std::string name) noexcept : NamedTypeSymbol(Ki
 void TypeAliasSymbol::print(std::ostream& stream, PrintFormat format) const
 {
     const auto& target = this->target();
-    if (target && name() == target.name()) {
+    if (target.has_symbol_assigned() && name() == target.name()) {
         // typedef struct S S;
         target.print(stream, format);
         return;
@@ -887,7 +887,7 @@ void TypeAliasSymbol::print(std::ostream& stream, PrintFormat format) const
 void TypeAliasSymbol::visit_impl(SymbolVisitor& visitor) const
 {
     const auto& target = this->target();
-    if (target) {
+    if (target.has_symbol_assigned()) {
         visitor.visit_type(target);
     }
 }
