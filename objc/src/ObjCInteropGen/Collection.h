@@ -10,6 +10,8 @@
 
 #include <utility>
 
+namespace objcgen {
+
 template <class Container, class ConstIterator = typename Container::const_iterator,
     class Iterator = typename Container::iterator>
 class Collection final {
@@ -113,5 +115,7 @@ template <class Container> [[nodiscard]] auto PointerCollection(Container& conta
     return Collection<Container, PointerIterator<typename Container::const_iterator>,
         PointerIterator<typename Container::iterator>>(container);
 }
+
+} // namespace objcgen
 
 #endif // COLLECTION_H
