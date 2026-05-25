@@ -6,19 +6,13 @@
 
 #include "ClangSession.h"
 
-#include <cassert>
-#include <deque>
-#include <filesystem>
-#include <iostream>
 #include <optional>
 
 #include <clang-c/Index.h>
-#include <clang/AST/DeclBase.h>
 #include <clang/AST/DeclObjC.h>
 #include <clang/Basic/Version.h>
 
 #include "FatalException.h"
-#include "InputFile.h"
 #include "Logging.h"
 #include "Strings.h"
 #include "Universe.h"
@@ -163,7 +157,9 @@ class SourceScanner final : public ClangVisitor {
     Symbol* push_current(NamedTypeSymbol* symbol, const bool is_objc)
     {
         assert(symbol);
-        assert(is_objc == (symbol->is(Kind::Interface) || symbol->is(Kind::Protocol) || symbol->is(Kind::Category)));
+        assert(is_objc ==
+            (symbol->is(NamedTypeSymbol::Kind::Interface) || symbol->is(NamedTypeSymbol::Kind::Protocol) ||
+                symbol->is(NamedTypeSymbol::Kind::Category)));
 
         current_.push_back(symbol);
 
@@ -244,6 +240,8 @@ private:
      * belongs to.
      */
     [[nodiscard]] const TypeDeclarationSymbol& get_owner_generic_type() const;
+
+    [[nodiscard]] TypeLikeSymbol* get_type_parameter_symbol(const CXType& type) const;
 };
 
 class ClangSessionImpl final : public ClangSession {
@@ -592,13 +590,13 @@ static UndecorateResult undecorate_parameter_type_name(const std::string& decora
 [[nodiscard]] std::string get_type_name(const CXType& type)
 {
     auto type_name = as_string(clang_getTypeSpelling(type));
-#if CLANG_VERSION_MAJOR < 16
-    remove_prefix_in_place(type_name, "const ");
-    remove_prefix_in_place(type_name, "volatile ");
-    if (ends_with(type_name, "*restrict")) {
-        remove_prefix_in_place(type_name, "restrict");
+    if constexpr (CLANG_VERSION_MAJOR < 16) {
+        remove_prefix_in_place(type_name, "const ");
+        remove_prefix_in_place(type_name, "volatile ");
+        if (ends_with(type_name, "*restrict")) {
+            remove_prefix_in_place(type_name, "restrict");
+        }
     }
-#endif
     remove_prefix_in_place(type_name, "__strong ");
     remove_prefix_in_place(type_name, "__unsafe_unretained ");
     remove_prefix_in_place(type_name, "__autoreleasing ");
@@ -658,6 +656,35 @@ const TypeDeclarationSymbol& SourceScanner::get_owner_generic_type() const
     assert(last_objc_type_->is(NamedTypeSymbol::Kind::Interface) ||
         last_objc_type_->is(NamedTypeSymbol::Kind::Protocol) || last_objc_type_->is(NamedTypeSymbol::Kind::Category));
     return *last_objc_type_;
+}
+
+TypeLikeSymbol* SourceScanner::get_type_parameter_symbol(const CXType& type) const
+{
+    const auto& owner_type = get_owner_generic_type();
+    auto decorated_type_name = as_string(clang_getTypeSpelling(type));
+    auto [undecorated_type_name, narrowing_protocol_name] = undecorate_parameter_type_name(decorated_type_name);
+    const auto parameter_count = owner_type.parameter_count();
+    for (std::size_t i = 0; i < parameter_count; ++i) {
+        auto* parameter = owner_type.parameter(i);
+        assert(parameter);
+        auto parameter_name = parameter->name();
+        if (parameter_name == undecorated_type_name) {
+            if (owner_type.kind() == NamedTypeSymbol::Kind::Category) {
+                assert(dynamic_cast<const CategoryDeclarationSymbol*>(&owner_type));
+                const auto* interface = static_cast<const CategoryDeclarationSymbol&>(owner_type).interface();
+                assert(parameter_count == interface->parameter_count());
+                parameter = interface->parameter(i);
+            }
+            if (narrowing_protocol_name.empty()) {
+                return parameter;
+            }
+
+            // In Cangjie code, use the narrowing protocol instead of `ObjCId`
+            return new NarrowedTypeParameterSymbol(*parameter, std::string(narrowing_protocol_name));
+        }
+    }
+    assert(false && "Unknown type parameter");
+    return nullptr;
 }
 
 TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
@@ -751,33 +778,8 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
             return type_like_symbol(modified_type);
         }
 
-        case CXType_ObjCTypeParam: {
-            const auto& owner_type = get_owner_generic_type();
-            auto decorated_type_name = as_string(clang_getTypeSpelling(type));
-            auto [undecorated_type_name, narrowing_protocol_name] = undecorate_parameter_type_name(decorated_type_name);
-            const auto parameter_count = owner_type.parameter_count();
-            for (std::size_t i = 0; i < parameter_count; ++i) {
-                auto* parameter = owner_type.parameter(i);
-                assert(parameter);
-                auto parameter_name = parameter->name();
-                if (parameter_name == undecorated_type_name) {
-                    if (owner_type.kind() == NamedTypeSymbol::Kind::Category) {
-                        assert(dynamic_cast<const CategoryDeclarationSymbol*>(&owner_type));
-                        const auto* interface = static_cast<const CategoryDeclarationSymbol&>(owner_type).interface();
-                        assert(parameter_count == interface->parameter_count());
-                        parameter = interface->parameter(i);
-                    }
-                    if (narrowing_protocol_name.empty()) {
-                        return parameter;
-                    }
-
-                    // In Cangjie code, use the narrowing protocol instead of `ObjCId`
-                    return new NarrowedTypeParameterSymbol(*parameter, std::string(narrowing_protocol_name));
-                }
-            }
-            assert(false && "Unknown type parameter");
-            return nullptr;
-        }
+        case CXType_ObjCTypeParam:
+            return get_type_parameter_symbol(type);
 
         case CXType_FunctionProto:
         case CXType_FunctionNoProto:
@@ -790,11 +792,13 @@ TypeLikeSymbol* SourceScanner::type_like_symbol(CXType type)
             return new VArraySymbol(
                 *type_like_symbol(clang_getArrayElementType(type)), static_cast<size_t>(clang_getArraySize(type)));
 
+#if CLANG_VERSION_MAJOR >= 11
         case CXType_Atomic: {
             auto value_type = clang_Type_getValueType(type);
             assert(is_valid(value_type));
             return type_like_symbol(value_type);
         }
+#endif
 
             // We will handle the rest below this switch.
 
@@ -1326,8 +1330,8 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
                 assert(current_top_is_type());
                 assert(level() == 1);
                 auto* type_decl = current_type_declaration();
-                [[maybe_unused]] const auto kind = type_decl->kind();
-                assert((is_interface && kind == Kind::Interface) || (is_protocol && kind == Kind::Protocol));
+                assert((is_interface && type_decl->kind() == Kind::Interface) ||
+                    (is_protocol && type_decl->kind() == Kind::Protocol));
                 const auto referenced = clang_getCursorReferenced(cursor);
                 assert(is_valid(referenced));
                 const auto referenced_type = as_string(clang_getCursorSpelling(referenced));
@@ -1441,7 +1445,8 @@ CXChildVisitResult SourceScanner::visit_impl(CXCursor cursor, CXCursor parent)
         case CXCursor_CompoundStmt:
             // Ignore @implementation and function bodies
             return CXChildVisit_Continue;
-        default:;
+        default:
+            break;
     }
 
     if (recurse) {

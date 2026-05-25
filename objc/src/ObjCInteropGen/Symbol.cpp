@@ -313,7 +313,7 @@ NonTypeSymbol& TypeDeclarationSymbol::add_field(std::string name, TypeLikeSymbol
     assert(kind() == Kind::Struct || kind() == Kind::Union);
 
     // Only bit-fields can be unnamed
-    assert(!name.empty() || modifiers & ModifierBitField);
+    assert(!name.empty() || (modifiers & ModifierBitField));
 
     // And once it is named, no other field with this name should exist
     assert(name.empty() ||
