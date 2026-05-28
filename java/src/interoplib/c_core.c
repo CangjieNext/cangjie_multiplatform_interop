@@ -10,7 +10,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#if !defined(__ANDROID__)
 #include <signal.h>
+#endif
 #include <ucontext.h>
 #include <stdbool.h>
 #include <ctype.h>
@@ -215,6 +217,7 @@ extern int InitCJRuntime(const struct RuntimeParam* param);
 extern int LoadCJLibraryWithInit(const char* libName);
 extern void setJavaVmAndInitClassLoading(JavaVM *vm, JNIEnv *env, jobject classLoader, jmethodID methodID, jclass javaLangClass);
 
+#if !defined(__ANDROID__)
 struct SignalAction {
     union {
         void (*saHandler)(int);
@@ -244,6 +247,7 @@ static void setEmptyDefaultSIGSEGVHandler() {
     sa.scFlags = 0;
     AddHandlerToSignalStack(SIGSEGV, &sa);
 }
+#endif
 
 static jclass javaLangClass = NULL;
 
@@ -275,7 +279,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     struct RuntimeParam param = {0};
     param.logParam.logLevel = InitLogLevel();
     InitCJRuntime(&param);
+#if !defined(__ANDROID__)
     setEmptyDefaultSIGSEGVHandler();
-
+#endif
     return JNI_VERSION_1_6;
 }

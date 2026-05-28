@@ -355,6 +355,8 @@ def build(args):
             clang_args += ["--target=" + args.target]
         if args.target_sysroot:
             clang_args += ["-isysroot", args.target_sysroot]
+        if args.target and ("android" in args.target):
+            clang_args += ["-D__ANDROID__"]
 
         clang_O = clang_args.copy() + ["-c", "-fstack-protector-strong", "-fPIC"]
         clang_O += ["-o", OUT_CINTEROPLIB_O]
