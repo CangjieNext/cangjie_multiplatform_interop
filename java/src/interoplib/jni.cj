@@ -2369,17 +2369,35 @@ protected func Java_CFFI_getFromRegistry<T>(env: JNIEnv_ptr, self: jlong): T {
     }
 }
 
+protected func Java_CFFI_getRegistryIdOrNone(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): ?jlong {
+    unsafe {
+        let envCJ : JNINativeInterface_ = env.read().read()
+        let jobj = obj.asJObject()
+        if (jobj.isNull()) {
+            return None
+        }
+
+        let objClass = envCJ.GetObjectClass(env, jobj)
+        let fieldId = envCJ.GetFieldID(env, objClass, cstrSelf, cstrJ)
+        if (fieldId.isNull()) {
+            throw InteropLibException("Error: Class is not registrable")
+        }
+
+        let id = envCJ.GetLongField(env, obj.asJObject(), fieldId)
+        return id
+    }
+}
+
+protected func Java_CFFI_getRegistryId(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): jlong {
+    return Java_CFFI_getRegistryIdOrNone(env, obj) ?? throw InteropLibException(
+        "Error: Object was not registered properly")
+}
+
 protected func Java_CFFI_getFromRegistryOption<T>(self: jlong): Option<T> {
     registry.get<T>(self)
 }
 
 protected func Java_CFFI_removeFromRegistry(self: jlong): Unit {
-    registry.remove(self)
-}
-
-protected func Java_CFFI_deleteCJObject<T>(env: JNIEnv_ptr, self: jlong, getEntity: (T) -> Java_CFFI_JavaEntity): Unit {
-    let v = Java_CFFI_getFromRegistry<T>(env, self)
-    Java_CFFI_deleteGlobalReference(env, getEntity(v))
     registry.remove(self)
 }
 
