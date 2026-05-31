@@ -39,6 +39,7 @@ public enum Modifiers {
     REDEF("redef"),
 
     CONST("const"),
+    FOREIGN("foreign"),
     MUT("mut"),
     UNSAFE("unsafe"),
     REQUIRED("required"),

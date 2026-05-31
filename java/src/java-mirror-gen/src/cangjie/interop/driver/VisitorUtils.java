@@ -253,7 +253,7 @@ public final class VisitorUtils {
     }
 
     public static CJTree.Expression createJavaMirrorAnnotation() {
-        return new CJTree.Expression.Name.SimpleName.IdentifierName("JavaMirror");
+        return new CJTree.Expression.Name.SimpleName.IdentifierName("Java");
     }
 
     public static String mangleClassName(Symbol.ClassSymbol typeSymbol) {

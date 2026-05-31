@@ -8,8 +8,8 @@ package java.lang
 
 import java.internal.*
 
-@JavaMirror["java.lang.String"]
-public class JString <: JObject {
+@Java["java.lang.String"]
+public foreign class JString <: JObject {
     public init()
     // There is an implicit interop intrinsic: init(value: String)
     public init(arg0: ?JString)

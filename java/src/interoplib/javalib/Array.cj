@@ -8,8 +8,8 @@ package java.lang
 
 import java.internal.*
 
-@JavaMirror["[]"]
-public class JArray<T> <: JObject {
+@Java["[]"]
+public foreign class JArray<T> <: JObject {
     public init(length: Int32)
     public let length: Int32
     public operator func [](index: Int32): T

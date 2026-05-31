@@ -385,18 +385,21 @@ public final class EmitMirrorVisitor {
         }
 
         final var cjModifiers = new ModifierList();
-        if (!classSymbol.getModifiers().contains(Modifier.FINAL) && !classSymbol.isInterface()
-                && !classSymbol.isAbstract()) {
-            cjModifiers.add(Modifiers.OPEN.toCJTree());
-        }
         if (classSymbol.getModifiers().contains(Modifier.PUBLIC)) {
             cjModifiers.add(Modifiers.PUBLIC.toCJTree());
         }
         if (classSymbol.getModifiers().contains(Modifier.PROTECTED)) {
             cjModifiers.add(Modifiers.PROTECTED.toCJTree());
         }
+        if (!classSymbol.getModifiers().contains(Modifier.FINAL) && !classSymbol.isInterface()
+                && !classSymbol.isAbstract()) {
+            cjModifiers.add(Modifiers.OPEN.toCJTree());
+        }
         if (classSymbol.isAbstract() && !classSymbol.isInterface()) {
             cjModifiers.add(Modifiers.ABSTRACT.toCJTree());
+        }
+        if (generateAnnotationMode) {
+            cjModifiers.add(Modifiers.FOREIGN.toCJTree());
         }
         classDecl.modifiers.addAll(cjModifiers);
 
