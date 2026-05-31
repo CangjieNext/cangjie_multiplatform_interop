@@ -646,13 +646,16 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
     } else {
         auto generate_definitions = generate_definitions_mode();
         if (!generate_definitions) {
-            output << "@ObjCMirror\n";
+            output << "@ObjC\n";
             format = SymbolPrintFormat::EmitCangjieStrict;
         }
         if (!selector_attribute.empty()) {
             write_foreign_name(output, "@ForeignName", selector_attribute, generate_definitions);
         }
         output << "public ";
+        if (!generate_definitions) {
+            output << "foreign ";
+        }
     }
     return format;
 }
@@ -761,7 +764,7 @@ static void print_objcmirror_attribute(std::ostream& output, bool supported)
     if (hide_objcmirror_attribute) {
         output << "/* ";
     }
-    output << "@ObjCMirror";
+    output << "@ObjC";
     if (hide_objcmirror_attribute) {
         output << " */";
     }
@@ -966,11 +969,13 @@ void TypeDeclarationWriter::write()
     //
     // In the GENERATE_DEFINITIONS mode, comment out @ObjCMirror from both
     // classes/interfaces and structures.
+    bool supported_mirror;
     switch (type_.kind()) {
         case NamedTypeSymbol::Kind::Protocol:
             decl_kind_ = DeclKind::Interface;
             format_ = SymbolPrintFormat::EmitCangjieStrict;
-            print_objcmirror_attribute(output_, !generate_definitions_mode());
+            supported_mirror = !generate_definitions_mode();
+            print_objcmirror_attribute(output_, supported_mirror);
             break;
         case NamedTypeSymbol::Kind::Struct:
         case NamedTypeSymbol::Kind::Union:
@@ -978,31 +983,44 @@ void TypeDeclarationWriter::write()
                 decl_kind_ = DeclKind::CStruct;
                 format_ = SymbolPrintFormat::EmitCangjie;
                 output_ << "@C\n";
+                supported_mirror = false;
             } else {
                 decl_kind_ = DeclKind::ObjCStruct;
                 format_ = SymbolPrintFormat::EmitCangjie;
-                print_objcmirror_attribute(output_, mode == Mode::EXPERIMENTAL);
+                supported_mirror = mode == Mode::EXPERIMENTAL;
+                print_objcmirror_attribute(output_, supported_mirror);
             }
             break;
         default:
             assert(type_.kind() == NamedTypeSymbol::Kind::Interface);
             decl_kind_ = DeclKind::Class;
             format_ = SymbolPrintFormat::EmitCangjieStrict;
-            print_objcmirror_attribute(output_, !generate_definitions_mode());
+            supported_mirror = !generate_definitions_mode();
+            print_objcmirror_attribute(output_, supported_mirror);
             break;
     }
     output_ << "public ";
     switch (decl_kind_) {
         case DeclKind::Interface:
+            if (supported_mirror) {
+                output_ << "foreign ";
+            }
             output_ << "interface";
             break;
         case DeclKind::CStruct:
         case DeclKind::ObjCStruct:
+            if (supported_mirror) {
+                output_ << "foreign ";
+            }
             output_ << "struct";
             break;
         default:
             assert(decl_kind_ == DeclKind::Class);
-            output_ << "open class";
+            output_ << "open ";
+            if (supported_mirror) {
+                output_ << "foreign ";
+            }
+            output_ << "class";
             break;
     }
     output_ << " " << escape_keyword(type_.name());
