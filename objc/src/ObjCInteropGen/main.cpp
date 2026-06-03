@@ -81,6 +81,33 @@ int main(int argc, char* argv[])
                 continue;
             }
 
+            if (starts_with(arg, "-D")) {
+                std::string_view definition;
+                if (arg.length() == 2) {
+                    if (++i < argc) {
+                        definition = argv[i];
+                    } else {
+                        std::cerr << "Macro definition of the <macro>=<value> form is expected" << std::endl;
+                        show_help(argv[0]);
+                        return 1;
+                    }
+                } else {
+                    definition = arg.substr(2);
+                }
+
+                const auto equals = definition.find('=');
+                if (equals == std::string_view::npos) {
+                    std::cerr << "Macro definition of the <macro>=<value> form is expected" << std::endl;
+                    show_help(argv[0]);
+                    return 1;
+                }
+
+                const std::string_view macro = definition.substr(0, equals);
+                const std::string_view value = definition.substr(equals + 1);
+                add_constant(macro, value);
+                continue;
+            }
+
             if (arg == "--generate-definitions") {
                 mode = Mode::GENERATE_DEFINITIONS;
                 continue;
