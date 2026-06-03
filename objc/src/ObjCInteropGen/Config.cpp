@@ -62,85 +62,109 @@ static void merge_to_left(toml::Value& lhs, const toml::Table& rhs)
     merge_to_left_array(lhs, rhs, "mappings");
 }
 
-class TomlFileParser {
-public:
-    [[nodiscard]] toml::Value parse(const std::string& path);
+struct ImportEntry final {
+    std::string original_path;
+    std::filesystem::path absolute_path;
 
-private:
-    std::vector<std::string> import_sequence;
-    std::unordered_map<std::string, std::vector<std::string>> imported;
+    ImportEntry(std::string original_path, const std::filesystem::path& modified_path)
+        : original_path(std::move(original_path))
+    {
+        absolute_path = std::filesystem::absolute(modified_path);
+    }
+
+    [[nodiscard]] std::string to_string() const
+    {
+        if (verbosity >= LogLevel::DIAGNOSTIC) {
+            return '`' + original_path + "` (`" + absolute_path.u8string() + "`)";
+        }
+        return '`' + original_path + '`';
+    }
 };
 
-[[nodiscard]] static std::string print_import_sequence(const std::vector<std::string>& import_sequence)
+class TomlFileParser {
+public:
+    [[nodiscard]] toml::Value parse(const ImportEntry& path);
+
+private:
+    std::vector<ImportEntry> import_sequence;
+    std::unordered_map<std::string, std::vector<ImportEntry>> imported;
+};
+
+[[nodiscard]] static std::string print_import_sequence(const std::vector<ImportEntry>& import_sequence)
 {
     assert(!import_sequence.empty());
     auto it = import_sequence.begin();
     auto end = import_sequence.end();
-    auto message = '`' + *it + '`';
+    auto message = it->to_string();
     for (++it; it != end; ++it) {
-        message += " -> `";
-        message += *it;
-        message += '`';
+        message += " -> ";
+        message += it->to_string();
     }
     return message;
 }
 
-toml::Value TomlFileParser::parse(const std::string& path)
+toml::Value TomlFileParser::parse(const ImportEntry& path)
 {
-    auto absolute_path = std::filesystem::absolute(path).u8string();
     if (verbosity >= LogLevel::INFO) {
-        std::cerr << "Reading TOML file `" << absolute_path << '`' << std::endl;
+        std::cerr << "Reading TOML file " << path.to_string() << std::endl;
+    }
+
+    if (!std::filesystem::exists(path.absolute_path)) {
+        fatal("TOML file ", path.to_string(), " doesn't exist");
+    }
+
+    if (std::filesystem::is_directory(path.absolute_path)) {
+        fatal("TOML path ", path.to_string(), " is a directory");
     }
 
     for (const auto& p : import_sequence) {
-        if (std::filesystem::absolute(p) == absolute_path) {
+        if (p.absolute_path == path.absolute_path) {
             import_sequence.push_back(path);
-            fatal('`', absolute_path, "`: recursive import: ", print_import_sequence(import_sequence));
+            fatal(path.to_string(), ": recursive import: ", print_import_sequence(import_sequence));
         }
     }
+
     import_sequence.push_back(path);
+
+    auto absolute_path = path.absolute_path.u8string();
     auto [it, new_path] = imported.try_emplace(absolute_path, import_sequence);
     if (!new_path) {
-        std::cerr << '`' << absolute_path
-                  << "`: multiple import\n"
-                     "  First import: "
-                  << print_import_sequence(it->second)
-                  << "\n"
-                     "  Additional import (ignored): "
-                  << print_import_sequence(import_sequence) << std::endl;
-        import_sequence.resize(import_sequence.size() - 1);
+        std::cerr << path.to_string() << ": multiple import\n"
+                  << "  First import: " << print_import_sequence(it->second) << "\n"
+                  << "  Additional import (ignored): " << print_import_sequence(import_sequence) << std::endl;
+        import_sequence.erase(import_sequence.end() - 1);
         return {};
     }
 
-    if (!std::filesystem::exists(path)) {
-        fatal("TOML file `", path, "` doesn't exist");
-    }
-
-    auto parse_result = toml::parseFile(path);
+    auto parse_result = toml::parseFile(absolute_path);
     if (!parse_result.valid()) {
         throw TomlParseError(absolute_path, parse_result.errorReason);
     }
     assert(parse_result.value.is<toml::Table>());
     if (const auto* imports_any = parse_result.value.find("imports")) {
         if (!imports_any->is<toml::Array>()) {
-            fatal("`imports` in `", path, "` should be a TOML array of strings");
+            fatal("`imports` in ", path.to_string(), " should be a TOML array of strings");
         }
         std::size_t i = 0;
         for (auto&& item_any : imports_any->as<toml::Array>()) {
             if (!item_any.is<std::string>()) {
-                fatal("`imports` in `", path, "` item #", i, " should be a string");
+                fatal("`imports` in ", path.to_string(), " item #", i, " should be a string");
             }
-            const auto& import_path = item_any.as<std::string>();
-            if (import_path.empty()) {
-                fatal("`imports` in `", path, "` item #", i, " is empty");
+            const auto& import_path_original_string = item_any.as<std::string>();
+            if (import_path_original_string.empty()) {
+                fatal("`imports` in ", path.to_string(), " item #", i, " is empty");
             }
 
+            const std::filesystem::path import_path_original = import_path_original_string;
+
+            ImportEntry import_path{import_path_original_string, import_path_original};
             auto import_config = parse(import_path);
             if (!import_config.empty()) {
                 assert(import_config.is<toml::Table>());
 
                 if (verbosity >= LogLevel::INFO) {
-                    std::cerr << "Merging TOML file `" << import_path << "` into `" << path << '`' << std::endl;
+                    std::cerr << "Merging TOML file " << import_path.to_string() << " into " << path.to_string()
+                              << std::endl;
                 }
 
                 merge_to_left(parse_result.value, import_config.as<toml::Table>());
@@ -148,14 +172,14 @@ toml::Value TomlFileParser::parse(const std::string& path)
             i++;
         }
     }
-    import_sequence.resize(import_sequence.size() - 1);
 
+    import_sequence.erase(import_sequence.end() - 1);
     return parse_result.value;
 }
 
 void Config::parse_from_toml_file(const std::string& path)
 {
-    g_config = TomlFileParser().parse(path);
+    g_config = TomlFileParser().parse(ImportEntry{path, path});
     assert(g_config.is<toml::Table>());
     const auto* closure_depth_value = g_config.find("closure-depth");
     if (closure_depth_value) {
