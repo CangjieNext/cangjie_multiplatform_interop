@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <unordered_map>
 
+#include "ExpandString.h"
 #include "FatalException.h"
 #include "Logging.h"
 #include "TomlParseError.h"
@@ -145,6 +146,10 @@ toml::Value TomlFileParser::parse(const ImportEntry& path)
         if (!imports_any->is<toml::Array>()) {
             fatal("`imports` in ", path.to_string(), " should be a TOML array of strings");
         }
+
+        assert(path.absolute_path.has_parent_path());
+        std::filesystem::path import_path_root = path.absolute_path.parent_path();
+
         std::size_t i = 0;
         for (auto&& item_any : imports_any->as<toml::Array>()) {
             if (!item_any.is<std::string>()) {
@@ -155,9 +160,20 @@ toml::Value TomlFileParser::parse(const ImportEntry& path)
                 fatal("`imports` in ", path.to_string(), " item #", i, " is empty");
             }
 
-            const std::filesystem::path import_path_original = import_path_original_string;
+            const std::filesystem::path import_path_original = expand_string(import_path_original_string);
+            std::filesystem::path import_path_modified;
+            if (import_path_original.is_absolute()) {
+                import_path_modified = import_path_original;
+            } else {
+                import_path_modified = import_path_root / import_path_original;
 
-            ImportEntry import_path{import_path_original_string, import_path_original};
+                if (!std::filesystem::exists(import_path_modified) && std::filesystem::exists(import_path_original)) {
+                    std::cerr << "Consider using $PWD to reference TOML file `" << import_path_original_string
+                              << "` from " << path.to_string() << std::endl;
+                }
+            }
+
+            ImportEntry import_path{import_path_original_string, import_path_modified};
             auto import_config = parse(import_path);
             if (!import_config.empty()) {
                 assert(import_config.is<toml::Table>());
