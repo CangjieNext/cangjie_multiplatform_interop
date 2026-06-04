@@ -180,14 +180,8 @@ template <class SetOperationFilter>
 
     auto& result = *new SetOperationFilter(package);
 
-    std::size_t i = 0;
     for (auto&& item_any : node.as<toml::Array>()) {
-        if (!item_any.is<toml::Table>()) {
-            fatal("`packages` entry `", package.cangjie_name(), "` ", SetOperationFilter::mode_name, " filter #", i,
-                " must be a TOML table");
-        }
-        result.add_argument(create_filter(package, item_any.as<toml::Table>()));
-        i++;
+        result.add_argument(create_filter(package, item_any));
     }
 
     if (result.empty()) {
