@@ -20,7 +20,7 @@ namespace objcgen {
 [[nodiscard]] std::optional<std::string> get_string_value(
     const toml::Table& config, std::string_view package_name, const std::string& property_name);
 
-[[nodiscard]] PackageFilter& create_filter(const Package& package, const toml::Table& table);
+[[nodiscard]] PackageFilter& create_filter(const Package& package, const toml::Value& node);
 
 [[nodiscard]] std::string compute_output_path(
     const std::string& name, const toml::Table& config, std::string_view package_cangjie_name);

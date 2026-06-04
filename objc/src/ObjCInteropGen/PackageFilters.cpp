@@ -270,4 +270,20 @@ PackageFilter& create_filter(const Package& package, const toml::Table& table)
     }
 }
 
+PackageFilter& create_filter(const Package& package, const toml::Value& node)
+{
+    if (node.is<toml::Table>()) {
+        return create_filter(package, node.as<toml::Table>());
+    }
+
+    if (node.is<std::string>() || node.is<toml::Array>()) {
+        toml::Table table;
+        table.emplace("include", node);
+        return create_filter(package, table);
+    }
+
+    fatal("`packages` entry `", package.cangjie_name(),
+        "` filter is expected to be a TOML table, a regex string or an array");
+}
+
 } // namespace objcgen
