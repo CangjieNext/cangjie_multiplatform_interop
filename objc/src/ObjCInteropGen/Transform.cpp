@@ -641,6 +641,12 @@ static void set_type_mappings() noexcept
     for (auto&& type : Universe::get().types()) {
         for (const auto* mapping : mappings) {
             if (mapping->can_map(type)) {
+                if (type.mapping()) {
+                    std::cerr << "Warning: multiple mappings can be applied to type `" << type.name()
+                              << "`.  Only the first one will be used." << std::endl;
+                    break;
+                }
+
                 type.set_mapping(mapping);
             }
         }

@@ -431,6 +431,11 @@ public:
         return kind_ == kind;
     }
 
+    [[nodiscard]] const TypeMapping* mapping() const noexcept
+    {
+        return mapping_;
+    }
+
     void set_mapping(const TypeMapping* mapping) noexcept;
 
     // String value for the @ObjCMirror attribute.  If empty, no value is specified
@@ -456,11 +461,6 @@ private:
     void rename(std::string new_name) noexcept;
 
     [[nodiscard]] bool is_optionable_reference() const noexcept override;
-
-    [[nodiscard]] const TypeMapping* mapping() const noexcept
-    {
-        return mapping_;
-    }
 
     const TypeMapping* mapping_ = nullptr;
 
