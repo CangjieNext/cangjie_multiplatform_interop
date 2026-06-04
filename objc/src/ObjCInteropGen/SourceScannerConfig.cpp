@@ -176,6 +176,16 @@ void parse_sources()
         if (mixins_any) {
             toml::Table entry = source_table;
 
+            if (entry.find("arguments-prepend") != entry.end()) {
+                std::cerr << "`sources` entry `" << source_name
+                          << "` should use `arguments` instead of `arguments-prepend`" << std::endl;
+            }
+
+            if (entry.find("arguments-append") != entry.end()) {
+                std::cerr << "`sources` entry `" << source_name
+                          << "` should use `arguments` instead of `arguments-append`" << std::endl;
+            }
+
             apply_mixins(*mixins_any, source_name, entry);
 
             parse_sources(entry, source_name, session);
