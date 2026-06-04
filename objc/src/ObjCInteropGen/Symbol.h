@@ -371,6 +371,11 @@ public:
         return kind_ == kind;
     }
 
+    [[nodiscard]] const TypeMapping* mapping() const noexcept
+    {
+        return mapping_;
+    }
+
     void set_mapping(const TypeMapping* mapping) noexcept;
 
 protected:
@@ -382,11 +387,6 @@ private:
     [[nodiscard]] TypeLikeSymbol& map() override;
 
     [[nodiscard]] bool is_optionable_reference() const noexcept override;
-
-    [[nodiscard]] const TypeMapping* mapping() const noexcept
-    {
-        return mapping_;
-    }
 
     const TypeMapping* mapping_ = nullptr;
     const Kind kind_;
