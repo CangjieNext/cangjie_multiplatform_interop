@@ -233,11 +233,7 @@ PackageFilter& create_filter(const Package& package, const toml::Table& table)
                 result = &create_set_filter<IntersectionFilter>(package, set_intersect_it->second);
             } else {
                 assert(set_not_it != e);
-                const auto& set_not = set_not_it->second;
-                if (!set_not.is<toml::Table>()) {
-                    fatal("`packages` entry `", package.cangjie_name(), "` not filter must be a TOML table");
-                }
-                result = new NotFilter(package, create_filter(package, set_not.as<toml::Table>()));
+                result = new NotFilter(package, create_filter(package, set_not_it->second));
             }
 
             if (filter_it == e && filter_not_it == e) {
