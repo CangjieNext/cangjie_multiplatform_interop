@@ -639,8 +639,8 @@ static void transform_visit()
 static void set_type_mappings() noexcept
 {
     for (auto&& type : Universe::get().types()) {
-        for (const auto& mapping : mappings) {
-            if (mapping.can_map(type)) {
+        for (const auto* mapping : mappings) {
+            if (mapping->can_map(type)) {
                 type.set_mapping(mapping);
             }
         }

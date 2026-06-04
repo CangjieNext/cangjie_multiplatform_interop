@@ -22,7 +22,7 @@ class PackageFile;
 class Type;
 class TypeDeclarationSymbol;
 class TypeLikeSymbol;
-class TypeMapping;
+struct TypeMapping;
 
 enum class PrintFormat {
     // The object is printed "as is".  This is good for readability (for example, in
@@ -431,7 +431,7 @@ public:
         return kind_ == kind;
     }
 
-    void set_mapping(const TypeMapping& mapping) noexcept;
+    void set_mapping(const TypeMapping* mapping) noexcept;
 
     // String value for the @ObjCMirror attribute.  If empty, no value is specified
     // for @ObjCMirror.
