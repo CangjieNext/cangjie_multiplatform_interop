@@ -44,37 +44,47 @@ static void toml_array_to_vector(const toml::Table& table, const std::string& so
 }
 
 [[nodiscard]] static bool is_mixin_applicable(
+    const std::string& source_name, const std::string& item_name, const std::string& mixin_source_string)
+{
+    try {
+        auto mixin_source_regex = std::regex(mixin_source_string);
+        const auto regex_match = std::regex_match(source_name.begin(), source_name.end(), mixin_source_regex);
+
+        if (verbosity >= LogLevel::DEBUG) {
+            std::cerr << item_name << " (`" << mixin_source_string << "`) does" << (regex_match ? "" : " NOT")
+                      << " match source `" << source_name << '`' << std::endl;
+        }
+
+        return regex_match;
+    } catch (const std::regex_error& e) {
+        fatal(item_name, " (`", mixin_source_string, "`) has thrown an error: ", describe_regex_error(e.code()));
+    }
+}
+
+[[nodiscard]] static bool is_mixin_applicable(
     const std::string& source_name, const std::string& mixin_name, const toml::Array& mixin_sources_array)
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
-        std::cerr << "`sources-mixins` entry `" << mixin_name
-                  << "` is being being checked for applicability to `sources` entry `" << source_name << '`'
+        std::cerr << "`sources-mixins` " << mixin_name
+                  << " is being being checked for applicability to `sources` entry `" << source_name << '`'
                   << std::endl;
     }
 
     std::size_t i = 0;
     for (auto&& mixin_source_any : mixin_sources_array) {
+        std::string item_name = "`sources-mixins` " + mixin_name + " array `sources` item #" + std::to_string(i);
         if (!mixin_source_any.is<std::string>()) {
-            fatal("`sources-mixins` entry `", mixin_name, "` array `sources` item #", i, " is not a TOML string");
+            fatal(item_name, " is not a TOML string");
         }
+
         const auto& mixin_source_string = mixin_source_any.as<std::string>();
-        try {
-            auto mixin_source_regex = std::regex(mixin_source_string);
-            const auto regex_match = std::regex_match(source_name.begin(), source_name.end(), mixin_source_regex);
-            if (verbosity >= LogLevel::DEBUG) {
-                std::cerr << "`sources-mixins` entry `" << mixin_name << "` array `sources` item #" << i << " (`"
-                          << mixin_source_string << "`) does" << (regex_match ? "" : " NOT") << " match source `"
-                          << source_name << '`' << std::endl;
-            }
-            if (regex_match) {
-                return true;
-            }
-        } catch (const std::regex_error& e) {
-            fatal("`sources-mixins` entry `", mixin_name, "` array `sources` item #", i, " (`", mixin_source_string,
-                "`) has thrown an error: ", describe_regex_error(e.code()));
+        if (is_mixin_applicable(source_name, item_name, mixin_source_string)) {
+            return true;
         }
+
         i++;
     }
+
     return false;
 }
 
@@ -94,7 +104,7 @@ static void merge_array_property(toml::Table& current, const toml::Table& mixin,
 
     const auto& mixin_any = mixin_it->second;
     if (!mixin_any.is<toml::Array>()) {
-        fatal("`sources-mixins` entry `", mixin_name, "` property `", property_name, "` should be a TOML array");
+        fatal("`sources-mixins` ", mixin_name, " property `", property_name, "` should be a TOML array");
     }
     for (auto&& item_any : mixin_any.as<toml::Array>()) {
         current_array.push(item_any);
@@ -105,7 +115,7 @@ static void apply_mixin(
     const std::string& source_name, const std::string& mixin_name, toml::Table& table, const toml::Table& mixin)
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
-        std::cerr << "`sources-mixins` entry `" << mixin_name << "` is being applied to `sources` entry `"
+        std::cerr << "`sources-mixins` " << mixin_name << " is being applied to `sources` entry `"
                   << source_name << '`' << std::endl;
     }
 
@@ -113,28 +123,39 @@ static void apply_mixin(
     merge_array_property(table, mixin, source_name, mixin_name, "arguments-append");
 }
 
+static void apply_mixin(const std::string& source_name, const std::string& mixin_name, toml::Table& table, const toml::Value& mixin_any)
+{
+    if (!mixin_any.is<toml::Table>()) {
+        fatal("`sources-mixins` ", mixin_name, " is not a TOML table");
+    }
+
+    const auto& mixin = mixin_any.as<toml::Table>();
+    auto mixin_sources_it = mixin.find("sources");
+    if (mixin_sources_it == mixin.end()) {
+        fatal("`sources-mixins` ", mixin_name, " has no `sources` entry");
+    }
+
+    const auto& mixin_sources_any = mixin_sources_it->second;
+    if (!mixin_sources_any.is<toml::Array>()) {
+        fatal("`sources-mixins` ", mixin_name, " must have `sources` filter TOML array property");
+    }
+
+    if (is_mixin_applicable(source_name, mixin_name, mixin_sources_any.as<toml::Array>())) {
+        apply_mixin(source_name, mixin_name, table, mixin);
+    }
+}
+
 static void apply_mixins(const toml::Value& mixins_any, const std::string& source_name, toml::Table& entry)
 {
-    if (!mixins_any.is<toml::Table>()) {
-        fatal("`sources-mixins` should be a TOML table");
+    if (mixins_any.is<toml::Table>()) {
+        for (auto&& [mixin_key, mixin_any] : mixins_any.as<toml::Table>()) {
+            std::string mixin_name = "entry `" + mixin_key + '`';
+            apply_mixin(source_name, mixin_name, entry, mixin_any);
+        }
+        return;
     }
-    for (auto&& [mixin_name, mixin_any] : mixins_any.as<toml::Table>()) {
-        if (!mixin_any.is<toml::Table>()) {
-            fatal("`sources-mixins` entry `", mixin_name, "` is not a TOML table");
-        }
-        const auto& mixin = mixin_any.as<toml::Table>();
-        auto mixin_sources_it = mixin.find("sources");
-        if (mixin_sources_it == mixin.end()) {
-            fatal("`sources-mixins` entry `", mixin_name, "` has no `sources` entry");
-        }
-        const auto& mixin_sources_any = mixin_sources_it->second;
-        if (!mixin_sources_any.is<toml::Array>()) {
-            fatal("`sources-mixins` entry `", mixin_name, "` must have TOML array `sources`");
-        }
-        if (is_mixin_applicable(source_name, mixin_name, mixin_sources_any.as<toml::Array>())) {
-            apply_mixin(source_name, mixin_name, entry, mixin);
-        }
-    }
+
+    fatal("`sources-mixins` should be a TOML table");
 }
 
 static void parse_sources(const toml::Table& options, const std::string& source_name, ClangSession& session)
