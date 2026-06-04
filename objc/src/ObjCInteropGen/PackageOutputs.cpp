@@ -122,6 +122,10 @@ std::optional<std::string> get_string_value(
 std::string compute_output_path(
     const std::string& name, const toml::Table& config, const std::string_view package_cangjie_name)
 {
+    if (config.find("output-path") != config.end() && config.find("output-root") != config.end()) {
+        fatal("`packages` entry ", name, " has mutually exclusive `output-path` and `output-root` properties");
+    }
+
     auto output_path = get_string_value(config, name, "output-path");
     if (output_path) {
         return *output_path;
