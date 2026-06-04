@@ -20,7 +20,7 @@ class Package;
 class PackageFile;
 class SymbolVisitor;
 class TypeDeclarationSymbol;
-class TypeMapping;
+struct TypeMapping;
 
 enum class PrintFormat {
     // The object is printed "as is".  This is good for readability (for example, in
@@ -371,7 +371,7 @@ public:
         return kind_ == kind;
     }
 
-    void set_mapping(const TypeMapping& mapping) noexcept;
+    void set_mapping(const TypeMapping* mapping) noexcept;
 
 protected:
     explicit NamedTypeSymbol(const Kind kind, std::string name) noexcept : TypeLikeSymbol(std::move(name)), kind_(kind)

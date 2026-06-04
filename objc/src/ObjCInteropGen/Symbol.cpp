@@ -685,17 +685,17 @@ void NamedTypeSymbol::print(std::ostream& stream, PrintFormat) const
     stream << escape_keyword(name());
 }
 
-void NamedTypeSymbol::set_mapping(const TypeMapping& mapping) noexcept
+void NamedTypeSymbol::set_mapping(const TypeMapping* mapping) noexcept
 {
     assert(mapping_ == nullptr);
-    mapping_ = &mapping;
+    mapping_ = mapping;
 }
 
 TypeLikeSymbol& NamedTypeSymbol::map()
 {
     if (auto* mapping = this->mapping()) {
         assert(mapping->can_map(*this));
-        return mapping->map();
+        return mapping->map(*this);
     }
     return *this;
 }

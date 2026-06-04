@@ -539,8 +539,8 @@ static void replace_instancetype()
 static void set_type_mappings() noexcept
 {
     for (auto&& type : Universe::get().all_declarations()) {
-        for (const auto& mapping : mappings) {
-            if (mapping.can_map(type)) {
+        for (const auto* mapping : mappings) {
+            if (mapping->can_map(type)) {
                 type.set_mapping(mapping);
             }
         }

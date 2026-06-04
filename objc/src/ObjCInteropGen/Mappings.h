@@ -9,31 +9,20 @@
 #define MAPPINGS_H
 
 #include <string>
-#include <unordered_set>
 
 #include "Symbol.h"
 
 namespace objcgen {
 
-class TypeMapping final {
-public:
-    explicit TypeMapping(std::string from, std::string to) noexcept : from_(std::move(from)), to_(std::move(to))
-    {
-    }
+struct TypeMapping {
+    virtual ~TypeMapping() = default;
 
-    [[nodiscard]] bool can_map(const NamedTypeSymbol& type) const noexcept
-    {
-        return from_ == type.name();
-    }
+    [[nodiscard]] virtual bool can_map(const NamedTypeSymbol& type) const noexcept = 0;
 
-    [[nodiscard]] NamedTypeSymbol& map() const;
-
-private:
-    const std::string from_;
-    const std::string to_;
+    virtual TypeLikeSymbol& map(NamedTypeSymbol& type) const = 0;
 };
 
-extern std::deque<TypeMapping> mappings;
+extern std::deque<TypeMapping*> mappings;
 
 void initialize_mappings();
 
