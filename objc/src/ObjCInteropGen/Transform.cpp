@@ -114,10 +114,10 @@ static void fix_override_return_types(TypeDeclarationSymbol& type) noexcept
  * 1) In Cangjie, Option is not covariant.  If the overridden and overrider have
  * different nullabilities, fix the result type of the overrider.
  *
- * 3) In Cangjie, Option is not covariant.  If both the overridden and overrider
+ * 2) In Cangjie, Option is not covariant.  If both the overridden and overrider
  * are nullable, ensure that the overrider does not change the result type.
  *
- * 2) In Objective-C, contravariant return types are allowed.  That will not
+ * 3) In Objective-C, contravariant return types are allowed.  That will not
  * compile in Cangjie. Fix the result type of the overrider accordingly.
  */
 static void fix_override_return_types()
@@ -384,39 +384,6 @@ static void resolve_member_name_clashes(TypeDeclarationSymbol& type)
     type.mark_member_name_clashes_resolved();
 }
 
-/**
- * Removes duplicate method declarations. In Objective-C, it is allowed to
- * declare a method more than once.  In Cangjie, it is not.
- */
-static void remove_duplicates(TypeDeclarationSymbol& type)
-{
-    auto num_members = type.member_count();
-    for (size_t i = 0; i < num_members; ++i) {
-        const auto& member_i = type.member(i);
-        auto kind_i = member_i.kind();
-        auto is_static_i = member_i.is_static();
-        const auto& name_i = member_i.name();
-        switch (kind_i) {
-            case NonTypeSymbol::Kind::Property:
-            case NonTypeSymbol::Kind::MemberMethod:
-            case NonTypeSymbol::Kind::Constructor:
-                for (size_t j = i + 1; j < num_members;) {
-                    const auto& member_j = type.member(j);
-                    if (member_j.kind() == kind_i && member_j.is_static() == is_static_i && member_j.name() == name_i) {
-                        assert(member_j.parameters().size() == member_i.parameters().size());
-                        type.member_remove(j);
-                        --num_members;
-                    } else {
-                        ++j;
-                    }
-                }
-                break;
-            default:
-                break;
-        }
-    }
-}
-
 static void do_rename()
 {
     auto& universe = Universe::get();
@@ -448,8 +415,6 @@ static void do_rename()
                 }
             }
         }
-
-        remove_duplicates(type);
 
         for (auto&& member : type.members()) {
             const auto& name = member.name();
@@ -596,10 +561,9 @@ void apply_transforms()
     fix_override_return_types();
 
     // 1) Resolve class/protocol name clashes.
-    // 2) Remove duplicate member declarations.
-    // 3) Rename methods in accordance with their Objective-C selectors.
-    // 4) Resolve static/instance name clashes.
-    // 5) Resolve global function - class/protocol/structure name clashes.
+    // 2) Rename methods in accordance with their Objective-C selectors.
+    // 3) Resolve static/instance name clashes.
+    // 4) Resolve global function - class/protocol/structure name clashes.
     do_rename();
 
     // Apply mappings
