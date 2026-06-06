@@ -628,7 +628,8 @@ private:
 
     [[nodiscard]] bool is_ctype() const noexcept override
     {
-        return true;
+        // va_list internals should never be exposed, even though they are technically C types.
+        return name() != "__builtin_va_list";
     }
 
     const Type underlying_type_;
