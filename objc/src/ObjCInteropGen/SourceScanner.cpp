@@ -63,6 +63,8 @@ private:
     // It doesn't appear there is a way around it, other than to keep track of what we already visited.
     std::unordered_set<CXCursor, CXCursorHash> visited_;
 
+    std::unordered_set<std::string> used_symbols_;
+
     // When a function is processed, and the function returns a function pointer
     // defined in-place, then the visitor visits the return type parameters as
     // direct children of the function, before the parameters of the function.  That
@@ -205,6 +207,8 @@ private:
     [[nodiscard]] TypeDeclarationSymbol& get_owner_generic_type() const noexcept;
 
     [[nodiscard]] Type get_type_parameter(const CXType& type, Nullability nullability) const;
+
+    [[nodiscard]] bool mark_symbol_used(const CXCursor& cursor);
 };
 
 class ClangSessionImpl final : public ClangSession, private NonCopyable {
@@ -785,6 +789,12 @@ Type SourceScanner::get_type_parameter(const CXType& type, Nullability nullabili
     return {};
 }
 
+bool SourceScanner::mark_symbol_used(const CXCursor& cursor)
+{
+    auto name = as_string(clang_getCursorUSR(cursor));
+    return used_symbols_.emplace(std::move(name)).second;
+}
+
 Type SourceScanner::type_like_symbol(const CXType& type, Nullability nullability)
 {
     assert(type.kind != CXType_Invalid);
@@ -1240,18 +1250,26 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             break;
         }
         case CXCursor_ObjCInstanceMethodDecl:
-            pushed = &(is_init_method(cursor) ? push_constructor(cursor, std::move(name))
-                                              : push_member_method(cursor, std::move(name),
-                                                    clang_Cursor_isObjCOptional(cursor) ? ModifierOptional : 0));
-            this->func_parameter_index_ = 0;
+            if (mark_symbol_used(cursor)) {
+                pushed = &(is_init_method(cursor) ? push_constructor(cursor, std::move(name))
+                                                  : push_member_method(cursor, std::move(name),
+                                                        clang_Cursor_isObjCOptional(cursor) ? ModifierOptional : 0));
+                this->func_parameter_index_ = 0;
+            } else {
+                recurse = false;
+            }
             break;
         case CXCursor_ObjCClassMethodDecl: {
-            auto modifiers = ModifierStatic;
-            if (clang_Cursor_isObjCOptional(cursor)) {
-                modifiers |= ModifierOptional;
+            if (mark_symbol_used(cursor)) {
+                auto modifiers = ModifierStatic;
+                if (clang_Cursor_isObjCOptional(cursor)) {
+                    modifiers |= ModifierOptional;
+                }
+                pushed = &push_member_method(cursor, std::move(name), modifiers);
+                this->func_parameter_index_ = 0;
+            } else {
+                recurse = false;
             }
-            pushed = &push_member_method(cursor, std::move(name), modifiers);
-            this->func_parameter_index_ = 0;
             break;
         }
         case CXCursor_ObjCPropertyDecl: {
@@ -1341,8 +1359,12 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             }
             break;
         case CXCursor_FunctionDecl:
-            pushed = &push_top_level_function(cursor, std::move(name));
-            this->func_parameter_index_ = 0;
+            if (mark_symbol_used(cursor)) {
+                pushed = &push_top_level_function(cursor, std::move(name));
+                this->func_parameter_index_ = 0;
+            } else {
+                recurse = false;
+            }
             break;
         case CXCursor_VarDecl:
             // We don't support variables (generic C interop) at the moment.
