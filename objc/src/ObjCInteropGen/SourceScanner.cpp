@@ -528,6 +528,12 @@ template <CXTypeKind type_kind> Type SourceScanner::get_named_type(const CXType&
                 //
                 // The declaration is not visited by libclang.  Initialize it with the target
                 // obtained explicitly with libclang API.
+
+                // The va_list internals must never be mapped to Cangjie.
+                if (name == "__builtin_va_list") {
+                    return get_named_type<CXType_Unexposed>(type, nullability);
+                }
+
                 auto cx_target = clang_getTypedefDeclUnderlyingType(decl);
                 assert(is_valid(cx_target));
                 symbol->as<TypeAliasSymbol>().set_target(type_like_symbol(cx_target, nullability));
