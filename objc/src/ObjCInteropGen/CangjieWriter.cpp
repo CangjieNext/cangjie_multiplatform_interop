@@ -708,6 +708,11 @@ enum class DeclKind { CStruct, ObjCStruct, Interface, Class };
     if (!normal_mode()) {
         return true;
     }
+    if (type.kind() == Type::Kind::Named) {
+        if (type.name() == "IMP" || (type.has_symbol_assigned() && &type.symbol() == &Universe::get().sel())) {
+            return false;
+        }
+    }
     switch (decl_kind) {
         case DeclKind::CStruct:
             assert(type.is_ctype());
