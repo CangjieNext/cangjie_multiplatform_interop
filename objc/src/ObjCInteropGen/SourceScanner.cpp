@@ -642,9 +642,6 @@ struct UndecorateResult {
 
 [[nodiscard]] static PrimitiveTypeSymbol* primitive_type(const CXType& type)
 {
-    assert(type.kind >= CXType_FirstBuiltin && type.kind <= CXType_LastBuiltin && type.kind != CXType_NullPtr &&
-        type.kind != CXType_Overload && type.kind != CXType_Dependent && type.kind != CXType_ObjCId &&
-        type.kind != CXType_ObjCClass && type.kind != CXType_ObjCSel);
     auto& universe = Universe::get();
     switch (type.kind) {
         case CXType_Void:
