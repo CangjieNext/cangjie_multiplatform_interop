@@ -700,6 +700,10 @@ TypeDeclarationWriter::TypeDeclarationWriter(IndentingStringStream& output, Type
 bool TypeDeclarationWriter::is_property_or_ivar_type_supported(
     NonTypeSymbol& member, const Type& type, const std::string& name) const
 {
+    if (type.kind() == Type::Kind::Named &&
+        (type.name() == "IMP" || (type.has_symbol_assigned() && &type.symbol() == &Universe::get().sel()))) {
+        return false;
+    }
     return !normal_mode() || (is_objc_compatible(type) && !has_name_clash_with_referenced_types(member, name, format_));
 }
 
