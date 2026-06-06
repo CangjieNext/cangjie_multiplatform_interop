@@ -423,7 +423,10 @@ static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method
             return t2.kind() == Type::Kind::VArray && t1.varray_size() == t2.varray_size() &&
                 same_types(t1.varray_element_type(), t2.varray_element_type());
         case Type::Kind::TypeParam:
-            return t2.kind() == Type::Kind::TypeParam && &t1.actual_protocol() == &t2.actual_protocol();
+            if (t2.kind() == Type::Kind::TypeParam) {
+                return &t1.actual_protocol() == &t2.actual_protocol();
+            }
+            return t2.kind() == Type::Kind::Named && &t1.actual_protocol() == &t2.symbol();
         default:
             return symbol1 == symbol2;
     }
