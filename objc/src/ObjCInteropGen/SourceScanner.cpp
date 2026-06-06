@@ -332,7 +332,17 @@ Type SourceScanner::create_func_like_type(BuiltInTypeSymbol& func_like_symbol, c
 std::string SourceScanner::new_anonymous_name(const CXCursor& decl)
 {
     assert(clang_Cursor_isAnonymous(decl));
-    auto file_name = declaring_file_name(decl);
+    auto file_name_original = declaring_file_name(decl);
+    std::string file_name;
+    file_name.reserve(file_name_original.size());
+    for (char c : file_name_original) {
+        if (isalnum(c) || c == '_') {
+            file_name += c;
+        } else {
+            file_name += '_';
+        }
+    }
+
     std::uint64_t index = 1;
     if (auto&& [item, inserted] = unnamed_decl_counts_.try_emplace(file_name, index); !inserted) {
         index = ++item->second;
