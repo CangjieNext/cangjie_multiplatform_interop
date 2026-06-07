@@ -555,9 +555,11 @@ private:
 };
 
 /**
- * Either a type that libclang does not provide enough info about
- * (CXType_Unexposed), or an Objective-C type not supported in Cangjie (for
- * example, __int128).
+ * Type that has a name in Objective-C but is not declared at all at the Cangjie
+ * side.  This is a type that has no declaration in a source Objective-C file --
+ * either a built-in Objective-C type not supported in Cangjie (like __int128)
+ * or a type that libclang does not provide enough info about
+ * (CXType_Unexposed).
  *
  * For fields and variables, this type is mapped to a primitive or to VArray of
  * the corresponding size.
