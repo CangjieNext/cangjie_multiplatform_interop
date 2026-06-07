@@ -381,6 +381,45 @@ static void do_rename()
     }
 }
 
+static void replace_return_instancetype(TypeDeclarationSymbol& decl, NonTypeSymbol& method, Nullability nullability)
+{
+    std::vector<Type> args;
+    args.reserve(decl.parameter_count());
+    for (auto& parameter : decl.parameters()) {
+        args.emplace_back(parameter, nullability);
+    }
+    method.set_return_type(Type(decl, std::move(args), nullability));
+}
+
+static void replace_instancetype()
+{
+    for (auto& decl : Universe::get().type_definitions()) {
+        switch (decl.kind()) {
+            case NamedTypeSymbol::Kind::Interface:
+            case NamedTypeSymbol::Kind::Protocol:
+                for (auto& member : decl.members()) {
+                    if (member.kind() == NonTypeSymbol::Kind::MemberMethod) {
+                        if (member.is_constructor()) {
+                            // For 'init' methods, the cjc frontend requires the return type to be strictly
+                            // the declaring class, and the nullability must be nonnull.
+                            replace_return_instancetype(decl, member, Nullability::Nonnull);
+                        } else {
+                            // For non-@ObjCInit methods, `instancetype` is mapped to the declaring class,
+                            // keeping the original nullability.
+                            const auto& original_return_type = member.return_type();
+                            if (original_return_type.symbol().name() == "instancetype") {
+                                replace_return_instancetype(decl, member, original_return_type.nullability());
+                            }
+                        }
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
+}
+
 static void set_type_mappings() noexcept
 {
     for (auto&& type : Universe::get().all_declarations()) {
@@ -424,8 +463,13 @@ static void do_map()
 
 void apply_transforms()
 {
+    // 1) Replace `instancetype` by the declaring class type.
+    // 2) Replace the constructor return type by the strictly nonnull declaring
+    //    class type (that is a cjc frontend requirement).
+    replace_instancetype();
+
     // 1) Resolve contravariance and nullability clashes in return types of override
-    // methods.
+    //    methods.
     // 2) Set ModifierOverride where needed.
     fix_override_return_types();
 
