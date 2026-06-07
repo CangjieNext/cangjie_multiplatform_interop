@@ -531,7 +531,7 @@ private:
         return false;
     }
 
-    [[nodiscard]] virtual bool is_ctype() const noexcept override
+    [[nodiscard]] bool is_ctype() const noexcept override
     {
         return true;
     }
