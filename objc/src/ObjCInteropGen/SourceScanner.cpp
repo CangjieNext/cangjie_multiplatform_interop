@@ -29,15 +29,6 @@
 
 namespace objcgen {
 
-struct CXTypeHash {
-    [[nodiscard]] size_t operator()(const CXType& x) const noexcept
-    {
-        constexpr unsigned hashBase = 31;
-        // Beware: libclang implementation details
-        return std::hash<void*>()(x.data[0]) * hashBase + std::hash<void*>()(x.data[1]);
-    }
-};
-
 struct CXCursorHash {
     [[nodiscard]] size_t operator()(const CXCursor& x) const noexcept
     {
@@ -59,9 +50,10 @@ private:
     // Nesting stack.
     std::deque<FileLevelSymbol*> current_;
 
-    // We have to name the anonymous types, use declaring file name + incrementing index suffix
-    std::unordered_map<CXType, NamedTypeSymbol*, CXTypeHash> anonymous_;
-    std::unordered_map<std::string, std::uint64_t> anonymous_count_;
+    // We have to name the unnamed structs/unions/enums, use declaring file name +
+    // incrementing index suffix
+    std::unordered_map<CXCursor, NamedTypeSymbol*, CXCursorHash> unnamed_decls_;
+    std::unordered_map<std::string, std::uint64_t> unnamed_decl_counts_;
 
     // libclang AST visitor visits some declarations multiple times.
     // For instance, struct X { struct { int a; } b; } will visit the inner struct twice:
@@ -193,7 +185,7 @@ private:
 
     [[nodiscard]] std::string new_anonymous_name(const CXCursor& decl);
 
-    template <CXTypeKind kind> [[nodiscard]] Type get_type_symbol(const CXType& type, Nullability nullability);
+    template <CXTypeKind kind> [[nodiscard]] Type get_named_type(const CXType& type, Nullability nullability);
 
     [[nodiscard]] Type create_func_like_type(BuiltInTypeSymbol& func_like_symbol, const CXType& type);
 
@@ -305,12 +297,6 @@ static std::ostream& operator<<(std::ostream& stream, const String& string)
     return type.kind != CXType_Invalid;
 }
 
-[[nodiscard]] static bool is_anonymous(const CXCursor& cursor)
-{
-    assert(is_valid(cursor));
-    return !!clang_Cursor_isAnonymous(cursor) || !!clang_Cursor_isAnonymousRecordDecl(cursor);
-}
-
 [[nodiscard]] static bool is_canonical(const CXCursor& cursor)
 {
     assert(is_valid(cursor));
@@ -408,10 +394,10 @@ Type SourceScanner::create_func_like_type(BuiltInTypeSymbol& func_like_symbol, c
 
 std::string SourceScanner::new_anonymous_name(const CXCursor& decl)
 {
-    assert(is_anonymous(decl));
+    assert(clang_Cursor_isAnonymous(decl));
     auto file_name = declaring_file_name(decl);
     std::uint64_t index = 1;
-    if (auto&& [item, inserted] = anonymous_count_.try_emplace(file_name, index); !inserted) {
+    if (auto&& [item, inserted] = unnamed_decl_counts_.try_emplace(file_name, index); !inserted) {
         index = ++item->second;
     }
     return "__" + file_name + '_' + std::to_string(index);
@@ -432,72 +418,47 @@ std::string SourceScanner::new_anonymous_name(const CXCursor& decl)
     }
 }
 
-[[nodiscard]] static std::string get_type_name(const CXCursor& decl, const CXType& type)
+[[nodiscard]] static UnexposedTypeSymbol& create_unexposed_type_symbol(const CXType& type, std::string name)
 {
-    auto type_name = as_string(clang_getTypeSpelling(type));
-    if constexpr (CLANG_VERSION_MAJOR < 16) {
-        remove_prefix_in_place(type_name, "const ");
-        remove_prefix_in_place(type_name, "volatile ");
-        if (ends_with(type_name, "*restrict")) {
-            remove_prefix_in_place(type_name, "restrict");
-        }
-    }
-    remove_prefix_in_place(type_name, "__strong ");
-    remove_prefix_in_place(type_name, "__unsafe_unretained ");
-    remove_prefix_in_place(type_name, "__autoreleasing ");
-    switch (decl.kind) {
-        case CXCursor_StructDecl:
-            remove_prefix_in_place(type_name, "struct ");
-            break;
-        case CXCursor_UnionDecl:
-            remove_prefix_in_place(type_name, "union ");
-            break;
-        case CXCursor_EnumDecl:
-            remove_prefix_in_place(type_name, "enum ");
-            break;
-        default:
-            break;
-    }
-    return type_name;
+    auto size = clang_Type_getSizeOf(type);
+    return *new UnexposedTypeSymbol(std::move(name), size < 0 ? 0 : static_cast<size_t>(size));
 }
 
-template <CXTypeKind type_kind> Type SourceScanner::get_type_symbol(const CXType& type, Nullability nullability)
+template <CXTypeKind type_kind> Type SourceScanner::get_named_type(const CXType& type, Nullability nullability)
 {
-    constexpr auto can_be_anonymous = type_kind == CXType_Record || type_kind == CXType_Enum;
-    if constexpr (can_be_anonymous) {
-        auto it = anonymous_.find(type);
-        if (it != anonymous_.end()) {
-            return Type(*it->second, nullability);
-        }
-    }
-
+    assert(type.kind == type_kind || type_kind == CXType_Unexposed);
     auto decl = clang_getTypeDeclaration(type);
-    Location loc;
-    if (is_valid(decl)) {
-        loc = get_location(decl);
-        if constexpr (type_kind == CXType_Typedef) {
-            if (loc.is_null()) {
-                // The type has a declaration that has no file location.  This means a built-in
-                // clang type, for example:
+    assert(is_valid(decl) || type_kind == CXType_Unexposed);
+
+    bool unnamed;
+    if constexpr (type_kind == CXType_Record || type_kind == CXType_Enum) {
+        if constexpr (type_kind == CXType_Record) {
+            if (clang_Cursor_isAnonymousRecordDecl(decl)) {
+                // This is an anonymous struct or union, like this:
                 //
-                //   Protocol          - a built-in interface
-                //   __builtin_va_list - alias for `char*`
-                //   __uuint128_t      - alias for `unsigned __int128`.
+                // struct T {
+                //     struct {
+                //         int x;
+                //     };
+                // };
                 //
-                // The declaration of such a type is not visited by libclang.  That is, the
-                // mirror type will not be declared, which could result in cjc compiler errors.
-                // If the built-in type is actually a typedef (alias), we will return its target
-                // type obtained via libclang API.
-                auto cx_target = clang_getTypedefDeclUnderlyingType(decl);
-                if (cx_target.kind != CXType_Invalid) {
-                    return type_like_symbol(cx_target, nullability);
-                }
+                // Its members are considered to be members of the enclosing struct or union.  The structure itself is
+                // ignored and does not go to Cangjie.
+                return {};
             }
         }
-    }
 
-    bool anonymous = can_be_anonymous && is_anonymous(decl);
-    std::string name = anonymous ? new_anonymous_name(decl) : get_type_name(decl, type);
+        unnamed = clang_Cursor_isAnonymous(decl);
+        if (unnamed) {
+            // This is a struct/union/enum without a tag (but not an anonymous struct/union).
+            auto it = unnamed_decls_.find(decl);
+            if (it != unnamed_decls_.end()) {
+                return Type(*it->second, nullability);
+            }
+        }
+    } else {
+        unnamed = false;
+    }
 
     NamedTypeSymbol::Kind symbol_kind;
     if constexpr (type_kind == CXType_Typedef) {
@@ -514,31 +475,88 @@ template <CXTypeKind type_kind> Type SourceScanner::get_type_symbol(const CXType
         symbol_kind = decl.kind == CXCursor_UnionDecl ? NamedTypeSymbol::Kind::Union : NamedTypeSymbol::Kind::Struct;
     }
 
+    std::string name;
+    if constexpr (type_kind == CXType_Unexposed) {
+        name = as_string(is_valid(decl) ? clang_getCursorSpelling(decl) : clang_getTypeSpelling(type));
+    } else if constexpr (type_kind == CXType_Record || type_kind == CXType_Enum) {
+        if (unnamed) {
+            name = new_anonymous_name(decl);
+        } else {
+            name = as_string(clang_getCursorSpelling(decl));
+            if (name.empty()) {
+                // This must be an unnamed (but not anonymous) struct/union/enum declared inside
+                // a typedef declaration, like this:
+                //     typedef struct {} A;
+                // In such a case clang_getTypeSpelling applied to the type of this unnamed
+                // cursor returns the name of the typedef (sic!).  Do not ask why but that is
+                // very convenient for us.
+                name = as_string(clang_getTypeSpelling(type));
+            }
+        }
+    } else {
+        name = as_string(clang_getCursorSpelling(decl));
+    }
+    assert(!name.empty());
+
     auto& universe = Universe::get();
-    auto* symbol = universe.type(symbol_kind, name);
+    NamedTypeSymbol* symbol = universe.type(symbol_kind, name);
     if (!symbol) {
         if constexpr (type_kind == CXType_Typedef) {
             symbol = new TypeAliasSymbol(std::move(name));
+            auto loc = get_location(decl);
+            if (loc.is_null()) {
+                // The typedef declaration has no file location.  This means a built-in clang
+                // typedef, for example:
+                //
+                //   instancetype      - alias for `id`
+                //   __builtin_va_list - alias for platform-dependent type (`char*` on darwin)
+                //   __uint128_t       - alias for `unsigned __int128`.
+                //
+                // The declaration is not visited by libclang.  Initialize it with the target
+                // obtained explicitly with libclang API.
+                auto cx_target = clang_getTypedefDeclUnderlyingType(decl);
+                assert(is_valid(cx_target));
+                symbol->as<TypeAliasSymbol>().set_target(type_like_symbol(cx_target, nullability));
+            } else {
+                symbol->set_definition_location(loc);
+            }
         } else if constexpr (type_kind == CXType_Unexposed) {
-            auto size = clang_Type_getSizeOf(type);
-            symbol = new UnexposedTypeSymbol(std::move(name), size < 0 ? 0 : static_cast<size_t>(size));
-        } else if constexpr (type_kind == CXType_Enum) {
-            auto underlying_type = clang_getEnumDeclIntegerType(decl);
-            assert(is_valid(underlying_type));
-            symbol = new EnumDeclarationSymbol(
-                std::move(name), type_like_symbol(underlying_type).symbol().as<NamedTypeSymbol>());
+            symbol = &create_unexposed_type_symbol(type, std::move(name));
         } else {
-            static_assert(type_kind == CXType_ObjCInterface || type_kind == CXType_Record);
-            symbol = new TypeDeclarationSymbol(symbol_kind, std::move(name));
-        }
-        if (!loc.is_null()) {
-            symbol->set_definition_location(loc);
-        }
-
-        if constexpr (can_be_anonymous) {
-            if (anonymous) {
-                assert(anonymous_.find(type) == anonymous_.end());
-                anonymous_.try_emplace(type, symbol);
+            auto loc = get_location(decl);
+            if (loc.is_null()) {
+                if constexpr (type_kind == CXType_ObjCInterface) {
+                    // The only class without a declaration in a source file must be the built-in
+                    // class Protocol.  Currently it is not supported by interop and has no
+                    // declaration at the Cangjie side either.  However, we create the corresponding
+                    // symbol.  References to it will be commented out in the normal mode (but not
+                    // in experimental).
+                    if (name == "Protocol") {
+                        symbol = new TypeDeclarationSymbol(symbol_kind, std::move(name));
+                    } else {
+                        // A built-in declaration that has no file location.  Represent it as unexposed.
+                        symbol = &create_unexposed_type_symbol(type, std::move(name));
+                    }
+                } else {
+                    // A built-in declaration that has no file location.  Represent it as unexposed.
+                    symbol = &create_unexposed_type_symbol(type, std::move(name));
+                }
+            } else {
+                if constexpr (type_kind == CXType_Enum) {
+                    auto underlying_type = clang_getEnumDeclIntegerType(decl);
+                    assert(is_valid(underlying_type));
+                    symbol = new EnumDeclarationSymbol(
+                        std::move(name), type_like_symbol(underlying_type).symbol().as<NamedTypeSymbol>());
+                } else {
+                    symbol = new TypeDeclarationSymbol(symbol_kind, std::move(name));
+                    if constexpr (type_kind == CXType_Record || type_kind == CXType_Enum) {
+                        if (unnamed) {
+                            assert(unnamed_decls_.find(decl) == unnamed_decls_.end());
+                            unnamed_decls_.try_emplace(decl, symbol);
+                        }
+                    }
+                }
+                symbol->set_definition_location(loc);
             }
         }
 
@@ -838,7 +856,7 @@ Type SourceScanner::type_like_symbol(const CXType& type, Nullability nullability
             // clang_Type_getModifiedType.  If it returns a valid type, assume it is
             // actually CXType_Attributed.
             auto modified_type = clang_Type_getModifiedType(type);
-            return modified_type.kind == CXType_Invalid ? get_type_symbol<CXType_Unexposed>(type, nullability)
+            return modified_type.kind == CXType_Invalid ? get_named_type<CXType_Unexposed>(type, nullability)
                                                         : type_like_symbol(modified_type, get_nullability(type));
         }
 
@@ -881,22 +899,22 @@ Type SourceScanner::type_like_symbol(const CXType& type, Nullability nullability
 
         case CXType_ObjCInterface:
             assert(clang_getCanonicalType(type) == type);
-            return get_type_symbol<CXType_ObjCInterface>(type, nullability);
+            return get_named_type<CXType_ObjCInterface>(type, nullability);
 
         case CXType_Typedef:
             // It makes sense to call clang_getCanonicalType(type) if needed
-            return get_type_symbol<CXType_Typedef>(type, nullability);
+            return get_named_type<CXType_Typedef>(type, nullability);
 
         case CXType_Record:
-            return get_type_symbol<CXType_Record>(type, nullability);
+            return get_named_type<CXType_Record>(type, nullability);
 
         case CXType_Enum:
-            return get_type_symbol<CXType_Enum>(type, nullability);
+            return get_named_type<CXType_Enum>(type, nullability);
 
         default: {
             auto* primitive_type_symbol = primitive_type(type);
             return primitive_type_symbol ? Type(*primitive_type_symbol)
-                                         : get_type_symbol<CXType_Unexposed>(type, nullability);
+                                         : get_named_type<CXType_Unexposed>(type, nullability);
         }
     }
 }
@@ -954,14 +972,6 @@ Type SourceScanner::get_method_result_type(
         default:
             break;
     }
-    if (as_string(clang_getTypeSpelling(cx_result_type)) == "instancetype") {
-        std::vector<Type> type_args;
-        type_args.reserve(decl.parameter_count());
-        for (auto& parameter : decl.parameters()) {
-            type_args.emplace_back(Type(parameter, Nullability::Nonnull));
-        }
-        return Type(decl, std::move(type_args), nullability);
-    }
     return type_like_symbol(cx_result_type, nullability);
 }
 
@@ -1017,8 +1027,12 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             std::cout << " <" << String(clang_getTypeSpelling(type)) << '>';
         }
 
-        if (is_anonymous(cursor)) {
+        if (clang_Cursor_isAnonymousRecordDecl(cursor)) {
             std::cout << " [anonymous]";
+        }
+
+        if (clang_Cursor_isAnonymous(cursor)) {
+            std::cout << " [unnamed]";
         }
 
         if (!first_visit) {
@@ -1161,10 +1175,24 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             break;
         }
         case CXCursor_StructDecl:
-        case CXCursor_UnionDecl:
+        case CXCursor_UnionDecl: {
             assert(type.kind == CXType_Record);
-            pushed = &push_current(type_like_symbol(type).symbol().as<TypeDeclarationSymbol>(), false);
+            auto t = type_like_symbol(type);
+            // If the return type is empty, it is an anonymous struct or union, like this:
+            //
+            // struct T {
+            //     struct {
+            //         int x;
+            //     };
+            // };
+            //
+            // Its members are considered to be members of the enclosing struct or union.
+            // The structure itself is ignored and does not go to Cangjie.
+            if (t.has_symbol_assigned()) {
+                pushed = &push_current(t.symbol().as<TypeDeclarationSymbol>(), false);
+            }
             break;
+        }
         case CXCursor_EnumDecl:
             assert(type.kind == CXType_Enum);
             pushed = &push_current(type_like_symbol(type).symbol().as<EnumDeclarationSymbol>(), false);
