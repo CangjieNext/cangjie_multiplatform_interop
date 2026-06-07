@@ -285,11 +285,7 @@ static std::ostream& operator<<(std::ostream& stream, const String& string)
 
 [[nodiscard]] static bool is_valid(const CXCursor& cursor)
 {
-    if (clang_Cursor_isNull(cursor))
-        return false;
-    if (cursor.kind >= CXCursor_FirstInvalid && cursor.kind <= CXCursor_LastInvalid)
-        return false;
-    return true;
+    return !clang_isInvalid(cursor.kind);
 }
 
 [[nodiscard]] static bool is_valid(const CXType& type)
