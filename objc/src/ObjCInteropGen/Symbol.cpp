@@ -873,11 +873,40 @@ void TypeAliasSymbol::print(std::ostream& stream, PrintFormat format) const
     if (mode != Mode::EXPERIMENTAL && format == PrintFormat::EmitCangjieStrict) {
         auto canonical_type = this->canonical_type();
         if (canonical_type.is_ctype() && canonical_type.contains_pointer_or_func()) {
-            stream << emit_cangjie_strict(canonical_type) << " /*" << emit_cangjie(*this) << "*/";
+            // Printing in the context where only ObjC-compatible types are allowed.  That
+            // is, CPointer and CFunc must be replaced by ObjCPointer and ObjCFunc in the
+            // whole typedef sequence.  For example, having the following declarations:
+            //
+            //     typedef int* P1;
+            //     typedef P1 P2;
+            //     @interface M {
+            //         P2 x;
+            //     }
+            //     @end
+            //
+            // we cannot convert the field 'x' to
+            //
+            //      var x: P2;
+            //
+            // as using CPointer in the pure ObjC context is forbidden.  We have to expand
+            // the 'P2' macro and replace CPointer by ObjCPointer:
+            //
+            //      var x: ObjCPointer<Int32> /*P2*/
+            stream << emit_cangjie_strict(target) << " /*";
+            NamedTypeSymbol::print(stream, format);
+            stream << "*/";
             return;
         }
     }
-    NamedTypeSymbol::print(stream, format);
+    if (defining_file()) {
+        NamedTypeSymbol::print(stream, format);
+    } else {
+        // This must be a built-in typedef without any declaration in a file.
+        target.print(stream, format);
+        stream << " /*";
+        NamedTypeSymbol::print(stream, format);
+        stream << "*/";
+    }
 }
 
 void TypeAliasSymbol::visit_impl(SymbolVisitor& visitor) const

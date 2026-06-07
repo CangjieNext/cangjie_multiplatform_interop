@@ -44,8 +44,8 @@ enum class PrintFormat {
     EmitCangjie,
 
     // Same as EmitCangjie plus the following additional formatting is applied:
-    //     - CPointer is printed as ObjCPointer
-    //     - CFunc is printed as ObjCFunc
+    //     - ObjCPointer is printed instead of CPointer
+    //     - ObjCFunc is printed instead of CFunc
     EmitCangjieStrict,
 };
 
