@@ -418,19 +418,22 @@ static void write_foreign_name(
     output << ' ';
 }
 
+constexpr std::string_view foreign_name_attribute = "@ForeignName";
+
 static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method)
 {
-    // The foreign name attributes could not appear on overridden declaration
+    assert(method.kind() == NonTypeSymbol::Kind::MemberMethod);
+
+    // @ForeignName could not appear on overridden declaration
     if (method.is_override()) {
         return;
     }
 
-    constexpr std::string_view attribute = "@ForeignName";
+    // Write @ForeignName only if the name of the method, as it will be written to
+    // Cangjie, differs from its selector.
     const auto& selector_attribute = method.selector_attribute();
     if (!selector_attribute.empty()) {
-        write_foreign_name(output, attribute, selector_attribute, generate_definitions_mode());
-    } else if (method.is_constructor() && method.name() != "init") {
-        write_foreign_name(output, attribute, method.name(), generate_definitions_mode());
+        write_foreign_name(output, foreign_name_attribute, selector_attribute, generate_definitions_mode());
     }
 }
 
@@ -613,7 +616,7 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
         } else if (standard_getter) {
             write_foreign_name(output, "@ForeignSetterName", setter_name, hide_foreign_name);
         } else if (is_standard_setter_name(getter_name, setter_name)) {
-            write_foreign_name(output, "@ForeignName", getter_name, hide_foreign_name);
+            write_foreign_name(output, foreign_name_attribute, getter_name, hide_foreign_name);
         } else {
             write_foreign_name(output, "@ForeignGetterName", getter_name, hide_foreign_name);
             write_foreign_name(output, "@ForeignSetterName", setter_name, hide_foreign_name);
@@ -641,7 +644,7 @@ static void write_function(
             if (is_ctype) {
                 output << "foreign ";
                 if (!selector_attribute.empty()) {
-                    write_foreign_name(output, "@ForeignName", selector_attribute, true);
+                    write_foreign_name(output, foreign_name_attribute, selector_attribute, true);
                 }
             } else {
                 auto generate_definitions = generate_definitions_mode();
@@ -650,7 +653,7 @@ static void write_function(
                     format = PrintFormat::EmitCangjieStrict;
                 }
                 if (!selector_attribute.empty()) {
-                    write_foreign_name(output, "@ForeignName", selector_attribute, generate_definitions);
+                    write_foreign_name(output, foreign_name_attribute, selector_attribute, generate_definitions);
                 }
                 output << "public ";
             }
@@ -850,45 +853,37 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
         if (!generate_definitions_mode()) {
             output_ << "@ObjCInit ";
         }
+
+        // The constructor will be written as a static method with its original name.
         write_foreign_name(output_, constructor);
+
         if (decl_kind_ != DeclKind::Interface) {
             output_ << "public ";
         }
         output_ << "static func " << escape_keyword(constructor.name());
         write_method_parameters(output_, constructor, format_);
 
-        // FE requires the return type to be strictly the declaring class, and the
-        // nullability must be nonnull
-        if (normal_mode()) {
-            std::vector<Type> args;
-            args.reserve(decl_.parameter_count());
-            for (auto& parameter : decl_.parameters()) {
-                args.emplace_back(parameter, Nullability::Nonnull);
-            }
-            Type return_type(decl_, std::move(args), Nullability::Nonnull);
-
-            write_type(output_, return_type, format_);
-            if (supported) {
-                collect_import(return_type);
-            }
-        } else {
-            auto return_type = constructor.return_type();
-            return_type.set_nullability(Nullability::Nonnull);
-
-            write_type(output_, return_type, format_);
-            if (generate_definitions_mode() && decl_kind_ != DeclKind::Interface) {
-                output_ << " { " << default_value(return_type, format_) << " }";
-            }
-            if (supported) {
-                collect_import(return_type);
-            }
+        const auto& return_type = constructor.return_type();
+        write_type(output_, return_type, format_);
+        if (generate_definitions_mode() && decl_kind_ != DeclKind::Interface) {
+            output_ << " { " << default_value(return_type, format_) << " }";
+        }
+        if (supported) {
+            collect_import(return_type);
         }
     } else {
-        write_foreign_name(output_, constructor);
+        // The constructor will be written with the name 'init'.  Write
+        // @ForeignName only if the selector is different.
+        constexpr std::string_view default_constructor_name = "init";
+        const auto& selector = constructor.selector();
+        if (selector != default_constructor_name) {
+            write_foreign_name(output_, foreign_name_attribute, selector, generate_definitions_mode());
+        }
+
         if (decl_kind_ != DeclKind::Interface) {
             output_ << "public ";
         }
-        output_ << "init";
+        output_ << default_constructor_name;
         write_method_parameters(output_, constructor, format_);
         if (generate_definitions_mode() && decl_kind_ != DeclKind::Interface) {
             output_ << " { }";
