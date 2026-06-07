@@ -774,7 +774,7 @@ NonTypeSymbol& TypeDeclarationSymbol::add_member_method(std::string name, Type r
 NonTypeSymbol& TypeDeclarationSymbol::add_constructor(std::string name, Type return_type)
 {
     assert(kind() == Kind::Interface || kind() == Kind::Protocol);
-    return members_.emplace_back(std::move(name), NonTypeSymbol::Kind::Constructor, std::move(return_type));
+    return add_member_method(std::move(name), std::move(return_type), ModifierInit);
 }
 
 NonTypeSymbol& TypeDeclarationSymbol::add_field(std::string name, Type type, Modifiers modifiers)

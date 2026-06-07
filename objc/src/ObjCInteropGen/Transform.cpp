@@ -123,7 +123,7 @@ static void resolve_static_instance_clash(Symbol& symbol, bool is_static)
 
 static void resolve_static_instance_clash(TypeDeclarationSymbol& decl, NonTypeSymbol& method, bool is_static)
 {
-    assert(method.kind() == NonTypeSymbol::Kind::MemberMethod);
+    assert(method.is_member_method());
     resolve_static_instance_clash(method, is_static);
 
     // This method can be the getter of a property.  Rename the property too.
@@ -153,10 +153,9 @@ static void resolve_static_instance_clashes(TypeDeclarationSymbol& subclass, Typ
     // This loop resolves clashes between members of `subclass` and `superclass`,
     // where the latter is asserted to be one of the ancestors of the former.
     for (auto& submember : subclass.members()) {
-        if (submember.kind() == NonTypeSymbol::Kind::MemberMethod) {
+        if (submember.is_member_method()) {
             for (const auto& supermember : superclass.members()) {
-                if (supermember.kind() == NonTypeSymbol::Kind::MemberMethod &&
-                    supermember.selector() == submember.selector()) {
+                if (supermember.is_member_method() && supermember.selector() == submember.selector()) {
                     auto supername = supermember.name();
                     if (supername == submember.name()) {
                         if (submember.is_static()) {
@@ -249,7 +248,7 @@ static void resolve_static_instance_clashes(TypeDeclarationSymbol& type)
     // Resolve conflicts inside the class.
     std::unordered_map<std::string_view, StaticInstancePair> map;
     for (auto& member : type.members()) {
-        if (member.kind() == NonTypeSymbol::Kind::MemberMethod) {
+        if (member.is_member_method()) {
             map[member.selector()].add(member);
         }
     }
