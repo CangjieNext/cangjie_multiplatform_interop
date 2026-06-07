@@ -251,11 +251,44 @@ ClangSessionImpl::~ClangSessionImpl()
     clang_disposeIndex(index());
 }
 
+class String {
+public:
+    String(CXString string) noexcept : string_(string)
+    {
+    }
+
+    ~String()
+    {
+        clang_disposeString(string_);
+    }
+
+    [[nodiscard]] const char* c_str() const noexcept
+    {
+        return clang_getCString(string_);
+    }
+
+    [[nodiscard]] std::string string() const
+    {
+        return clang_getCString(string_);
+    }
+
+    [[nodiscard]] std::string_view string_view() const noexcept
+    {
+        return clang_getCString(string_);
+    }
+
+private:
+    CXString string_;
+};
+
+static std::ostream& operator<<(std::ostream& stream, const String& string)
+{
+    return stream << string.string_view();
+}
+
 [[nodiscard]] static std::string as_string(CXString string)
 {
-    std::string c_string = clang_getCString(string);
-    clang_disposeString(string);
-    return c_string;
+    return String(string).string();
 }
 
 [[nodiscard]] static bool is_valid(const CXCursor& cursor)
@@ -516,14 +549,14 @@ template <CXTypeKind type_kind> Type SourceScanner::get_type_symbol(const CXType
 }
 
 [[nodiscard]] static TypeDeclarationSymbol& get_type_declaration(
-    const CXCursor& cursor, NamedTypeSymbol::Kind kind, const std::string& name)
+    const CXCursor& cursor, NamedTypeSymbol::Kind kind, std::string name)
 {
     auto& universe = Universe::get();
     auto* result = universe.type(kind, name);
     if (result) {
         return result->as<TypeDeclarationSymbol>();
     }
-    auto& new_result = *new TypeDeclarationSymbol(kind, name);
+    auto& new_result = *new TypeDeclarationSymbol(kind, std::move(name));
     universe.register_type(new_result);
     set_definition_location(cursor, new_result);
     return new_result;
@@ -567,7 +600,7 @@ struct UndecorateResult {
  * find the parameter in its owner's parameter list.  The pure name hardly can
  * be obtained with the libclang API.  Let us "undecorate" it by ourselves.
  */
-static UndecorateResult undecorate_parameter_type_name(const std::string& decorated_type_name)
+[[nodiscard]] static UndecorateResult undecorate_parameter_type_name(std::string_view decorated_type_name)
 {
     auto without_prefix =
         remove_prefix(remove_prefix(remove_prefix(decorated_type_name, "__unsafe_unretained "), "__strong "), "const ");
@@ -708,9 +741,9 @@ TypeDeclarationSymbol& SourceScanner::get_owner_generic_type() const noexcept
 
 Type SourceScanner::get_type_parameter(const CXType& type, Nullability nullability) const
 {
+    String decorated_type_name = clang_getTypeSpelling(type);
+    auto [undecorated_type_name, protocols] = undecorate_parameter_type_name(decorated_type_name.string_view());
     auto& owner_type = get_owner_generic_type();
-    auto decorated_type_name = as_string(clang_getTypeSpelling(type));
-    auto [undecorated_type_name, protocols] = undecorate_parameter_type_name(decorated_type_name);
     const auto parameter_count = owner_type.parameter_count();
     for (std::size_t i = 0; i < parameter_count; ++i) {
         auto* parameter = &owner_type.parameter(i);
@@ -978,10 +1011,10 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             std::cout << ' ';
         }
 
-        std::cout << as_string(clang_getCursorKindSpelling(cursor_kind)) << ' ' << name;
+        std::cout << String(clang_getCursorKindSpelling(cursor_kind)) << ' ' << name;
 
         if (type.kind != CXType_Invalid) {
-            std::cout << " <" << as_string(clang_getTypeSpelling(type)) << '>';
+            std::cout << " <" << String(clang_getTypeSpelling(type)) << '>';
         }
 
         if (is_anonymous(cursor)) {
@@ -1073,13 +1106,15 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             assert(is_on_top_level());
             assert(!is_valid(type)); // Protocol declarations are funny like that.
             assert(is_defining(cursor));
-            pushed = &push_current(get_type_declaration(cursor, NamedTypeSymbol::Kind::Protocol, name), true);
+            pushed =
+                &push_current(get_type_declaration(cursor, NamedTypeSymbol::Kind::Protocol, std::move(name)), true);
             break;
         case CXCursor_ObjCInterfaceDecl:
             assert(!current_type());
             assert(is_on_top_level());
             assert(is_defining(type, cursor));
-            pushed = &push_current(get_type_declaration(cursor, NamedTypeSymbol::Kind::Interface, name), true);
+            pushed =
+                &push_current(get_type_declaration(cursor, NamedTypeSymbol::Kind::Interface, std::move(name)), true);
             break;
         case CXCursor_TemplateTypeParameter:
             if (is_valid(type) && type.kind == CXType_ObjCTypeParam && is_valid(parent)) {
