@@ -609,6 +609,7 @@ constexpr Modifiers ModifierOverride = 1 << 5;
 constexpr Modifiers ModifierOptional = 1 << 6;
 constexpr Modifiers ModifierInternalLinkage = 1 << 7; // used for Kind::GlobalFunction
 constexpr Modifiers ModifierBitField = 1 << 8;
+constexpr Modifiers ModifierInit = 1 << 9; // member of 'init' method family
 
 /**
  * A type parameter, when using inside a generic body, can be constrainted by
@@ -869,8 +870,7 @@ public:
         Property,
         InstanceVariable,
         GlobalFunction, // NOTE: must have stable address and live forever
-        MemberMethod,
-        Constructor
+        MemberMethod
     };
 
     [[nodiscard]] NonTypeSymbol(std::string name, Kind kind, Type return_type, Modifiers modifiers = 0) noexcept
@@ -905,12 +905,14 @@ public:
 
     [[nodiscard]] bool is_member_method() const noexcept
     {
-        return kind_ == Kind::MemberMethod;
+        return kind_ == Kind::MemberMethod && !(modifiers_ & ModifierInit);
     }
 
     [[nodiscard]] bool is_constructor() const noexcept
     {
-        return kind_ == Kind::Constructor;
+        bool yes = modifiers_ & ModifierInit;
+        assert(!yes || kind_ == Kind::MemberMethod);
+        return yes;
     }
 
     [[nodiscard]] bool is_global_function() const noexcept
@@ -920,7 +922,7 @@ public:
 
     [[nodiscard]] bool is_method() const noexcept
     {
-        return is_member_method() || is_constructor() || is_global_function();
+        return kind_ == Kind::MemberMethod || kind_ == Kind::GlobalFunction;
     }
 
     [[nodiscard]] bool is_field() const noexcept

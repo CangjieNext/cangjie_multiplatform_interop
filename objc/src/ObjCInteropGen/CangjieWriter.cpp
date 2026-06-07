@@ -1023,23 +1023,27 @@ void TypeDeclarationWriter::write()
     output_ << " {\n";
     output_.indent();
     for (auto&& member : decl_.members()) {
-        if (member.is_property()) {
-            write_property(member);
-        } else if (member.is_constructor()) {
-            write_constructor(member);
-        } else if (member.is_member_method()) {
-            if (!get_property(decl_, member) &&
-                !get_overridden_property(decl_, member.selector(), member.is_static())) {
-                write_function(output_,
-                    decl_kind_ == DeclKind::Interface ? FuncKind::InterfaceMethod : FuncKind::ClassMethod, member,
-                    format_);
-            }
-        } else if (member.is_instance_variable()) {
-            write_instance_variable(member);
-        } else if (member.is_field()) {
-            write_field(member);
-        } else {
-            assert(false);
+        switch (member.kind()) {
+            case NonTypeSymbol::Kind::Property:
+                write_property(member);
+                break;
+            case NonTypeSymbol::Kind::MemberMethod:
+                if (member.is_constructor()) {
+                    write_constructor(member);
+                } else if (!get_property(decl_, member) &&
+                    !get_overridden_property(decl_, member.selector(), member.is_static())) {
+                    write_function(output_,
+                        decl_kind_ == DeclKind::Interface ? FuncKind::InterfaceMethod : FuncKind::ClassMethod, member,
+                        format_);
+                }
+                break;
+            case NonTypeSymbol::Kind::InstanceVariable:
+                write_instance_variable(member);
+                break;
+            default:
+                assert(member.kind() == NonTypeSymbol::Kind::Field);
+                write_field(member);
+                break;
         }
     }
 
