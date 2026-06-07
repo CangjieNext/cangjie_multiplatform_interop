@@ -610,12 +610,7 @@ void NamedTypeSymbol::rename(const std::string_view new_name)
 
 void NamedTypeSymbol::print(std::ostream& stream, PrintFormat) const
 {
-    const auto& name = this->name();
-    if (kind_ == Kind::Primitive) {
-        stream << name;
-    } else {
-        stream << escape_keyword(name);
-    }
+    stream << escape_keyword(name());
 }
 
 void NamedTypeSymbol::set_mapping(const TypeMapping& mapping) noexcept

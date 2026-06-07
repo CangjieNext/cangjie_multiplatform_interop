@@ -526,6 +526,11 @@ public:
     }
 
 private:
+    void print(std::ostream& stream, PrintFormat) const override
+    {
+        stream << name();
+    }
+
     [[nodiscard]] bool is_file_level() const noexcept override
     {
         return false;
