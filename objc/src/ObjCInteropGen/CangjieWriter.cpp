@@ -1056,14 +1056,14 @@ void TypeDeclarationWriter::write()
 
 static void write_enum_declaration(IndentingStringStream& output, const EnumDeclarationSymbol& enum_decl)
 {
-    // Can be EmitCangjieStrict, does not matter here
-    auto format = PrintFormat::EmitCangjie;
+    // Can be emit_cangjie_strict, does not matter here
+    auto enum_decl_printer = emit_cangjie(enum_decl);
 
     const auto& underlying_type = enum_decl.underlying_type();
     collect_import(underlying_type);
     output << "public type " << emit_cangjie(enum_decl) << " = " << emit_cangjie(underlying_type) << '\n';
-    enum_decl.for_each_constant([&output, format, &enum_decl, &underlying_type](const auto& constant) {
-        output << "public const " << escape_keyword(constant.name()) << ": " << Printer(enum_decl, format) << " = ";
+    enum_decl.for_each_constant([&output, &enum_decl_printer, &underlying_type](const auto& constant) {
+        output << "public const " << escape_keyword(constant.name()) << ": " << enum_decl_printer << " = ";
         print_enum_constant_value(output, underlying_type, constant);
         output << '\n';
     });
