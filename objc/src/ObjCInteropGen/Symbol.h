@@ -900,17 +900,17 @@ public:
 
     [[nodiscard]] bool is_member_method() const noexcept
     {
-        return kind() == Kind::MemberMethod;
+        return kind_ == Kind::MemberMethod;
     }
 
     [[nodiscard]] bool is_constructor() const noexcept
     {
-        return kind() == Kind::Constructor;
+        return kind_ == Kind::Constructor;
     }
 
     [[nodiscard]] bool is_global_function() const noexcept
     {
-        return kind() == Kind::GlobalFunction;
+        return kind_ == Kind::GlobalFunction;
     }
 
     [[nodiscard]] bool is_method() const noexcept
@@ -920,17 +920,17 @@ public:
 
     [[nodiscard]] bool is_field() const noexcept
     {
-        return kind() == Kind::Field;
+        return kind_ == Kind::Field;
     }
 
     [[nodiscard]] bool is_instance_variable() const noexcept
     {
-        return kind() == Kind::InstanceVariable;
+        return kind_ == Kind::InstanceVariable;
     }
 
     [[nodiscard]] bool is_property() const noexcept
     {
-        return kind() == Kind::Property;
+        return kind_ == Kind::Property;
     }
 
     [[nodiscard]] const std::string& selector() const noexcept
