@@ -913,19 +913,7 @@ NonTypeSymbol& TypeDeclarationSymbol::add_member_method(std::string name, Type r
 
 NonTypeSymbol& TypeDeclarationSymbol::add_constructor(std::string name, Type return_type)
 {
-    NonTypeSymbol::Kind kind;
-    switch (this->kind()) {
-        case Kind::Protocol:
-            kind = NonTypeSymbol::Kind::ProtocolConstructor;
-            break;
-        case Kind::Interface:
-            kind = NonTypeSymbol::Kind::InterfaceConstructor;
-            break;
-        default:
-            assert(false);
-            break;
-    }
-    return members_.emplace_back(std::move(name), kind, std::move(return_type));
+    return add_member_method(std::move(name), std::move(return_type), ModifierInit);
 }
 
 NonTypeSymbol& TypeDeclarationSymbol::add_field(std::string name, Type type, Modifiers modifiers)

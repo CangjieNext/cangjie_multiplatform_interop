@@ -361,7 +361,7 @@ constexpr std::string_view foreign_name_attribute = "@ForeignName";
 
 static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method)
 {
-    assert(method.is_member_method() || method.is_constructor());
+    assert(method.is_member_method());
 
     // @ForeignName could not appear on overridden declaration
     if (method.is_override()) {

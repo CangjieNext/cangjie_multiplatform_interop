@@ -593,6 +593,7 @@ constexpr Modifiers ModifierReadonly = 1 << 4;
 constexpr Modifiers ModifierOverride = 1 << 5;
 constexpr Modifiers ModifierOptional = 1 << 6;
 constexpr Modifiers ModifierBitField = 1 << 7;
+constexpr Modifiers ModifierInit = 1 << 8; // member of 'init' method family
 
 /**
  * A type parameter, when using inside a generic body, can be constrainted by
@@ -844,8 +845,6 @@ public:
         GlobalFunction, // NOTE: must have stable address and live forever
         ProtocolMethod,
         InterfaceMethod,
-        ProtocolConstructor,
-        InterfaceConstructor,
     };
 
     [[nodiscard]] NonTypeSymbol(std::string name, Kind kind, Type return_type, Modifiers modifiers = 0) noexcept
@@ -904,12 +903,16 @@ public:
 
     [[nodiscard]] bool is_protocol_constructor() const noexcept
     {
-        return kind_ == Kind::ProtocolConstructor;
+        const bool init = modifiers_ & ModifierInit;
+        assert(!init || is_member_method());
+        return kind_ == Kind::ProtocolMethod && init;
     }
 
     [[nodiscard]] bool is_interface_constructor() const noexcept
     {
-        return kind_ == Kind::InterfaceConstructor;
+        const bool init = modifiers_ & ModifierInit;
+        assert(!init || is_member_method());
+        return kind_ == Kind::InterfaceMethod && init;
     }
 
     [[nodiscard]] bool is_constructor() const noexcept
@@ -924,7 +927,7 @@ public:
 
     [[nodiscard]] bool is_method() const noexcept
     {
-        return is_member_method() || is_constructor() || is_global_function();
+        return is_member_method() || is_global_function();
     }
 
     [[nodiscard]] bool is_field() const noexcept
