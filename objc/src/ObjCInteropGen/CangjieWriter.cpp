@@ -872,8 +872,8 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
             collect_import(return_type);
         }
     } else {
-        // The constructor will be written with the name 'init'.  Write
-        // @ForeignName only if the selector is different.
+        // The constructor will be written with the name 'init'.
+        // Write @ForeignName only if the selector is different.
         constexpr std::string_view default_constructor_name = "init";
         const auto& selector = constructor.selector();
         if (selector != default_constructor_name) {
@@ -1027,9 +1027,9 @@ void TypeDeclarationWriter::write()
                     write_constructor(member);
                 } else if (!get_property(decl_, member) &&
                     !get_overridden_property(decl_, member.selector(), member.is_static())) {
-                    write_function(output_,
-                        decl_kind_ == DeclKind::Interface ? FuncKind::InterfaceMethod : FuncKind::ClassMethod, member,
-                        format_);
+                    auto func_kind =
+                        decl_kind_ == DeclKind::Interface ? FuncKind::InterfaceMethod : FuncKind::ClassMethod;
+                    write_function(output_, func_kind, member, format_);
                 }
                 break;
             case NonTypeSymbol::Kind::InstanceVariable:
