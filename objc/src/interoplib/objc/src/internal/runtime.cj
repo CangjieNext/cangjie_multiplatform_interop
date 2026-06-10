@@ -123,32 +123,6 @@ protected unsafe func getSuperClass(objCSuper: NativeObjCSuperPtr): NativeObjCCl
     return objCSuper.read().super_class
 }
 
-/**
- * A wrapper for a method or a prop's accessor body (action) if it needs all of the following:
- * 1. To be executed within an @autoreleasepool.
- * 2. To call objc_msgSendSuper with NativeObjCSuperPtr.
- * 3. To return an object.
- * Note: the result of this call supposed to be sent to a constructor of a desired return result.
- */
-protected unsafe func withMethodEnvObj(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> NativeObjCId): NativeObjCId {
-    withObjCSuper(id, objCClassName) {
-        receiver: CPointer<Unit>, objCSuper: NativeObjCSuperPtr => withAutoreleasePoolObj( { => action(receiver, objCSuper) } )
-    }
-}
-
-@Frozen
-/**
- * A wrapper for a method or a prop's accessor body (action) if it needs all of the following:
- * 1. To be executed within an @autoreleasepool.
- * 2. To call objc_msgSendSuper with NativeObjCSuperPtr.
- * 3. To return an Objective-C compatible primitive type value.
- */
-protected unsafe func withMethodEnv<R>(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> R): R where R <: CType {
-    withObjCSuper(id, objCClassName) {
-        receiver: CPointer<Unit>, objCSuper: NativeObjCSuperPtr => withAutoreleasePool( {=> action(receiver, objCSuper)} )
-    }
-}
-
 @When[os == "macOS" || os == "iOS"]
 @Frozen
 /**
@@ -380,6 +354,10 @@ protected unsafe func objCRetain(id: NativeObjCId): NativeObjCId {
  */
 protected unsafe func objCRetainAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId {
     objc_retainAutoreleaseReturnValue(id)
+}
+
+protected unsafe func objCRetainAutoreleasedReturnValue(id: NativeObjCId): NativeObjCId {
+    objc_retainAutoreleasedReturnValue(id)
 }
 
 @Frozen

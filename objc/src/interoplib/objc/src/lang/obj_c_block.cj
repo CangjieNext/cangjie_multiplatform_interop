@@ -40,6 +40,7 @@ public class ObjCBlock<F> {
     }
     ~init() {
         unsafe {
+            objCRelease(NativeObjCId(this.ptr))
             if (cangjieOwnedPtr) {
                 // if we own the pointer, we need to decrement counter and
                 // potentially free the structure
@@ -47,7 +48,6 @@ public class ObjCBlock<F> {
                 cangjieBlockDispose(this.ptr)
                 // we cannot just free it here, because there may still be users in Objective-C
             }
-            objCRelease(NativeObjCId(this.ptr))
         }
     }
 }
