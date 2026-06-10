@@ -138,9 +138,9 @@ public:
         return PointerIterator<decltype(files_.end())>(files_.end());
     }
 
-    [[nodiscard]] InputFile& add_file(InputFile& input_file)
+    [[nodiscard]] InputFile& add_file(std::filesystem::path input_file_name)
     {
-        return *files_.emplace_back(&input_file);
+        return *files_.emplace_back(new InputFile(std::move(input_file_name)));
     }
 
     void next_translation();

@@ -44,18 +44,12 @@ private:
 };
 
 class PackageFile final {
-    std::string file_name_;
     std::filesystem::path output_path_;
     Package* const package_;
     std::vector<FileLevelSymbol*> symbols_;
 
 public:
     PackageFile(std::string file_name, Package& package);
-
-    [[nodiscard]] std::string_view file_name() const
-    {
-        return file_name_;
-    }
 
     [[nodiscard]] const std::filesystem::path& output_path() const noexcept
     {
@@ -69,7 +63,7 @@ public:
 
     void add_symbol(FileLevelSymbol& symbol)
     {
-        assert(symbol.is_file_level());
+        assert(symbol.defining_file());
         symbols_.push_back(&symbol);
     }
 
@@ -152,10 +146,11 @@ public:
         filters_ = &filters;
     }
 
-    void add_file(PackageFile& file)
+    [[nodiscard]] PackageFile& add_file(std::string file_name)
     {
-        [[maybe_unused]] auto [_, inserted] = files_.try_emplace(std::string(file.file_name()), &file);
+        auto [it, inserted] = files_.try_emplace(file_name, new PackageFile(file_name, *this));
         assert(inserted);
+        return *it->second;
     }
 
     void add_dependency_edge(Package& package)

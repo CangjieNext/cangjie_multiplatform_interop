@@ -4,9 +4,8 @@
 //
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
-#include <iostream>
+#include <charconv>
 #include <optional>
-#include <string_view>
 
 #include "CangjieWriter.h"
 #include "Config.h"
@@ -15,13 +14,11 @@
 #include "Logging.h"
 #include "Mappings.h"
 #include "MarkPackage.h"
-#include "Mode.h"
 #include "Package.h"
 #include "SourceScannerConfig.h"
 #include "Strings.h"
 #include "TomlParseError.h"
 #include "Transform.h"
-#include "Universe.h"
 
 // clang -fobjc-runtime=gnustep `gnustep-config --objc-flags` -Xclang -ast-dump -c M.m -o M.o -v > ast.txt
 
@@ -53,6 +50,14 @@ static std::optional<std::string_view> get_arg_value(const char* const argv[], i
         }
     }
     return std::nullopt;
+}
+
+template <class T> [[nodiscard]] static bool parse(std::string_view str, T& value)
+{
+    const auto* chars = str.data();
+    const auto* chars_end = chars + str.length();
+    auto [tail, err] = std::from_chars(chars, chars_end, value);
+    return err == std::errc() && tail == chars_end;
 }
 
 int main(int argc, char* argv[])
@@ -99,6 +104,15 @@ int main(int argc, char* argv[])
                     return 1;
                 }
                 continue;
+            }
+
+            auto closure_depth_opt = get_arg_value(argv, i, "--closure-depth");
+            if (closure_depth_opt) {
+                if (parse(*closure_depth_opt, g_closure_depth)) {
+                    continue;
+                }
+                std::cerr << "Invalid value for --closure-depth\n";
+                return 1;
             }
 
             if (ends_with(arg, ".toml")) {
