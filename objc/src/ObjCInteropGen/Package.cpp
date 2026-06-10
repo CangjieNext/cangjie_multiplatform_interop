@@ -21,12 +21,9 @@ const std::string& PackageFilter::package_name() const noexcept
 }
 
 PackageFile::PackageFile(std::string file_name, Package& package)
-    : file_name_(std::move(file_name)),
-      output_path_(package.output_path() + '/' + file_name_ + ".cj"),
-      package_(&package)
+    : output_path_(package.output_path() + '/' + file_name + ".cj"), package_(&package)
 {
-    assert(!file_name_.empty());
-    package.add_file(*this);
+    assert(!file_name.empty());
 }
 
 static void create_package(std::size_t package_index, const toml::Table& config)
