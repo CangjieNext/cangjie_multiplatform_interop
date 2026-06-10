@@ -10,10 +10,9 @@
 
 #include <array>
 #include <cassert>
-#include <unordered_set>
 
-#include "Collection.h"
 #include "InputFile.h"
+#include "Mode.h"
 
 namespace objcgen {
 
@@ -85,12 +84,12 @@ enum class OutputStatus { Undefined, Root, Referenced, ReferencedMarked, MultiRe
 
 class FileLevelSymbol : public Symbol {
 public:
-    [[nodiscard]] virtual bool is_file_level() const noexcept = 0;
-
     [[nodiscard]] virtual bool is_ctype() const noexcept
     {
         return false;
     }
+
+    virtual bool set_reference_level(unsigned new_reference_level) noexcept;
 
     void set_definition_location(const Location& location);
 
@@ -111,11 +110,9 @@ public:
         return output_file_;
     }
 
-    void set_package_file(PackageFile& package_file) noexcept;
+    void register_for_package(Package& package);
 
     void add_referencing_package(const Package& package);
-
-    [[nodiscard]] const std::string& cangjie_package_name() const noexcept;
 
     [[nodiscard]] Package* package() const noexcept;
 
@@ -127,6 +124,11 @@ public:
     void set_output_status(OutputStatus output_status) noexcept
     {
         output_status_ = output_status;
+    }
+
+    [[nodiscard]] ClosureDepthType reference_level() const noexcept
+    {
+        return reference_level_;
     }
 
     [[nodiscard]] size_t number_of_referencing_packages() const noexcept;
@@ -155,6 +157,8 @@ protected:
     {
     }
 
+    ClosureDepthType reference_level_ = UNLIMITED_CLOSURE_DEPTH;
+
 private:
     friend class SymbolVisitor;
 
@@ -162,8 +166,6 @@ private:
 
     // Applicable only for symbols with the same defining file
     friend bool operator<(const FileLevelSymbol& symbol1, const FileLevelSymbol& symbol2) noexcept;
-
-    void set_cangjie_package_name(std::string cangjie_package_name) noexcept;
 
     InputFile* input_file_ = nullptr; // Stage 1
     LineCol location_{};
@@ -221,7 +223,7 @@ enum class Nullability { Unspecified, Nullable, Nonnull };
 
 class Type {
 public:
-    enum class Kind { Unit, Named, TypeParam, VArray, Pointer, Function, Block, Unexposed };
+    enum class Kind { Unit, Named, TypeParam, VArray, Pointer, Function, Block };
 
     Type() = default;
 
@@ -324,6 +326,8 @@ public:
 
     void print_default_value(std::ostream& stream, PrintFormat format) const;
 
+    [[nodiscard]] ClosureDepthType reference_level() const noexcept;
+
 private:
     [[nodiscard]] Nullability init_nullability(Nullability nullability) noexcept;
 
@@ -401,11 +405,6 @@ public:
     }
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return true;
-    }
-
     void visit_impl(SymbolVisitor&) const override
     {
     }
@@ -439,11 +438,6 @@ public:
     }
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return false;
-    }
-
     [[nodiscard]] bool is_ctype() const noexcept override
     {
         return true;
@@ -477,15 +471,12 @@ public:
     }
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return true;
-    }
-
     [[nodiscard]] bool is_ctype() const noexcept override
     {
         return true;
     }
+
+    bool set_reference_level(unsigned new_reference_level) noexcept override;
 
     void visit_impl(SymbolVisitor& visitor) const override;
 
@@ -513,6 +504,7 @@ public:
     [[nodiscard]] PrimitiveTypeSymbol(std::string name, PrimitiveTypeCategory category, PrimitiveSize size) noexcept
         : NamedTypeSymbol(NamedTypeSymbol::Kind::Primitive, std::move(name)), category_(category), size_(size)
     {
+        reference_level_ = 0;
     }
 
     [[nodiscard]] PrimitiveTypeCategory category() const noexcept
@@ -529,11 +521,6 @@ private:
     void print(std::ostream& stream, PrintFormat) const override
     {
         stream << name();
-    }
-
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return false;
     }
 
     [[nodiscard]] bool is_ctype() const noexcept override
@@ -580,11 +567,6 @@ public:
 private:
     void print(std::ostream& stream, PrintFormat format) const override;
 
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return false;
-    }
-
     void visit_impl(SymbolVisitor&) const override
     {
     }
@@ -627,11 +609,6 @@ public:
     }
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return false;
-    }
-
     void visit_impl(SymbolVisitor&) const override
     {
     }
@@ -742,17 +719,14 @@ public:
     void mark_static_instance_clashes_resolved() noexcept;
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return true;
-    }
-
     void visit_impl(SymbolVisitor& visitor) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
         return contains_pointer_or_func_;
     }
+
+    bool set_reference_level(unsigned new_reference_level) noexcept override;
 
     template <class Pred>
     [[nodiscard]] bool all_of_members(Pred cond) const noexcept(noexcept(cond(std::declval<NonTypeSymbol>())));
@@ -819,15 +793,12 @@ public:
     }
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return true;
-    }
-
     [[nodiscard]] bool is_ctype() const noexcept override
     {
         return target_.has_symbol_assigned() && target_.is_ctype();
     }
+
+    bool set_reference_level(unsigned new_reference_level) noexcept override;
 
     void visit_impl(SymbolVisitor& visitor) const override;
 
@@ -1033,17 +1004,16 @@ public:
         return setter_;
     }
 
+    [[nodiscard]] const NonTypeSymbol* find_getter(const TypeDeclarationSymbol& decl) const noexcept;
+
     [[nodiscard]] bool is_bit_field() const noexcept
     {
         return modifiers_ & ModifierBitField;
     }
 
-private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return is_global_function();
-    }
+    [[nodiscard]] ClosureDepthType calculate_reference_level(const TypeDeclarationSymbol& decl) const noexcept;
 
+private:
     Kind kind_;
     Modifiers modifiers_;
 

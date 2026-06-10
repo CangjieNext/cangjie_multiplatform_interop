@@ -122,38 +122,27 @@ private:
     IndentingStringBuf fos_buf;
 };
 
-static std::string_view current_package_name;
+static const Package* current_package;
 static std::set<std::string> imports;
 
 class PackageFileScope final : NonCopyable {
-    const std::string_view package_name_;
+    const Package* const package_;
 
 public:
-    [[nodiscard]] explicit PackageFileScope(std::string_view package_name) noexcept : package_name_(package_name)
+    [[nodiscard]] explicit PackageFileScope(const Package& package) noexcept : package_(&package)
     {
-        assert(current_package_name.empty());
-        assert(!package_name.empty());
+        assert(!current_package);
         assert(imports.empty());
-        current_package_name = package_name;
+        current_package = &package;
     }
 
     ~PackageFileScope()
     {
-        assert(current_package_name == package_name_);
-        current_package_name = {};
+        assert(current_package == package_);
+        current_package = nullptr;
         imports.clear();
     }
 };
-
-[[nodiscard]] static std::string symbol_to_import_name(const FileLevelSymbol& symbol)
-{
-    assert(!current_package_name.empty());
-    const auto& symbol_package_name = symbol.cangjie_package_name();
-    if (symbol_package_name.empty() || symbol_package_name == current_package_name) {
-        return {};
-    }
-    return symbol_package_name + '.' + symbol.name();
-}
 
 class ImportCollectVisitor final : public SymbolVisitor {
 public:
@@ -198,9 +187,10 @@ private:
 
 void ImportCollectVisitor::visit_impl(const FileLevelSymbol& symbol)
 {
-    auto import_name = symbol_to_import_name(symbol);
-    if (!import_name.empty()) {
-        imports.emplace(std::move(import_name));
+    assert(current_package);
+    const auto* symbol_package = symbol.package();
+    if (symbol_package && symbol_package != current_package) {
+        imports.emplace(symbol_package->cangjie_name() + '.' + symbol.name());
     }
 }
 
@@ -544,17 +534,6 @@ static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method
     return nullptr;
 }
 
-[[nodiscard]] static const NonTypeSymbol* get_method_by_selector(
-    const TypeDeclarationSymbol& decl, const std::string& selector, bool is_static)
-{
-    for (auto& member : decl.members()) {
-        if (member.is_member_method() && member.is_static() == is_static && member.selector() == selector) {
-            return &member;
-        }
-    }
-    return nullptr;
-}
-
 [[nodiscard]] static NonTypeSymbol* get_overridden_property(
     const TypeDeclarationSymbol& decl, const std::string& getter, bool is_static)
 {
@@ -781,14 +760,10 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
 {
     assert(prop.is_property());
     auto is_static = prop.is_static();
-    if (get_overridden_method(decl_, prop)) {
+    if (get_overridden_method(decl_, prop) || get_overridden_property(decl_, prop.getter(), is_static)) {
         return;
     }
-    const auto& getter_name = prop.getter();
-    if (get_overridden_property(decl_, getter_name, is_static)) {
-        return;
-    }
-    auto* getter = get_method_by_selector(decl_, getter_name, is_static);
+    const auto* getter = prop.find_getter(decl_);
     assert(getter);
     const auto& return_type = getter->return_type();
     assert(!return_type.is_unit());
@@ -1018,6 +993,9 @@ void TypeDeclarationWriter::write()
     output_ << " {\n";
     output_.indent();
     for (auto&& member : decl_.members()) {
+        if (g_closure_depth < UNLIMITED_CLOSURE_DEPTH && member.calculate_reference_level(decl_) > g_closure_depth) {
+            continue;
+        }
         if (member.is_property()) {
             write_property(member);
         } else if (member.is_constructor()) {
@@ -1072,7 +1050,7 @@ void write_cangjie()
         for (auto&& package_file : package) {
             assert(&package_file.package() == &package);
 
-            PackageFileScope scope(package_file.package().cangjie_name());
+            PackageFileScope scope(package);
 
             const auto& file_path = package_file.output_path();
             create_directories(file_path.parent_path());

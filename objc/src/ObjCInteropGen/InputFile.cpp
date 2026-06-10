@@ -20,7 +20,7 @@ bool InputFile::SymbolComparator::operator()(
 
 void InputFile::add_symbol(FileLevelSymbol& symbol)
 {
-    assert(symbol.is_file_level());
+    assert(symbol.defining_file());
     symbols_.insert(&symbol);
 }
 
@@ -50,7 +50,7 @@ InputFile& Inputs::operator[](const std::filesystem::path& path)
             return *file;
         }
     }
-    return add_file(*new InputFile(path));
+    return add_file(path);
 }
 
 void Inputs::next_translation()

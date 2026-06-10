@@ -116,6 +116,20 @@ void Symbol::print(std::ostream& stream, [[maybe_unused]] PrintFormat format) co
     stream << escape_keyword(name_);
 }
 
+bool FileLevelSymbol::set_reference_level(unsigned new_reference_level) noexcept
+{
+    if (!defining_file() || new_reference_level >= reference_level_) {
+        return false;
+    }
+    reference_level_ = new_reference_level;
+    ++new_reference_level;
+    for (auto* reference : references_symbols_) {
+        assert(reference);
+        reference->set_reference_level(new_reference_level);
+    }
+    return true;
+}
+
 void FileLevelSymbol::set_definition_location(const Location& location)
 {
     assert(!input_file_);
@@ -127,17 +141,17 @@ void FileLevelSymbol::set_definition_location(const Location& location)
 bool FileLevelSymbol::add_reference(FileLevelSymbol& symbol)
 {
     assert(&symbol != this);
-    assert(symbol.is_file_level());
-    assert(is_file_level());
     return references_symbols_.insert(&symbol).second;
 }
 
-void FileLevelSymbol::set_package_file(PackageFile& package_file) noexcept
+void FileLevelSymbol::register_for_package(Package& package)
 {
-    assert(cangjie_package_name_.empty());
     assert(!output_file_);
-    assert(this->is_file_level());
-    output_file_ = &package_file;
+    auto* input_file = defining_file();
+    assert(input_file);
+    const auto file_name = input_file->path().stem().u8string();
+    auto* file = package[file_name];
+    output_file_ = file ? file : &package.add_file(file_name);
 }
 
 [[nodiscard]] static bool referencing_packages_detailed_info() noexcept
@@ -151,15 +165,6 @@ void FileLevelSymbol::add_referencing_package(const Package& package)
     if (referencing_packages_detailed_info()) {
         referencing_packages_.insert(&package);
     }
-}
-
-const std::string& FileLevelSymbol::cangjie_package_name() const noexcept
-{
-    if (!cangjie_package_name_.empty()) {
-        assert(!output_file_);
-        return cangjie_package_name_;
-    }
-    return output_file_ ? output_file_->package().cangjie_name() : cangjie_package_name_;
 }
 
 Package* FileLevelSymbol::package() const noexcept
@@ -191,14 +196,6 @@ void FileLevelSymbol::print_referencing_packages_info() const
     assert(symbol1.input_file_);
     assert(symbol1.input_file_ == symbol2.input_file_);
     return symbol1.location_ < symbol2.location_;
-}
-
-void FileLevelSymbol::set_cangjie_package_name(std::string cangjie_package_name) noexcept
-{
-    assert(cangjie_package_name_.empty());
-    assert(!output_file_);
-    assert(!cangjie_package_name.empty());
-    cangjie_package_name_ = std::move(cangjie_package_name);
 }
 
 [[nodiscard]] static Type::Kind get_kind(const TypeLikeSymbol& type_symbol)
@@ -321,7 +318,7 @@ bool Type::is_ctype() const noexcept
         case Kind::TypeParam:
             return false;
         default:
-            assert(kind_ == Kind::Unit || kind_ == Kind::Unexposed);
+            assert(kind_ == Kind::Unit);
             return true;
     }
 }
@@ -341,7 +338,7 @@ bool Type::contains_pointer_or_func() const noexcept
             return std::any_of(parameters_.begin(), parameters_.end(),
                 [](const auto& parameter) { return parameter.contains_pointer_or_func(); });
         default:
-            assert(kind_ == Kind::Unit || kind_ == Kind::TypeParam || kind_ == Kind::Unexposed);
+            assert(kind_ == Kind::Unit || kind_ == Kind::TypeParam);
             return false;
     }
 }
@@ -612,6 +609,34 @@ void Type::print_default_value(std::ostream& stream, PrintFormat format) const
     stream << emit_cangjie(*this) << "()";
 }
 
+ClosureDepthType Type::reference_level() const noexcept
+{
+    switch (kind_) {
+        case Kind::Named:
+            assert(symbol_);
+            return symbol_->reference_level();
+        case Kind::Pointer:
+            assert(parameters().size() == 1);
+            return parameters_.front().reference_level();
+        case Kind::Function:
+        case Kind::Block: {
+            ClosureDepthType result = 0;
+            for (const auto& param : parameters_) {
+                auto rl = param.reference_level();
+                if (rl > result) {
+                    result = rl;
+                }
+            }
+            return result;
+        }
+        case Kind::VArray:
+            return varray_element_type().reference_level();
+        default:
+            assert(kind_ == Kind::Unit || kind_ == Kind::TypeParam);
+            return 0;
+    }
+}
+
 Nullability Type::init_nullability(Nullability nullability) noexcept
 {
     switch (kind_) {
@@ -697,6 +722,16 @@ EnumConstantSymbol& EnumDeclarationSymbol::add_constant(std::string name, const 
     assert(std::all_of(
         constants_.begin(), constants_.end(), [name](const auto& constant) { return constant.name() != name; }));
     return constants_.emplace_back(std::move(name), value);
+}
+
+bool EnumDeclarationSymbol::set_reference_level(unsigned new_reference_level) noexcept
+{
+    auto set = FileLevelSymbol::set_reference_level(new_reference_level);
+    if (set) {
+        assert(underlying_type_);
+        underlying_type_->set_reference_level(new_reference_level);
+    }
+    return set;
 }
 
 void EnumDeclarationSymbol::visit_impl(SymbolVisitor& visitor) const
@@ -893,6 +928,15 @@ void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor) const
     }
 }
 
+bool TypeDeclarationSymbol::set_reference_level(unsigned new_reference_level) noexcept
+{
+    auto set = FileLevelSymbol::set_reference_level(new_reference_level);
+    if (set && !bases_.empty()) {
+        bases_.front()->set_reference_level(new_reference_level);
+    }
+    return set;
+}
+
 template <class Pred>
 bool TypeDeclarationSymbol::all_of_members(Pred cond) const noexcept(noexcept(cond(std::declval<NonTypeSymbol>())))
 {
@@ -954,6 +998,15 @@ void TypeAliasSymbol::print(std::ostream& stream, PrintFormat format) const
         NamedTypeSymbol::print(stream, format);
         stream << "*/";
     }
+}
+
+bool TypeAliasSymbol::set_reference_level(unsigned new_reference_level) noexcept
+{
+    auto set = FileLevelSymbol::set_reference_level(new_reference_level);
+    if (set && target_.has_symbol_assigned()) {
+        target_.symbol().set_reference_level(new_reference_level);
+    }
+    return set;
 }
 
 void TypeAliasSymbol::visit_impl(SymbolVisitor& visitor) const
@@ -1018,6 +1071,48 @@ void NonTypeSymbol::add_parameter(std::string name, Type type)
 {
     assert(is_method());
     parameters_.emplace_back(std::move(name), std::move(type));
+}
+
+const NonTypeSymbol* NonTypeSymbol::find_getter(const TypeDeclarationSymbol& decl) const noexcept
+{
+    assert(is_property());
+    bool is_static = this->is_static();
+    const auto& getter_name = getter();
+    for (const auto& member : decl.members()) {
+        if (member.is_member_method() && member.is_static() == is_static && member.selector() == getter_name) {
+            return &member;
+        }
+    }
+    return nullptr;
+}
+
+ClosureDepthType NonTypeSymbol::calculate_reference_level(const TypeDeclarationSymbol& decl) const noexcept
+{
+    switch (kind_) {
+        case Kind::Field:
+        case Kind::InstanceVariable:
+            return return_type_.reference_level();
+        case Kind::Property: {
+            auto* getter = find_getter(decl);
+            assert(getter);
+            return getter->return_type().reference_level();
+        }
+        case Kind::MemberMethod: {
+            auto result = return_type_.reference_level();
+            for (const auto& param : parameters_) {
+                auto rl = param.type().reference_level();
+                if (rl > result) {
+                    result = rl;
+                }
+            }
+            return result;
+        }
+        default:
+            assert(kind_ == Kind::GlobalFunction);
+
+            // Should be calculated already during package marking
+            return reference_level_;
+    }
 }
 
 } // namespace objcgen
