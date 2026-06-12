@@ -125,10 +125,16 @@ static const Package* current_package;
 static std::set<std::string> imports;
 
 class PackageFileScope final : NonCopyable {
+#if !defined NDEBUG
     const Package* const package_;
+#endif
 
 public:
+#ifdef NDEBUG
+    explicit PackageFileScope(const Package& package) noexcept
+#else
     [[nodiscard]] explicit PackageFileScope(const Package& package) noexcept : package_(&package)
+#endif
     {
         assert(!current_package);
         assert(imports.empty());
