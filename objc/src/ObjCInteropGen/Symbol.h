@@ -592,8 +592,7 @@ constexpr Modifiers ModifierStatic = 1 << 3;
 constexpr Modifiers ModifierReadonly = 1 << 4;
 constexpr Modifiers ModifierOverride = 1 << 5;
 constexpr Modifiers ModifierOptional = 1 << 6;
-constexpr Modifiers ModifierInternalLinkage = 1 << 7; // used for Kind::GlobalFunction
-constexpr Modifiers ModifierBitField = 1 << 8;
+constexpr Modifiers ModifierBitField = 1 << 7;
 
 /**
  * A type parameter, when using inside a generic body, can be constrainted by
@@ -1021,11 +1020,6 @@ public:
     [[nodiscard]] bool is_objc_optional() const noexcept
     {
         return modifiers_ & ModifierOptional;
-    }
-
-    [[nodiscard]] bool has_internal_linkage() const noexcept
-    {
-        return modifiers_ & ModifierInternalLinkage;
     }
 
     [[nodiscard]] const std::string& getter() const noexcept

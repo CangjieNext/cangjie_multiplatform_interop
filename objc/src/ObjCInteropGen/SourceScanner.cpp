@@ -967,7 +967,7 @@ NonTypeSymbol& SourceScanner::push_top_level_function(const CXCursor& cursor, st
     assert(is_on_top_level());
     auto& function = Universe::get().register_top_level_function(std::move(name),
         type_like_symbol(clang_getCursorResultType(cursor)),
-        clang_getCursorLinkage(cursor) == CXLinkage_Internal ? ModifierInternalLinkage : 0);
+        0);
     set_definition_location(cursor, function);
     return push_current(function);
 }
@@ -1369,7 +1369,8 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             }
             break;
         case CXCursor_FunctionDecl:
-            if (mark_symbol_used(cursor)) {
+            // Ignore global functions with internal linkage. We cannot use them in Cangjie.
+            if (mark_symbol_used(cursor) && clang_getCursorLinkage(cursor) != CXLinkage_Internal) {
                 pushed = &push_top_level_function(cursor, std::move(name));
                 this->func_parameter_index_ = 0;
             } else {
