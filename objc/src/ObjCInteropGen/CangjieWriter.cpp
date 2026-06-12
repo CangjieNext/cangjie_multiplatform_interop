@@ -640,8 +640,6 @@ static void write_function(IndentingStringStream& output, const TypeDeclarationS
     output << '\n';
 }
 
-enum class DeclKind { CStruct, ObjCStruct, Interface, Class };
-
 static void print_objcmirror_attribute(std::ostream& output, bool supported)
 {
     auto hide_objcmirror_attribute = !supported;
@@ -667,9 +665,13 @@ private:
     void write_instance_variable(const NonTypeSymbol& ivar);
     void write_field(const NonTypeSymbol& field);
 
+    [[nodiscard]] bool is_interface() const noexcept
+    {
+        return decl_.kind() == NamedTypeSymbol::Kind::Protocol;
+    }
+
     IndentingStringStream& output_;
     TypeDeclarationSymbol& decl_;
-    DeclKind decl_kind_;
     PrintFormat format_;
     bool any_constructor_exists_ = false;
     bool default_constructor_exists_ = false;
@@ -693,18 +695,18 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
     }
 
     // Only interfaces can have @ObjCOptional members, not classes
-    assert(!prop.is_objc_optional() || decl_kind_ == DeclKind::Interface);
-    if (decl_kind_ == DeclKind::Interface) {
+    assert(!prop.is_objc_optional() || is_interface());
+    if (is_interface()) {
         print_objc_optional(output_, prop);
     }
 
     print_getter_setter_names(output_, prop);
-    if (decl_kind_ != DeclKind::Interface) {
+    if (!is_interface()) {
         output_ << "public ";
     }
     if (is_static) {
         output_ << "static ";
-    } else if (decl_kind_ != DeclKind::Interface) {
+    } else if (!is_interface()) {
         output_ << "open ";
     }
     if (!prop.is_readonly()) {
@@ -752,7 +754,7 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
         // The constructor will be written as a static method with its original name.
         write_foreign_name(output_, constructor);
 
-        if (decl_kind_ != DeclKind::Interface) {
+        if (!is_interface()) {
             output_ << "public ";
         }
         output_ << "static func " << escape_keyword(constructor.name());
@@ -760,7 +762,7 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
 
         const auto& return_type = constructor.return_type();
         write_type(output_, return_type, format_);
-        if (generate_definitions_mode() && decl_kind_ != DeclKind::Interface) {
+        if (generate_definitions_mode() && !is_interface()) {
             output_ << " { " << default_value(return_type, format_) << " }";
         }
         if (supported) {
@@ -775,12 +777,12 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
             write_foreign_name(output_, foreign_name_attribute, selector, generate_definitions_mode());
         }
 
-        if (decl_kind_ != DeclKind::Interface) {
+        if (!is_interface()) {
             output_ << "public ";
         }
         output_ << default_constructor_name;
         write_method_parameters(output_, constructor, format_);
-        if (generate_definitions_mode() && decl_kind_ != DeclKind::Interface) {
+        if (generate_definitions_mode() && !is_interface()) {
             output_ << " { }";
         }
     }
@@ -858,42 +860,42 @@ void TypeDeclarationWriter::write()
     // classes/interfaces and structures.
     switch (decl_.kind()) {
         case NamedTypeSymbol::Kind::Protocol:
-            decl_kind_ = DeclKind::Interface;
             format_ = PrintFormat::EmitCangjieStrict;
             print_objcmirror_attribute(output_, !generate_definitions_mode());
             break;
         case NamedTypeSymbol::Kind::Struct:
         case NamedTypeSymbol::Kind::Union:
             if (decl_.is_ctype()) {
-                decl_kind_ = DeclKind::CStruct;
                 format_ = PrintFormat::EmitCangjie;
                 output_ << "@C\n";
             } else {
-                decl_kind_ = DeclKind::ObjCStruct;
                 format_ = PrintFormat::EmitCangjie;
                 print_objcmirror_attribute(output_, mode == Mode::EXPERIMENTAL);
             }
             break;
-        default:
-            assert(decl_.kind() == NamedTypeSymbol::Kind::Interface);
-            decl_kind_ = DeclKind::Class;
+        case NamedTypeSymbol::Kind::Interface:
             format_ = PrintFormat::EmitCangjieStrict;
             print_objcmirror_attribute(output_, !generate_definitions_mode());
             break;
+        default:
+            assert(false);
+            return;
     }
     output_ << "public ";
-    switch (decl_kind_) {
-        case DeclKind::Interface:
+    switch (decl_.kind()) {
+        case NamedTypeSymbol::Kind::Protocol:
             output_ << "interface";
             break;
-        case DeclKind::CStruct:
-        case DeclKind::ObjCStruct:
+        case NamedTypeSymbol::Kind::Struct:
+        case NamedTypeSymbol::Kind::Union:
             output_ << "struct";
             break;
-        default:
-            assert(decl_kind_ == DeclKind::Class);
+        case NamedTypeSymbol::Kind::Interface:
             output_ << "open class";
             break;
+        default:
+            assert(false);
+            return;
     }
     output_ << ' ' << escape_keyword(decl_.name());
     auto parameters = decl_.parameters();
