@@ -889,18 +889,39 @@ void TypeDeclarationSymbol::member_remove(size_t index)
 void TypeDeclarationSymbol::add_member_method(
     std::string name, Type return_type, std::vector<ParameterSymbol> parameters, Modifiers modifiers)
 {
-    // No clash detection, otherwise might assert on method overloads
-
-    assert(kind() == Kind::Interface || kind() == Kind::Protocol);
+    NonTypeSymbol::Kind kind;
+    switch (this->kind()) {
+        case Kind::Protocol:
+            kind = NonTypeSymbol::Kind::ProtocolMethod;
+            break;
+        case Kind::Interface:
+            kind = NonTypeSymbol::Kind::InterfaceMethod;
+            break;
+        default:
+            assert(false);
+            break;
+    }
     members_.emplace_back(
-        std::move(name), NonTypeSymbol::Kind::MemberMethod, std::move(return_type), std::move(parameters), modifiers);
+        std::move(name), kind, std::move(return_type), std::move(parameters), modifiers);
 }
 
 void TypeDeclarationSymbol::add_constructor(std::string name, Type return_type, std::vector<ParameterSymbol> parameters)
 {
+    NonTypeSymbol::Kind kind;
+    switch (this->kind()) {
+        case Kind::Protocol:
+            kind = NonTypeSymbol::Kind::ProtocolConstructor;
+            break;
+        case Kind::Interface:
+            kind = NonTypeSymbol::Kind::InterfaceConstructor;
+            break;
+        default:
+            assert(false);
+            break;
+    }
     assert(is(Kind::Interface) || is(Kind::Protocol));
     members_.emplace_back(
-        std::move(name), NonTypeSymbol::Kind::Constructor, std::move(return_type), std::move(parameters));
+        std::move(name), kind, std::move(return_type), std::move(parameters));
 }
 
 void TypeDeclarationSymbol::add_field(std::string name, Type type, Modifiers modifiers)
@@ -1158,6 +1179,19 @@ bool NonTypeSymbol::is_ctype() const noexcept
         return_type_.is_ctype();
 }
 
+bool NonTypeSymbol::is_objc_compatible_signature() const noexcept
+{
+    assert(is_method());
+
+    for (const auto& parameter : parameters()) {
+        if (!parameter.type().is_objc_compatible()) {
+            return false;
+        }
+    }
+
+    return is_constructor() || return_type().is_objc_compatible();
+}
+
 bool NonTypeSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
     for (auto& parameter : this->parameters()) {
@@ -1223,7 +1257,8 @@ ClosureDepthType NonTypeSymbol::calculate_reference_level(const TypeDeclarationS
             assert(getter);
             return getter->return_type().reference_level();
         }
-        case Kind::MemberMethod: {
+        case Kind::ProtocolMethod:
+        case Kind::InterfaceMethod: {
             auto result = return_type_.reference_level();
             for (const auto& param : parameters_) {
                 auto rl = param.type().reference_level();
