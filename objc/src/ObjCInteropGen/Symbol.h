@@ -201,6 +201,8 @@ public:
 
     [[nodiscard]] virtual TypeLikeSymbol& map() = 0;
 
+    [[nodiscard]] virtual bool is_objc_compatible() const noexcept = 0;
+
 protected:
     explicit TypeLikeSymbol(std::string name) noexcept : FileLevelSymbol(std::move(name))
     {
@@ -378,6 +380,8 @@ public:
     }
 
     void set_mapping(const TypeMapping* mapping) noexcept;
+
+    [[nodiscard]] bool is_objc_compatible() const noexcept override;
 
 protected:
     explicit NamedTypeSymbol(const Kind kind, std::string name) noexcept : TypeLikeSymbol(std::move(name)), kind_(kind)
@@ -607,6 +611,12 @@ class TypeParameterSymbol final : public TypeLikeSymbol {
 public:
     explicit TypeParameterSymbol(std::string type_parameter) noexcept : TypeLikeSymbol(std::move(type_parameter))
     {
+    }
+
+    [[nodiscard]] bool is_objc_compatible() const noexcept override
+    {
+        // Type parameters are printed as ObjCId, which is Objective-C compatible
+        return true;
     }
 
 private:
