@@ -873,7 +873,7 @@ void TypeDeclarationWriter::write()
     // error: there is no non-parameter constructor in super class, please invoke
     // super call explicitly
     if (generate_definitions_mode() && any_constructor_exists_ && !default_constructor_exists_) {
-        output_ << "public init() { }";
+        output_ << "public init() { }\n";
     }
 
     output_.dedent();
