@@ -9,6 +9,7 @@
 #import "Cangjie.h"
 
 #import <Foundation/Foundation.h>
+#import <objc/runtime.h>
 
 #import "pthread.h"
 #import "stdio.h"
@@ -16,12 +17,6 @@
 
 volatile bool runtime_inited = false;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
-// ObjC runtime functions used to calculate override-mask
-typedef struct objc_method* Method;
-extern IMP method_getImplementation(Method m);
-extern Method class_getInstanceMethod(Class cls, SEL name);
-extern id objc_getClass(const char * name);
 
 static struct RuntimeParam defaultCJRuntimeParams = {0};
 
