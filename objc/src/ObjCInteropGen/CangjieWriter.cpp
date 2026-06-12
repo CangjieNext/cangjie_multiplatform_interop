@@ -166,7 +166,7 @@ static void collect_import(const Type& type)
     }
 }
 
-[[nodiscard]] static void write_type_alias(IndentingStringStream& output, const TypeAliasSymbol& alias)
+static void write_type_alias(IndentingStringStream& output, const TypeAliasSymbol& alias)
 {
     const auto& target = alias.target();
 
@@ -272,16 +272,6 @@ static void print_enum_constant_value(
         output << constant.value128_lo<uint64_t>() << ", " << constant.value128_hi<uint64_t>();
     }
     output << ']';
-}
-
-[[nodiscard]] static bool is_objc_compatible_parameters(const NonTypeSymbol& method) noexcept
-{
-    for (const auto& parameter : method.parameters()) {
-        if (!parameter.type().is_objc_compatible()) {
-            return false;
-        }
-    }
-    return true;
 }
 
 static void write_type(std::ostream& output, const Type& type, PrintFormat format)
@@ -488,51 +478,45 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
     return symbol.any_of_referenced_types([&name](const auto& s) { return name == s.name(); });
 }
 
-enum class FuncKind { TopLevelFunc, InterfaceMethod, ClassMethod };
-
-static void write_function(IndentingStringStream& output, FuncKind kind, NonTypeSymbol& function, PrintFormat format)
+static void write_function(IndentingStringStream& output, NonTypeSymbol& function, PrintFormat format)
 {
     if (function.is_hidden()) {
         return;
     }
     const auto& return_type = function.return_type();
     const auto& name = function.name();
-    auto supported = (!normal_mode() || (return_type.is_objc_compatible() && is_objc_compatible_parameters(function))) &&
+    auto supported = (!normal_mode() || function.is_objc_compatible_signature()) &&
         !has_name_clash_with_referenced_types(function, name);
     if (!supported) {
         output.set_comment();
     }
     bool is_ctype;
-    switch (kind) {
-        case FuncKind::TopLevelFunc: {
-            is_ctype = function.is_ctype();
+    if (function.is_global_function()) {
+        is_ctype = function.is_ctype();
 
-            if (is_ctype) {
-                output << "foreign ";
-            } else {
-                if (!generate_definitions_mode()) {
-                    output << "@ObjCMirror\n";
-                    format = PrintFormat::EmitCangjieStrict;
-                }
-                const auto& selector_attribute = function.selector_attribute();
-                if (!selector_attribute.empty()) {
-                    write_foreign_name(output, foreign_name_attribute, selector_attribute);
-                }
-                output << "public ";
+        if (is_ctype) {
+            output << "foreign ";
+        } else {
+            if (!generate_definitions_mode()) {
+                output << "@ObjCMirror\n";
+                format = PrintFormat::EmitCangjieStrict;
             }
-            break;
-        }
-        case FuncKind::InterfaceMethod:
-            is_ctype = false;
-            print_objc_optional(output, function);
-            write_foreign_name(output, function);
-            break;
-        default:
-            assert(kind == FuncKind::ClassMethod);
-            is_ctype = false;
-            write_foreign_name(output, function);
+            const auto &selector_attribute = function.selector_attribute();
+            if (!selector_attribute.empty()) {
+                write_foreign_name(output, foreign_name_attribute, selector_attribute);
+            }
             output << "public ";
-            break;
+        }
+    } else if (function.is_protocol_method()) {
+        is_ctype = false;
+        print_objc_optional(output, function);
+        write_foreign_name(output, function);
+    } else if (function.is_interface_method()) {
+        is_ctype = false;
+        write_foreign_name(output, function);
+        output << "public ";
+    } else {
+        assert(false);
     }
     if (function.is_static()) {
         // In Objective-C, the overridden static method can have different parameter
@@ -545,7 +529,7 @@ static void write_function(IndentingStringStream& output, FuncKind kind, NonType
         }
         output << "static ";
     } else {
-        if (kind == FuncKind::ClassMethod) {
+        if (function.is_interface_method()) {
             output << "open ";
         }
         // In Objective-C, the overridden method can have different parameter types
@@ -693,7 +677,7 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
 {
     assert(constructor.is_constructor());
     auto is_protocol = decl_.is(NamedTypeSymbol::Kind::Protocol);
-    auto supported = !is_protocol && (!normal_mode() || is_objc_compatible_parameters(constructor));
+    auto supported = !is_protocol && (!normal_mode() || constructor.is_objc_compatible_signature());
     if (supported) {
         any_constructor_exists_ = true;
         if (!default_constructor_exists_) {
@@ -857,25 +841,18 @@ void TypeDeclarationWriter::write()
         if (closure_depth < UNLIMITED_CLOSURE_DEPTH && member.calculate_reference_level(decl_) > closure_depth) {
             continue;
         }
-        switch (member.kind()) {
-            case NonTypeSymbol::Kind::Property:
-                write_property(member);
-                break;
-            case NonTypeSymbol::Kind::Constructor:
-                write_constructor(member);
-                break;
-            case NonTypeSymbol::Kind::MemberMethod:
-                write_function(output_,
-                    decl_.is(NamedTypeSymbol::Kind::Protocol) ? FuncKind::InterfaceMethod : FuncKind::ClassMethod,
-                    member, format_);
-                break;
-            case NonTypeSymbol::Kind::InstanceVariable:
-                write_instance_variable(member);
-                break;
-            default:
-                assert(member.is_field());
-                write_field(member);
-                break;
+        if (member.is_property()) {
+            write_property(member);
+        } else if (member.is_constructor()) {
+            write_constructor(member);
+        } else if (member.is_member_method()) {
+            write_function(output_, member, format_);
+        } else if (member.is_instance_variable()) {
+            write_instance_variable(member);
+        } else if (member.is_field()) {
+            write_field(member);
+        } else {
+            assert(false);
         }
     }
 
@@ -928,7 +905,7 @@ void write_cangjie()
                     write_enum_declaration(output, *enum_decl);
                 } else {
                     auto& top_level = symbol->as<NonTypeSymbol>();
-                    assert(top_level.kind() == NonTypeSymbol::Kind::GlobalFunction);
+                    assert(top_level.is_global_function());
 
                     // Ignore global functions with internal linkage.  Anyway, we cannot use them in
                     // Cangjie.
@@ -936,7 +913,7 @@ void write_cangjie()
                         continue;
                     }
 
-                    write_function(output, FuncKind::TopLevelFunc, top_level, PrintFormat::EmitCangjie);
+                    write_function(output, top_level, PrintFormat::EmitCangjie);
                 }
                 output << std::endl;
             }
