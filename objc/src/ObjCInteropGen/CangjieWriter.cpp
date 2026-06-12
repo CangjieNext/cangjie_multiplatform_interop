@@ -210,53 +210,6 @@ static void collect_import(const Type& type)
     ImportCollectVisitor().visit(type);
 }
 
-// Currently in the NORMAL mode, Objective-C compatible types are primitives,
-// @C structures, ObjCPointer, ObjCFunc, ObjCBlock, and classes/interfaces.
-// But not CPointer, CFunc, or VArray.
-static bool is_objc_compatible(const Type& type)
-{
-    assert(normal_mode());
-    switch (type.kind()) {
-        case Type::Kind::Unit:
-            return true;
-        case Type::Kind::TypeParam:
-            // Type parameters are printed as ObjCId, which is Objective-C compatible
-            return true;
-        case Type::Kind::Pointer:
-            assert(type.parameters().size() == 1);
-            return is_objc_compatible(type.parameters().front());
-        case Type::Kind::Function:
-        case Type::Kind::Block: {
-            const auto& parameters = type.parameters();
-            return std::all_of(parameters.begin(), parameters.end(),
-                [](const auto& parameter) { return is_objc_compatible(parameter); });
-        }
-        case Type::Kind::Named: {
-            const auto& type_symbol = type.symbol();
-            if (&type_symbol == &Universe::get().sel()) {
-                return false;
-            }
-            switch (type_symbol.as<NamedTypeSymbol>().kind()) {
-                case NamedTypeSymbol::Kind::TypeDef:
-                    return is_objc_compatible(type_symbol.as<TypeAliasSymbol>().canonical_type());
-                case NamedTypeSymbol::Kind::Struct:
-                case NamedTypeSymbol::Kind::Union:
-                    return type_symbol.is_ctype();
-                case NamedTypeSymbol::Kind::Interface:
-                    return type_symbol.name() != "Protocol";
-                case NamedTypeSymbol::Kind::Primitive:
-                case NamedTypeSymbol::Kind::Protocol:
-                case NamedTypeSymbol::Kind::Enum:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-        default:
-            return false;
-    }
-}
-
 [[nodiscard]] static bool write_type_alias(IndentingStringStream& output, const TypeAliasSymbol& alias)
 {
     const auto& target = alias.target();
@@ -266,7 +219,7 @@ static bool is_objc_compatible(const Type& type)
         return false;
     }
 
-    auto supported = !normal_mode() || target.is_ctype() || is_objc_compatible(target);
+    auto supported = !normal_mode() || target.is_ctype() || target.is_objc_compatible();
     if (supported) {
         collect_import(target);
     } else {
@@ -374,7 +327,7 @@ static void print_enum_constant_value(
 [[nodiscard]] static bool is_objc_compatible_parameters(const NonTypeSymbol& method) noexcept
 {
     for (const auto& parameter : method.parameters()) {
-        if (!is_objc_compatible(parameter.type())) {
+        if (!parameter.type().is_objc_compatible()) {
             return false;
         }
     }
@@ -621,7 +574,7 @@ static void write_function(
     IndentingStringStream& output, FuncKind kind, const NonTypeSymbol& function, PrintFormat format)
 {
     const auto& return_type = function.return_type();
-    auto supported = !normal_mode() || (is_objc_compatible(return_type) && is_objc_compatible_parameters(function));
+    auto supported = !normal_mode() || (return_type.is_objc_compatible() && is_objc_compatible_parameters(function));
     if (!supported) {
         output.set_comment();
     }
@@ -731,7 +684,7 @@ enum class DeclKind { CStruct, ObjCStruct, Interface, Class };
             // Current FE fails to process a field or property of an @ObjCMirror class if
             // the field and its type have the same name (no such problem in non-@ObjCMirror
             // declarations).  As a workaround, comment out such fields.
-            return name != type.name() && is_objc_compatible(type);
+            return name != type.name() && type.is_objc_compatible();
     }
 }
 
