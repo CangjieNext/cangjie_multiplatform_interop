@@ -913,6 +913,14 @@ public:
 
     [[nodiscard]] bool is_objc_compatible_signature() const noexcept;
 
+    /**
+     * Whether this declaration is currently supported by the FE.
+     * If not, then it will be commented out.
+     * @param owner owner type symbol, if any
+     */
+    [[nodiscard]] bool is_supported(const TypeDeclarationSymbol* owner) const noexcept;
+
+
     [[nodiscard]] Kind kind() const noexcept
     {
         return kind_;
@@ -986,6 +994,8 @@ public:
     }
 
     [[nodiscard]] const Type& return_type() const noexcept;
+
+    [[nodiscard]] const Type& property_type(const TypeDeclarationSymbol& decl) const noexcept;
 
     [[nodiscard]] Type& return_type() noexcept;
 

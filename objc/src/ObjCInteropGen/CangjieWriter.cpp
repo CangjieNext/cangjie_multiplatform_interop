@@ -559,20 +559,6 @@ static void write_function(IndentingStringStream& output, NonTypeSymbol& functio
     output << '\n';
 }
 
-// Whether a property or ivar with the specified type and name is currently
-// supported by FE.  If not, then in the NORMAL mode it will be commented out.
-// In the EXPERIMENTAL and GENERATE_DEFINITIONS modes, any property/ivar is
-// supported.
-[[nodiscard]] static bool is_property_or_ivar_type_supported(
-    NonTypeSymbol& member, const Type& type, const std::string& name)
-{
-    if (type.kind() == Type::Kind::Named
-        && (type.name() == "IMP" || (type.has_symbol_assigned() && &type.symbol() == &Universe::get().sel()))) {
-        return false;
-    }
-    return !normal_mode() || (type.is_objc_compatible() && !has_name_clash_with_referenced_types(member, name));
-}
-
 static void print_objcmirror_attribute(std::ostream& output, const NamedTypeSymbol& decl, bool supported)
 {
     auto hide_objcmirror_attribute = !supported;
@@ -618,18 +604,7 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
 {
     assert(prop.is_property());
     auto is_static = prop.is_static();
-    const auto& getter_name = prop.getter();
-
-    // For properties, not the property itself but its getter is passed to
-    // 'is_property_or_ivar_type_supported'.  That is because
-    // NonTypeSymbol::visit_referenced_types still cannot properly visit all types.
-    // Should be fixed later.
-    auto* getter = get_method_by_selector(decl_, getter_name, is_static);
-    assert(getter);
-    const auto& return_type = getter->return_type();
-    assert(!return_type.is_unit());
-    const auto& name = prop.name();
-    auto supported = is_property_or_ivar_type_supported(*getter, return_type, name);
+    auto supported = prop.is_supported(&decl_);
     if (!supported) {
         output_.set_comment();
     }
@@ -653,7 +628,9 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
     if (!prop.is_readonly()) {
         output_ << "mut ";
     }
-    output_ << "prop " << escape_keyword(name);
+    const auto& return_type = prop.property_type(decl_);;
+    assert(!return_type.is_unit());
+    output_ << "prop " << escape_keyword(prop.name());
     write_type(output_, return_type, format_);
     if (generate_definitions_mode()) {
         output_ << " {\n";
@@ -677,7 +654,7 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
 {
     assert(constructor.is_constructor());
     auto is_protocol = decl_.is(NamedTypeSymbol::Kind::Protocol);
-    auto supported = !is_protocol && (!normal_mode() || constructor.is_objc_compatible_signature());
+    auto supported = constructor.is_supported(&decl_);
     if (supported) {
         any_constructor_exists_ = true;
         if (!default_constructor_exists_) {
@@ -736,11 +713,9 @@ void TypeDeclarationWriter::write_instance_variable(NonTypeSymbol& ivar)
 {
     assert(ivar.is_instance_variable());
     assert(ivar.is_instance());
-    const auto& return_type = ivar.return_type();
-    assert(!return_type.is_unit());
     assert(ivar.is_public() || ivar.is_protected());
     const auto& name = ivar.name();
-    auto supported = is_property_or_ivar_type_supported(ivar, return_type, name);
+    auto supported = ivar.is_supported(&decl_);
     if (!supported) {
         output_.set_comment();
     }
@@ -749,6 +724,8 @@ void TypeDeclarationWriter::write_instance_variable(NonTypeSymbol& ivar)
         write_foreign_name(output_, foreign_name_attribute, selector_attribute);
     }
     output_ << (ivar.is_public() ? "public" : "protected") << " var " << escape_keyword(name);
+    const auto& return_type = ivar.return_type();
+    assert(!return_type.is_unit());
     write_type(output_, return_type, format_);
     if (generate_definitions_mode()) {
         output_ << " = " << default_value(return_type, format_);
@@ -768,9 +745,13 @@ void TypeDeclarationWriter::write_field(const NonTypeSymbol& field)
     if (field.is_bit_field() && field.name().empty()) {
         return;
     }
+    auto supported = field.is_supported(&decl_);
+    if (!supported) {
+        output_.set_comment();
+    }
+    output_ << "public var " << escape_keyword(field.name());
     const auto& return_type = field.return_type();
     assert(!return_type.is_unit());
-    output_ << "public var " << escape_keyword(field.name());
     write_type(output_, return_type, format_);
     if (mode != Mode::EXPERIMENTAL) {
         output_ << " = " << default_value(return_type, format_);
