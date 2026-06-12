@@ -404,17 +404,6 @@ static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method
     return false;
 }
 
-[[nodiscard]] static NonTypeSymbol* get_method_by_selector(
-    TypeDeclarationSymbol& decl, const std::string& selector, bool is_static)
-{
-    for (auto& member : decl.members()) {
-        if (member.is_member_method() && member.is_static() == is_static && member.selector() == selector) {
-            return &member;
-        }
-    }
-    return nullptr;
-}
-
 static void print_objc_optional(std::ostream& output, const NonTypeSymbol& member)
 {
     if (member.is_objc_optional()) {
@@ -469,31 +458,21 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
     }
 }
 
-// The current FE issues a compiler error on functions, properties, as well as
-// fields in @ObjCMirror classes, if their definitions reference a type which
-// name coincides with the name of the function/property/field itself.  As a
-// workaround, comment out such objects.
-[[nodiscard]] static bool has_name_clash_with_referenced_types(
-    NonTypeSymbol& symbol, const std::string& name, PrintFormat format)
+[[nodiscard]] static bool has_name_clash_through_type_aliases(const NonTypeSymbol& symbol, const std::string& name, PrintFormat format)
 {
-    class Visitor : public FileLevelSymbolVisitor {
+    class Scanner : public FileLevelSymbolScanner {
     public:
-        Visitor(const std::string& name, PrintFormat format) noexcept : name_(name), format_(format)
+        explicit Scanner(const std::string& name) noexcept : name_(name)
         {
         }
 
-        [[nodiscard]] bool operator()(FileLevelSymbol& symbol) const override
+        [[nodiscard]] bool operator()(const FileLevelSymbol& symbol) const override
         {
-            // See the comment in 'TypeAliasSymbol::print'
-            if (mode != Mode::EXPERIMENTAL && format_ == PrintFormat::EmitCangjieStrict) {
-                auto* type_alias = dynamic_cast<TypeAliasSymbol*>(&symbol);
-                if (type_alias) {
-                    auto& target = type_alias->target();
-                    if (target.has_symbol_assigned()) {
-                        auto canonical_type = type_alias->canonical_type();
-                        if (canonical_type.is_ctype() && canonical_type.contains_pointer_or_func()) {
-                            return (*this)(target);
-                        }
+            if (auto* type_alias = dynamic_cast<const TypeAliasSymbol*>(&symbol)) {
+                if (auto& target = type_alias->target(); target.has_symbol_assigned()) {
+                    auto canonical_type = type_alias->canonical_type();
+                    if (canonical_type.is_ctype() && canonical_type.contains_pointer_or_func()) {
+                        return (*this)(target);
                     }
                 }
             }
@@ -501,25 +480,24 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
             return name_ == symbol.name();
         }
 
-        using FileLevelSymbolVisitor::operator();
+        using FileLevelSymbolScanner::operator();
 
     private:
         const std::string& name_;
-
-        const PrintFormat format_;
     };
-    return symbol.any_of_referenced_types(Visitor(name, format));
+    return mode != Mode::EXPERIMENTAL && format == PrintFormat::EmitCangjieStrict &&
+        symbol.any_of_referenced_types(Scanner(name));
 }
 
-static void write_function(IndentingStringStream& output, NonTypeSymbol& function, PrintFormat format)
+static void write_function(
+    IndentingStringStream& output, const TypeDeclarationSymbol* decl, const NonTypeSymbol& function, PrintFormat format)
 {
     if (function.is_hidden()) {
         return;
     }
     const auto& return_type = function.return_type();
     const auto& name = function.name();
-    auto supported = (!normal_mode() || function.is_objc_compatible_signature()) &&
-        !has_name_clash_with_referenced_types(function, name, format);
+    auto supported = function.is_supported(decl) && !has_name_clash_through_type_aliases(function, name, format);
     if (!supported) {
         output.set_comment();
     }
@@ -534,7 +512,7 @@ static void write_function(IndentingStringStream& output, NonTypeSymbol& functio
                 output << "@ObjCMirror\n";
                 format = PrintFormat::EmitCangjieStrict;
             }
-            const auto &selector_attribute = function.selector_attribute();
+            const auto& selector_attribute = function.selector_attribute();
             if (!selector_attribute.empty()) {
                 write_foreign_name(output, foreign_name_attribute, selector_attribute);
             }
@@ -616,13 +594,6 @@ public:
     void write();
 
 private:
-    // Whether a property or ivar with the specified type and name is currently
-    // supported by FE.  If not, then in the NORMAL mode it will be commented out.
-    // In the EXPERIMENTAL and GENERATE_DEFINITIONS modes, any property/ivar is
-    // supported.
-    [[nodiscard]] bool is_property_or_ivar_type_supported(
-        NonTypeSymbol& member, const Type& type, const std::string& name) const;
-
     void write_property(const NonTypeSymbol& prop);
     void write_constructor(NonTypeSymbol& constructor);
     void write_instance_variable(NonTypeSymbol& ivar);
@@ -640,33 +611,12 @@ TypeDeclarationWriter::TypeDeclarationWriter(IndentingStringStream& output, Type
 {
 }
 
-bool TypeDeclarationWriter::is_property_or_ivar_type_supported(
-    NonTypeSymbol& member, const Type& type, const std::string& name) const
-{
-    if (type.kind() == Type::Kind::Named &&
-        (type.name() == "IMP" || (type.has_symbol_assigned() && &type.symbol() == &Universe::get().sel()))) {
-        return false;
-    }
-    return !normal_mode() ||
-        (type.is_objc_compatible() && !has_name_clash_with_referenced_types(member, name, format_));
-}
-
 void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
 {
     assert(prop.is_property());
     auto is_static = prop.is_static();
-    const auto& getter_name = prop.getter();
-
-    // For properties, not the property itself but its getter is passed to
-    // 'is_property_or_ivar_type_supported'.  That is because
-    // NonTypeSymbol::visit_referenced_types still cannot properly visit all types.
-    // Should be fixed later.
-    auto* getter = get_method_by_selector(decl_, getter_name, is_static);
-    assert(getter);
-    const auto& return_type = getter->return_type();
-    assert(!return_type.is_unit());
-    const auto& name = prop.name();
-    auto supported = is_property_or_ivar_type_supported(*getter, return_type, name);
+    auto getter = prop.find_getter(decl_);
+    auto supported = prop.is_supported(&decl_) && !has_name_clash_through_type_aliases(*getter, prop.name(), format_);
     if (!supported) {
         output_.set_comment();
     }
@@ -690,7 +640,10 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
     if (!prop.is_readonly()) {
         output_ << "mut ";
     }
-    output_ << "prop " << escape_keyword(name);
+    const auto& return_type = prop.property_type(decl_);
+    ;
+    assert(!return_type.is_unit());
+    output_ << "prop " << escape_keyword(prop.name());
     write_type(output_, return_type, format_);
     if (generate_definitions_mode()) {
         output_ << " {\n";
@@ -714,7 +667,7 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
 {
     assert(constructor.is_constructor());
     auto is_protocol = decl_.is(NamedTypeSymbol::Kind::Protocol);
-    auto supported = !is_protocol && (!normal_mode() || constructor.is_objc_compatible_signature());
+    auto supported = constructor.is_supported(&decl_);
     if (supported) {
         any_constructor_exists_ = true;
         if (!default_constructor_exists_) {
@@ -773,11 +726,9 @@ void TypeDeclarationWriter::write_instance_variable(NonTypeSymbol& ivar)
 {
     assert(ivar.is_instance_variable());
     assert(ivar.is_instance());
-    const auto& return_type = ivar.return_type();
-    assert(!return_type.is_unit());
     assert(ivar.is_public() || ivar.is_protected());
     const auto& name = ivar.name();
-    auto supported = is_property_or_ivar_type_supported(ivar, return_type, name);
+    auto supported = ivar.is_supported(&decl_) && !has_name_clash_through_type_aliases(ivar, ivar.name(), format_);
     if (!supported) {
         output_.set_comment();
     }
@@ -786,6 +737,8 @@ void TypeDeclarationWriter::write_instance_variable(NonTypeSymbol& ivar)
         write_foreign_name(output_, foreign_name_attribute, selector_attribute);
     }
     output_ << (ivar.is_public() ? "public" : "protected") << " var " << escape_keyword(name);
+    const auto& return_type = ivar.return_type();
+    assert(!return_type.is_unit());
     write_type(output_, return_type, format_);
     if (generate_definitions_mode()) {
         output_ << " = " << default_value(return_type, format_);
@@ -805,9 +758,13 @@ void TypeDeclarationWriter::write_field(const NonTypeSymbol& field)
     if (field.is_bit_field() && field.name().empty()) {
         return;
     }
+    auto supported = field.is_supported(&decl_) && !has_name_clash_through_type_aliases(field, field.name(), format_);
+    if (!supported) {
+        output_.set_comment();
+    }
+    output_ << "public var " << escape_keyword(field.name());
     const auto& return_type = field.return_type();
     assert(!return_type.is_unit());
-    output_ << "public var " << escape_keyword(field.name());
     write_type(output_, return_type, format_);
     if (mode != Mode::EXPERIMENTAL) {
         output_ << " = " << default_value(return_type, format_);
@@ -883,7 +840,7 @@ void TypeDeclarationWriter::write()
         } else if (member.is_constructor()) {
             write_constructor(member);
         } else if (member.is_member_method()) {
-            write_function(output_, member, format_);
+            write_function(output_, &decl_, member, format_);
         } else if (member.is_instance_variable()) {
             write_instance_variable(member);
         } else if (member.is_field()) {
@@ -950,7 +907,7 @@ void write_cangjie()
                         continue;
                     }
 
-                    write_function(output, top_level, PrintFormat::EmitCangjie);
+                    write_function(output, nullptr, top_level, PrintFormat::EmitCangjie);
                 }
                 output << std::endl;
             }

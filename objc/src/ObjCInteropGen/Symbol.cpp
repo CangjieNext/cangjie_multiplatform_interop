@@ -130,6 +130,19 @@ bool FileLevelSymbolVisitor::operator()(Type& type) const
     return false;
 }
 
+bool FileLevelSymbolScanner::operator()(const Type& type) const
+{
+    if ((*this)(type.symbol())) {
+        return true;
+    }
+    for (const auto& param : type.parameters()) {
+        if ((*this)(param)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool FileLevelSymbol::set_reference_level(unsigned new_reference_level) noexcept
 {
     if (!defining_file() || new_reference_level >= reference_level_) {
@@ -783,6 +796,11 @@ bool EnumDeclarationSymbol::visit_referenced_types(const FileLevelSymbolVisitor&
     return underlying_type_ && visitor(*underlying_type_);
 }
 
+bool EnumDeclarationSymbol::visit_referenced_types(const FileLevelSymbolScanner& visitor) const
+{
+    return underlying_type_ && visitor(*underlying_type_);
+}
+
 [[nodiscard]] static Type underlying_unexposed_type(size_t size)
 {
     auto& universe = Universe::get();
@@ -901,8 +919,7 @@ void TypeDeclarationSymbol::add_member_method(
             assert(false);
             break;
     }
-    members_.emplace_back(
-        std::move(name), kind, std::move(return_type), std::move(parameters), modifiers);
+    members_.emplace_back(std::move(name), kind, std::move(return_type), std::move(parameters), modifiers);
 }
 
 void TypeDeclarationSymbol::add_constructor(std::string name, Type return_type, std::vector<ParameterSymbol> parameters)
@@ -920,8 +937,7 @@ void TypeDeclarationSymbol::add_constructor(std::string name, Type return_type, 
             break;
     }
     assert(is(Kind::Interface) || is(Kind::Protocol));
-    members_.emplace_back(
-        std::move(name), kind, std::move(return_type), std::move(parameters));
+    members_.emplace_back(std::move(name), kind, std::move(return_type), std::move(parameters));
 }
 
 void TypeDeclarationSymbol::add_field(std::string name, Type type, Modifiers modifiers)
@@ -1005,6 +1021,21 @@ bool TypeDeclarationSymbol::visit_referenced_types(const FileLevelSymbolVisitor&
         }
     }
     for (FileLevelSymbol& member : this->members()) {
+        if (member.any_of_referenced_types(visitor)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool TypeDeclarationSymbol::visit_referenced_types(const FileLevelSymbolScanner& visitor) const
+{
+    for (const auto& base : this->bases()) {
+        if (visitor(base)) {
+            return true;
+        }
+    }
+    for (const FileLevelSymbol& member : this->members()) {
         if (member.any_of_referenced_types(visitor)) {
             return true;
         }
@@ -1113,6 +1144,12 @@ bool TypeAliasSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visit
     return target.has_symbol_assigned() && visitor(target);
 }
 
+bool TypeAliasSymbol::visit_referenced_types(const FileLevelSymbolScanner& visitor) const
+{
+    const auto& target = this->target();
+    return target.has_symbol_assigned() && visitor(target);
+}
+
 static void selector_to_cj_name(NonTypeSymbol& member)
 {
     const auto& name = member.name();
@@ -1192,9 +1229,81 @@ bool NonTypeSymbol::is_objc_compatible_signature() const noexcept
     return is_constructor() || return_type().is_objc_compatible();
 }
 
+// The current FE issues a compiler error on functions, properties, as well as
+// fields in @ObjCMirror classes, if their definitions reference a type which
+// name coincides with the name of the function/property/field itself.  As a
+// workaround, comment out such objects.
+[[nodiscard]] static bool has_name_clash_with_referenced_types(const NonTypeSymbol& symbol, const std::string& name)
+{
+    return symbol.any_of_referenced_types([&name](const auto& s) { return name == s.name(); });
+}
+
+bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexcept
+{
+    assert(owner || is_global_function());
+
+    if (is_constructor() && owner->kind() == NamedTypeSymbol::Kind::Protocol) {
+        return false;
+    }
+
+    if (!normal_mode()) {
+        // In the EXPERIMENTAL and GENERATE_DEFINITIONS modes, everything is supported.
+        return true;
+    }
+
+    if (is_method()) {
+        return is_objc_compatible_signature() && !has_name_clash_with_referenced_types(*this, name());
+    }
+
+    if (is_field() || is_property() || is_instance_variable()) {
+        const Type& type = is_property() ? property_type(*owner) : return_type();
+        assert(!type.is_unit());
+
+        if (type.kind() == Type::Kind::Named) {
+            if (type.name() == "IMP" || (type.has_symbol_assigned() && &type.symbol() == &Universe::get().sel())) {
+                return false;
+            }
+        }
+
+        switch (owner->kind()) {
+            case NamedTypeSymbol::Kind::Struct:
+            case NamedTypeSymbol::Kind::Union:
+                return true;
+            case NamedTypeSymbol::Kind::Protocol:
+            case NamedTypeSymbol::Kind::Interface:
+                // Current FE fails to process a field or property of an @ObjCMirror class if
+                // the field and its type have the same name (no such problem in non-@ObjCMirror
+                // declarations).  As a workaround, comment out such fields.
+                return name() != type.name() &&
+                    type.is_objc_compatible()
+                    // For properties, not the property itself but its getter is passed to
+                    // 'has_name_clash_with_referenced_types'.  That is because
+                    // NonTypeSymbol::visit_referenced_types still cannot properly visit all types.
+                    // Should be fixed later.
+                    && !has_name_clash_with_referenced_types(is_property() ? *find_getter(*owner) : *this, name());
+            default:
+                assert(false);
+                return false;
+        }
+    }
+
+    assert(false);
+}
+
 bool NonTypeSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
     for (auto& parameter : this->parameters()) {
+        if (visitor(parameter.type())) {
+            return true;
+        }
+    }
+
+    return kind_ != Kind::Property && visitor(return_type());
+}
+
+bool NonTypeSymbol::visit_referenced_types(const FileLevelSymbolScanner& visitor) const
+{
+    for (const auto& parameter : this->parameters()) {
         if (visitor(parameter.type())) {
             return true;
         }
@@ -1210,6 +1319,15 @@ const Type& NonTypeSymbol::return_type() const noexcept
     assert(kind_ != Kind::Property);
 
     return return_type_;
+}
+
+const Type& NonTypeSymbol::property_type(const TypeDeclarationSymbol& decl) const noexcept
+{
+    assert(kind_ == Kind::Property);
+
+    const auto* getter = find_getter(decl);
+    assert(getter);
+    return getter->return_type();
 }
 
 Type& NonTypeSymbol::return_type() noexcept
@@ -1252,11 +1370,8 @@ ClosureDepthType NonTypeSymbol::calculate_reference_level(const TypeDeclarationS
         case Kind::Field:
         case Kind::InstanceVariable:
             return return_type_.reference_level();
-        case Kind::Property: {
-            auto* getter = find_getter(decl);
-            assert(getter);
-            return getter->return_type().reference_level();
-        }
+        case Kind::Property:
+            return property_type(decl).reference_level();
         case Kind::ProtocolMethod:
         case Kind::InterfaceMethod: {
             auto result = return_type_.reference_level();

@@ -452,7 +452,7 @@ static void transform_base_derived(const TypeDeclarationSymbol& base, TypeDeclar
                     if (base_member.selector() != derived_member.selector() ||
                         base_member.is_static() != derived_member.is_static()) {
                         continue;
-                        }
+                    }
                     // Resolve the following clashes in override method return types:
                     //
                     // - In Cangjie, Option is not covariant.  If 'base_member' and 'derived_member'
@@ -512,8 +512,8 @@ static void transform_base_derived(const TypeDeclarationSymbol& base, TypeDeclar
             const auto derived_kind = derived_member.kind();
             for (const auto& base_member : base_members) {
                 const auto base_kind = base_member.kind();
-                if ((base_member.is_property() || base_member.is_instance_variable())
-                    && base_kind != derived_kind && base_member.name() == derived_member.name()) {
+                if ((base_member.is_property() || base_member.is_instance_variable()) && base_kind != derived_kind &&
+                    base_member.name() == derived_member.name()) {
                     resolve_prop_ivar_clash(derived_member);
                 }
             }
