@@ -907,6 +907,12 @@ public:
         return target_.canonical_type();
     }
 
+    /**
+     * Whether this declaration is currently supported by the FE.
+     * If not, then it will be commented out.
+     */
+    [[nodiscard]] bool is_supported() const noexcept;
+
 private:
     [[nodiscard]] bool is_ctype() const noexcept override
     {
