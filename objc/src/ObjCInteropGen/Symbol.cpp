@@ -316,6 +316,53 @@ bool Type::is_ctype() const noexcept
     }
 }
 
+// Currently in the NORMAL mode, Objective-C compatible types are primitives,
+// @C structures, ObjCPointer, ObjCFunc, ObjCBlock, and classes/interfaces.
+// But not CPointer, CFunc, or VArray.
+bool Type::is_objc_compatible() const noexcept
+{
+    assert(normal_mode());
+    switch (kind()) {
+        case Kind::Unit:
+            return true;
+        case Kind::TypeParam:
+            // Type parameters are printed as ObjCId, which is Objective-C compatible
+            return true;
+        case Kind::Pointer:
+            assert(parameters().size() == 1);
+            return parameters().front().is_objc_compatible();
+        case Kind::Function:
+        case Kind::Block: {
+            const auto& parameters = this->parameters();
+            return std::all_of(parameters.begin(), parameters.end(),
+                [](const auto& parameter) { return parameter.is_objc_compatible(); });
+        }
+        case Kind::Named: {
+            const auto& type_symbol = symbol();
+            if (&type_symbol == &Universe::get().sel()) {
+                return false;
+            }
+            switch (type_symbol.as<NamedTypeSymbol>().kind()) {
+                case NamedTypeSymbol::Kind::TypeDef:
+                    return type_symbol.as<TypeAliasSymbol>().canonical_type().is_objc_compatible();
+                case NamedTypeSymbol::Kind::Struct:
+                case NamedTypeSymbol::Kind::Union:
+                    return type_symbol.is_ctype();
+                case NamedTypeSymbol::Kind::Interface:
+                    return type_symbol.name() != "Protocol";
+                case NamedTypeSymbol::Kind::Primitive:
+                case NamedTypeSymbol::Kind::Protocol:
+                case NamedTypeSymbol::Kind::Enum:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
 bool Type::contains_pointer_or_func() const noexcept
 {
     switch (kind_) {
