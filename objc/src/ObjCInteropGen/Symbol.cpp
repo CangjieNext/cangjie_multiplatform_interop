@@ -1124,6 +1124,12 @@ void TypeAliasSymbol::print(std::ostream& stream, PrintFormat format) const
     }
 }
 
+bool TypeAliasSymbol::is_supported() const noexcept
+{
+    const auto& target = this->target();
+    return !normal_mode() || target.is_ctype() || target.is_objc_compatible();
+}
+
 bool TypeAliasSymbol::set_reference_level(unsigned new_reference_level) noexcept
 {
     auto set = FileLevelSymbol::set_reference_level(new_reference_level);
