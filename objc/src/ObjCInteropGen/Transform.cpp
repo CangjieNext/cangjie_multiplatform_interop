@@ -39,22 +39,17 @@ static void replace_instancetype(TypeDeclarationSymbol& decl)
 {
     assert(decl.is(NamedTypeSymbol::Kind::Interface) || decl.is(NamedTypeSymbol::Kind::Protocol));
     for (auto& member : decl.members()) {
-        switch (member.kind()) {
-            case NonTypeSymbol::Kind::Constructor:
-                // For 'init' methods, the cjc frontend requires the return type to be strictly
-                // the declaring class, and the nullability must be nonnull.
-                replace_return_instancetype(decl, member, Nullability::Nonnull);
-                break;
-            case NonTypeSymbol::Kind::MemberMethod: {
-                // For non-@ObjCInit methods, `instancetype` is mapped to the declaring class,
-                // keeping the original nullability.
-                const auto& original_return_type = member.return_type();
-                if (is_instancetype(original_return_type)) {
-                    replace_return_instancetype(decl, member, original_return_type.nullability());
-                }
+        if (member.is_constructor()) {
+            // For 'init' methods, the cjc frontend requires the return type to be strictly
+            // the declaring class, and the nullability must be nonnull.
+            replace_return_instancetype(decl, member, Nullability::Nonnull);
+        } else if (member.is_member_method()) {
+            // For non-@ObjCInit methods, `instancetype` is mapped to the declaring class,
+            // keeping the original nullability.
+            const auto& original_return_type = member.return_type();
+            if (is_instancetype(original_return_type)) {
+                replace_return_instancetype(decl, member, original_return_type.nullability());
             }
-            default:
-                break;
         }
     }
 }
@@ -360,15 +355,10 @@ static void transform_type(TypeDeclarationSymbol& decl)
     // Resolve static/instance clashes inside 'decl'
     std::unordered_map<std::string_view, StaticInstancePair> static_instance_map;
     for (auto& member : members) {
-        switch (member.kind()) {
-            case NonTypeSymbol::Kind::Property:
-            case NonTypeSymbol::Kind::MemberMethod:
-                if (!member.is_hidden()) {
-                    static_instance_map[member.selector()].add(member);
-                }
-                break;
-            default:
-                break;
+        if (member.is_property() || member.is_member_method()) {
+            if (!member.is_hidden()) {
+                static_instance_map[member.selector()].add(member);
+            }
         }
     }
     for (const auto& [name, pair] : static_instance_map) {

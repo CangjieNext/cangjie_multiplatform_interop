@@ -418,7 +418,6 @@ public:
         Union,
         Enum,
         Category,
-        TopLevel,
     };
 
     void print(std::ostream& stream, PrintFormat) const override;
