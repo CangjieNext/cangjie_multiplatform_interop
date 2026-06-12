@@ -558,9 +558,10 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
     }
 }
 
-static void write_function(IndentingStringStream& output, const NonTypeSymbol& function, PrintFormat format)
+static void write_function(IndentingStringStream& output, const TypeDeclarationSymbol* decl,
+    const NonTypeSymbol& function, PrintFormat format)
 {
-    auto supported = !normal_mode() || function.is_objc_compatible_signature();
+    auto supported = function.is_supported(decl);
     if (!supported) {
         output.set_comment();
     }
@@ -641,36 +642,6 @@ static void write_function(IndentingStringStream& output, const NonTypeSymbol& f
 
 enum class DeclKind { CStruct, ObjCStruct, Interface, Class };
 
-// Whether a property or field with the specified type and name is currently
-// supported by FE in declarations of the specified kind.  If not, then in the
-// NORMAL mode it will be commented out. In the EXPERIMENTAL and
-// GENERATE_DEFINITIONS modes, any property/field is supported.
-[[nodiscard]] static bool is_field_type_supported(DeclKind decl_kind, const Type& type, const std::string& name)
-{
-    if (!normal_mode()) {
-        return true;
-    }
-    if (type.kind() == Type::Kind::Named) {
-        if (type.name() == "IMP" || (type.has_symbol_assigned() && &type.symbol() == &Universe::get().sel())) {
-            return false;
-        }
-    }
-    switch (decl_kind) {
-        case DeclKind::CStruct:
-            assert(type.is_ctype());
-            return true;
-        case DeclKind::ObjCStruct:
-            return true;
-        default:
-            assert(decl_kind == DeclKind::Class || decl_kind == DeclKind::Interface);
-
-            // Current FE fails to process a field or property of an @ObjCMirror class if
-            // the field and its type have the same name (no such problem in non-@ObjCMirror
-            // declarations).  As a workaround, comment out such fields.
-            return name != type.name() && type.is_objc_compatible();
-    }
-}
-
 static void print_objcmirror_attribute(std::ostream& output, bool supported)
 {
     auto hide_objcmirror_attribute = !supported;
@@ -716,12 +687,7 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
     if (get_overridden_method(decl_, prop) || get_overridden_property(decl_, prop.getter(), is_static)) {
         return;
     }
-    const auto* getter = prop.find_getter(decl_);
-    assert(getter);
-    const auto& return_type = getter->return_type();
-    assert(!return_type.is_unit());
-    const auto& name = prop.name();
-    auto supported = is_field_type_supported(decl_kind_, return_type, name);
+    auto supported = prop.is_supported(&decl_);
     if (!supported) {
         output_.set_comment();
     }
@@ -744,7 +710,9 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
     if (!prop.is_readonly()) {
         output_ << "mut ";
     }
-    output_ << "prop " << escape_keyword(name);
+    output_ << "prop " << escape_keyword(prop.name());
+    const auto& return_type = prop.property_type(decl_);
+    assert(!return_type.is_unit());
     write_type(output_, return_type, format_);
     if (generate_definitions_mode()) {
         output_ << " {\n";
@@ -767,8 +735,7 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
 void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
 {
     assert(constructor.is_constructor());
-    auto supported =
-        decl_kind_ != DeclKind::Interface && (!normal_mode() || constructor.is_objc_compatible_signature());
+    auto supported = constructor.is_supported(&decl_);
     if (supported) {
         any_constructor_exists_ = true;
         if (!default_constructor_exists_) {
@@ -827,11 +794,9 @@ void TypeDeclarationWriter::write_instance_variable(const NonTypeSymbol& ivar)
 {
     assert(ivar.is_instance_variable());
     assert(ivar.is_instance());
-    const auto& return_type = ivar.return_type();
-    assert(!return_type.is_unit());
     assert(ivar.is_public() || ivar.is_protected());
     const auto& name = ivar.name();
-    auto supported = is_field_type_supported(decl_kind_, return_type, name);
+    auto supported = ivar.is_supported(&decl_);
     if (!supported) {
         output_.set_comment();
     }
@@ -840,6 +805,8 @@ void TypeDeclarationWriter::write_instance_variable(const NonTypeSymbol& ivar)
         write_foreign_name(output_, foreign_name_attribute, selector_attribute, generate_definitions_mode());
     }
     output_ << (ivar.is_public() ? "public" : "protected") << " var " << escape_keyword(name);
+    const auto& return_type = ivar.return_type();
+    assert(!return_type.is_unit());
     write_type(output_, return_type, format_);
     if (generate_definitions_mode()) {
         output_ << " = " << default_value(return_type, format_);
@@ -859,14 +826,13 @@ void TypeDeclarationWriter::write_field(const NonTypeSymbol& field)
     if (field.is_bit_field() && field.name().empty()) {
         return;
     }
-    const auto& return_type = field.return_type();
-    assert(!return_type.is_unit());
-    const auto& name = field.name();
-    auto supported = is_field_type_supported(decl_kind_, return_type, name);
+    auto supported = field.is_supported(&decl_);
     if (!supported) {
         output_.set_comment();
     }
-    output_ << "public var " << escape_keyword(name);
+    output_ << "public var " << escape_keyword(field.name());
+    const auto& return_type = field.return_type();
+    assert(!return_type.is_unit());
     write_type(output_, return_type, format_);
     if (mode != Mode::EXPERIMENTAL) {
         output_ << " = " << default_value(return_type, format_);
@@ -961,7 +927,7 @@ void TypeDeclarationWriter::write()
         } else if (member.is_member_method()) {
             if (!get_property(decl_, member) &&
                 !get_overridden_property(decl_, member.selector(), member.is_static())) {
-                write_function(output_, member, format_);
+                write_function(output_, &decl_, member, format_);
             }
         } else if (member.is_instance_variable()) {
             write_instance_variable(member);
@@ -1031,7 +997,7 @@ void write_cangjie()
                         continue;
                     }
 
-                    write_function(output, top_level, PrintFormat::EmitCangjie);
+                    write_function(output, nullptr, top_level, PrintFormat::EmitCangjie);
                 }
                 output << std::endl;
             }

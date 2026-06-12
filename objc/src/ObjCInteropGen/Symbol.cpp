@@ -1132,6 +1132,52 @@ bool NonTypeSymbol::is_objc_compatible_signature() const noexcept
     return is_constructor() || return_type().is_objc_compatible();
 }
 
+bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexcept
+{
+    assert(owner || is_global_function());
+
+    if (is_constructor() && owner->kind() == NamedTypeSymbol::Kind::Protocol) {
+        return false;
+    }
+
+    if (!normal_mode()) {
+        // In the EXPERIMENTAL and GENERATE_DEFINITIONS modes, everything is supported.
+        return true;
+    }
+
+    if (is_method()) {
+        return is_objc_compatible_signature();
+    }
+
+    if (is_field() || is_property() || is_instance_variable()) {
+        const Type& type = is_property() ? property_type(*owner) : return_type();
+        assert(!type.is_unit());
+
+        if (type.kind() == Type::Kind::Named) {
+            if (type.name() == "IMP" || (type.has_symbol_assigned() && &type.symbol() == &Universe::get().sel())) {
+                return false;
+            }
+        }
+
+        switch (owner->kind()) {
+            case NamedTypeSymbol::Kind::Struct:
+            case NamedTypeSymbol::Kind::Union:
+                return true;
+            case NamedTypeSymbol::Kind::Protocol:
+            case NamedTypeSymbol::Kind::Interface:
+                // Current FE fails to process a field or property of an @ObjCMirror class if
+                // the field and its type have the same name (no such problem in non-@ObjCMirror
+                // declarations).  As a workaround, comment out such fields.
+                return name() != type.name() && type.is_objc_compatible();
+            default:
+                assert(false);
+                return false;
+        }
+    }
+
+    assert(false);
+}
+
 void NonTypeSymbol::visit_impl(SymbolVisitor& visitor) const
 {
     for (auto& parameter : this->parameters()) {
@@ -1150,6 +1196,15 @@ const Type& NonTypeSymbol::return_type() const noexcept
     assert(kind_ != Kind::Property);
 
     return return_type_;
+}
+
+const Type& NonTypeSymbol::property_type(const TypeDeclarationSymbol& decl) const noexcept
+{
+    assert(kind_ == Kind::Property);
+
+    const auto* getter = find_getter(decl);
+    assert(getter);
+    return getter->return_type();
 }
 
 Type& NonTypeSymbol::return_type() noexcept
@@ -1192,11 +1247,8 @@ ClosureDepthType NonTypeSymbol::calculate_reference_level(const TypeDeclarationS
         case Kind::Field:
         case Kind::InstanceVariable:
             return return_type_.reference_level();
-        case Kind::Property: {
-            auto* getter = find_getter(decl);
-            assert(getter);
-            return getter->return_type().reference_level();
-        }
+        case Kind::Property:
+            return property_type(decl).reference_level();
         case Kind::ProtocolMethod:
         case Kind::InterfaceMethod: {
             auto result = return_type_.reference_level();
