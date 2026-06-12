@@ -219,7 +219,7 @@ static void collect_import(const Type& type)
         return false;
     }
 
-    auto supported = !normal_mode() || target.is_ctype() || target.is_objc_compatible();
+    auto supported = alias.is_supported();
     if (supported) {
         collect_import(target);
     } else {
