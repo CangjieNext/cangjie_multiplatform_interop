@@ -350,27 +350,8 @@ bool Type::is_objc_compatible() const noexcept
             return std::all_of(parameters.begin(), parameters.end(),
                 [](const auto& parameter) { return parameter.is_objc_compatible(); });
         }
-        case Kind::Named: {
-            const auto& type_symbol = symbol();
-            if (&type_symbol == &Universe::get().sel()) {
-                return false;
-            }
-            switch (type_symbol.as<NamedTypeSymbol>().kind()) {
-                case NamedTypeSymbol::Kind::TypeDef:
-                    return type_symbol.as<TypeAliasSymbol>().canonical_type().is_objc_compatible();
-                case NamedTypeSymbol::Kind::Struct:
-                case NamedTypeSymbol::Kind::Union:
-                    return type_symbol.is_ctype();
-                case NamedTypeSymbol::Kind::Interface:
-                    return type_symbol.name() != "Protocol";
-                case NamedTypeSymbol::Kind::Primitive:
-                case NamedTypeSymbol::Kind::Protocol:
-                case NamedTypeSymbol::Kind::Enum:
-                    return true;
-                default:
-                    return false;
-            }
-        }
+        case Kind::Named:
+            return symbol().is_objc_compatible();
         default:
             return false;
     }
@@ -744,6 +725,28 @@ void NamedTypeSymbol::set_mapping(const TypeMapping* mapping) noexcept
 {
     assert(mapping_ == nullptr);
     mapping_ = mapping;
+}
+
+bool NamedTypeSymbol::is_objc_compatible() const noexcept
+{
+    if (this == &Universe::get().sel()) {
+        return false;
+    }
+    switch (kind()) {
+        case Kind::TypeDef:
+            return as<TypeAliasSymbol>().canonical_type().is_objc_compatible();
+        case Kind::Struct:
+        case Kind::Union:
+            return is_ctype();
+        case Kind::Interface:
+            return name() != "Protocol";
+        case Kind::Primitive:
+        case Kind::Protocol:
+        case Kind::Enum:
+            return true;
+        default:
+            return false;
+    }
 }
 
 TypeLikeSymbol& NamedTypeSymbol::map()
