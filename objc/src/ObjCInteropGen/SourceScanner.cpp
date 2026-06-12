@@ -132,7 +132,7 @@ private:
             return false;
         }
         const auto* top = dynamic_cast<const NonTypeSymbol*>(current_.back());
-        return top && top->kind() == NonTypeSymbol::Kind::Property;
+        return top && top->is_property();
     }
 
     [[nodiscard]] NamedTypeSymbol& push_current(NamedTypeSymbol& symbol, const bool is_objc)

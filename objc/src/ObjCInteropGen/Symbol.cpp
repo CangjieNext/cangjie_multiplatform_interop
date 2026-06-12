@@ -878,7 +878,7 @@ void TypeDeclarationSymbol::member_remove(size_t index)
     switch (kind()) {
         case Kind::Struct:
         case Kind::Union: {
-            assert(it->kind() == NonTypeSymbol::Kind::Field);
+            assert(it->is_field());
             auto removing_ctype = it->return_type().is_ctype();
             members_.erase(it);
             if (!removing_ctype) {

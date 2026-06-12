@@ -542,7 +542,7 @@ static void print_objc_optional(std::ostream& output, const NonTypeSymbol& membe
 
 static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol& prop)
 {
-    assert(prop.kind() == NonTypeSymbol::Kind::Property);
+    assert(prop.is_property());
     const auto& name = prop.name();
     const auto& getter_name = prop.getter();
     bool standard_getter = getter_name == name;

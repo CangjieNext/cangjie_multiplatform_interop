@@ -356,7 +356,6 @@ public:
         Union,
         Enum,
         Category,
-        TopLevel,
     };
 
     void rename(std::string_view new_name) override;
