@@ -170,7 +170,7 @@ static void write_type_alias(IndentingStringStream& output, const TypeAliasSymbo
 {
     const auto& target = alias.target();
 
-    auto supported = !normal_mode() || target.is_ctype() || target.is_objc_compatible();
+    auto supported = alias.is_supported();
     if (supported) {
         collect_import(target);
     } else {
