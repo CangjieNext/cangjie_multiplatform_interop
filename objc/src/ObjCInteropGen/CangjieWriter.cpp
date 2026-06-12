@@ -918,13 +918,6 @@ void write_cangjie()
                 } else {
                     auto& top_level = symbol->as<NonTypeSymbol>();
                     assert(top_level.is_global_function());
-
-                    // Ignore global functions with internal linkage.  Anyway, we cannot use them in
-                    // Cangjie.
-                    if (top_level.has_internal_linkage()) {
-                        continue;
-                    }
-
                     write_function(output, nullptr, top_level, PrintFormat::EmitCangjie);
                 }
                 output << std::endl;

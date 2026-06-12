@@ -691,12 +691,11 @@ constexpr Modifiers ModifierStatic = 1 << 3;
 constexpr Modifiers ModifierReadonly = 1 << 4;
 constexpr Modifiers ModifierOverride = 1 << 5;
 constexpr Modifiers ModifierOptional = 1 << 6;
-constexpr Modifiers ModifierInternalLinkage = 1 << 7; // used for Kind::GlobalFunction
-constexpr Modifiers ModifierBitField = 1 << 8;
+constexpr Modifiers ModifierBitField = 1 << 7;
 
 // Not printed at all to output Cangjie files, ignored by CangjieWriter.  For
 // example, getter method sharing the same name with its property.
-constexpr Modifiers ModifierHidden = 1 << 9;
+constexpr Modifiers ModifierHidden = 1 << 8;
 
 /**
  * A type parameter, when using inside a generic body, can be constrainted by
@@ -1124,11 +1123,6 @@ public:
     [[nodiscard]] bool is_objc_optional() const noexcept
     {
         return modifiers_ & ModifierOptional;
-    }
-
-    [[nodiscard]] bool has_internal_linkage() const noexcept
-    {
-        return modifiers_ & ModifierInternalLinkage;
     }
 
     // Used for Kind::Property.  Returns a reference to the Objective-C selector of
