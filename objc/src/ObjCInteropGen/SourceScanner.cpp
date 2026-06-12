@@ -920,8 +920,7 @@ void SourceScanner::add_top_level_function(const CXCursor& cursor)
     assert(is_on_top_level());
     set_definition_location(cursor,
         Universe::get().register_top_level_function(as_string(clang_getCursorSpelling(cursor)),
-            type_like_symbol(clang_getCursorResultType(cursor)), get_function_parameters(cursor),
-            clang_getCursorLinkage(cursor) == CXLinkage_Internal ? ModifierInternalLinkage : 0));
+            type_like_symbol(clang_getCursorResultType(cursor)), get_function_parameters(cursor), 0));
 }
 
 Type SourceScanner::get_method_result_type(
@@ -1317,7 +1316,9 @@ void SourceScanner::visit_impl(const CXCursor& cursor, const CXCursor& parent)
                 as_string(clang_getCursorSpelling(cursor)), get_enum_constant_value(cursor));
             break;
         case CXCursor_FunctionDecl:
-            add_top_level_function(cursor);
+            if (clang_getCursorLinkage(cursor) != CXLinkage_Internal) {
+                add_top_level_function(cursor);
+            }
             break;
         case CXCursor_VarDecl:
             // We don't support variables (generic C interop) at the moment.
