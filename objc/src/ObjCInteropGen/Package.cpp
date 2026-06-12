@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "Config.h"
+#include "ExpandString.h"
 #include "FatalException.h"
 
 namespace objcgen {
@@ -46,7 +47,8 @@ static void create_package(std::size_t package_index, const toml::Table& config)
         fatal("There are multiple `packages` entries with the same `package-name` value `", package_cangjie_name, '`');
     }
 
-    auto& package = *new Package(package_cangjie_name, compute_output_path(name_desc, config, package_cangjie_name));
+    auto output_path = compute_output_path(name_desc, config, package_cangjie_name);
+    auto& package = *new Package(package_cangjie_name, expand_string(output_path));
     package.set_filters(create_filter(package, filters_it->second));
 
     packages.insert(package);
