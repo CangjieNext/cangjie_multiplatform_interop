@@ -878,7 +878,7 @@ void TypeDeclarationSymbol::member_remove(size_t index)
     switch (kind()) {
         case Kind::Struct:
         case Kind::Union: {
-            assert(it->kind() == NonTypeSymbol::Kind::Field);
+            assert(it->is_field());
             auto removing_ctype = it->return_type().is_ctype();
             members_.erase(it);
             if (!removing_ctype) {
@@ -898,7 +898,7 @@ NonTypeSymbol& TypeDeclarationSymbol::add_member_method(std::string name, Type r
 {
     // No clash detection, otherwise might assert on method overloads
 
-    assert(kind() == Kind::Interface || kind() == Kind::Protocol || kind() == Kind::TopLevel);
+    assert(kind() == Kind::Interface || kind() == Kind::Protocol);
     return members_.emplace_back(std::move(name), NonTypeSymbol::Kind::MemberMethod, std::move(return_type), modifiers);
 }
 

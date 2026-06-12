@@ -44,19 +44,18 @@ static void fix_override_return_types(TypeDeclarationSymbol& subclass, TypeDecla
     // This loop resolves clashes between `subclass` and `superclass`, where the
     // latter is asserted to be one of the ancestors of the former.
     for (auto& submember : subclass.members()) {
-        switch (submember.kind()) {
-            case NonTypeSymbol::Kind::MemberMethod:
-                for (auto& supermember : superclass.members()) {
-                    if (supermember.kind() == NonTypeSymbol::Kind::MemberMethod &&
-                        supermember.is_static() == submember.is_static() &&
-                        supermember.selector() == submember.selector()) {
-                        submember.set_override();
-                        const auto& supermember_type = supermember.return_type();
-                        auto& submember_type = submember.return_type();
-                        if (supermember_type.nullability() != Nullability::Nonnull) {
-                            if (submember_type.nullability() == Nullability::Nonnull) {
-                                submember_type.set_nullability(Nullability::Nullable);
-                            }
+        if (submember.is_member_method()) {
+            for (auto& supermember : superclass.members()) {
+                if (supermember.is_member_method() &&
+                    supermember.is_static() == submember.is_static() &&
+                    supermember.selector() == submember.selector()) {
+                    submember.set_override();
+                    const auto& supermember_type = supermember.return_type();
+                    auto& submember_type = submember.return_type();
+                    if (supermember_type.nullability() != Nullability::Nonnull) {
+                        if (submember_type.nullability() == Nullability::Nonnull) {
+                            submember_type.set_nullability(Nullability::Nullable);
+                        }
 
                             // Both are Option.  Must be the same type.
                             submember.set_return_type(supermember_type);
@@ -81,16 +80,12 @@ static void fix_override_return_types(TypeDeclarationSymbol& subclass, TypeDecla
                         }
                     }
                 }
-                break;
-            case NonTypeSymbol::Kind::Constructor:
-                for (auto& supermember : superclass.members()) {
-                    if (supermember.is_constructor() && supermember.selector() == submember.selector()) {
-                        submember.set_override();
-                    }
+        } else if (submember.is_constructor()) {
+            for (auto& supermember : superclass.members()) {
+                if (supermember.is_constructor() && supermember.selector() == submember.selector()) {
+                    submember.set_override();
                 }
-                break;
-            default:
-                break;
+            }
         }
     }
 }
@@ -141,13 +136,12 @@ static void resolve_prop_ivar_clash(NonTypeSymbol& member)
 
 static void resolve_static_instance_clash(TypeDeclarationSymbol& decl, NonTypeSymbol& method, bool is_static)
 {
-    assert(method.kind() == NonTypeSymbol::Kind::MemberMethod);
+    assert(method.is_member_method());
     resolve_static_instance_clash(method, is_static);
 
     // This method can be the getter of a property.  Rename the property too.
     for (auto& member : decl.members()) {
-        if (member.kind() == NonTypeSymbol::Kind::Property && member.is_static() == is_static &&
-            member.getter() == method.selector()) {
+        if (member.is_property() && member.is_static() == is_static && member.getter() == method.selector()) {
             resolve_static_instance_clash(member, is_static);
             break;
         }
@@ -171,10 +165,9 @@ static void resolve_member_name_clashes(TypeDeclarationSymbol& subclass, TypeDec
     // These loops resolve clashes between members of `subclass` and `superclass`,
     // where the latter is asserted to be one of the ancestors of the former.
     for (auto& submember : subclass.members()) {
-        if (submember.kind() == NonTypeSymbol::Kind::MemberMethod) {
+        if (submember.is_member_method()) {
             for (const auto& supermember : superclass.members()) {
-                if (supermember.kind() == NonTypeSymbol::Kind::MemberMethod &&
-                    supermember.selector() == submember.selector()) {
+                if (supermember.is_member_method() && supermember.selector() == submember.selector()) {
                     auto supername = supermember.name();
                     if (supername == submember.name()) {
                         if (submember.is_static()) {
@@ -334,7 +327,7 @@ static void resolve_member_name_clashes(TypeDeclarationSymbol& type)
     // Resolve conflicts inside the class.
     std::unordered_map<std::string_view, StaticInstancePair> static_instance_map;
     for (auto& member : type.members()) {
-        if (member.kind() == NonTypeSymbol::Kind::MemberMethod) {
+        if (member.is_member_method()) {
             static_instance_map[member.selector()].add(member);
         }
     }
@@ -349,7 +342,7 @@ static void resolve_member_name_clashes(TypeDeclarationSymbol& type)
 
     static_instance_map.clear();
     for (auto& member : type.members()) {
-        if (member.kind() == NonTypeSymbol::Kind::Property) {
+        if (member.is_property()) {
             static_instance_map[member.selector()].add(member);
         }
     }
