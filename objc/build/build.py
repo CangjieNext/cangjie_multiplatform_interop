@@ -23,6 +23,7 @@ from logging.handlers import TimedRotatingFileHandler
 from subprocess import PIPE
 
 IS_DARWIN = platform.system() == "Darwin"
+IS_WINDOWS = platform.system() == "Windows"
 
 BUILD_DIR = os.path.dirname(os.path.abspath(__file__))
 HOME_DIR = os.path.dirname(BUILD_DIR)
@@ -33,7 +34,7 @@ DEFAULT_INSTALL_DIR = os.path.join(HOME_DIR, 'dist')
 
 INTEROPLIB_DIR = os.path.join(HOME_DIR, 'src', 'interoplib')
 OUTPUT_DIR = os.path.join(INTEROPLIB_DIR, 'output')
-DYLIB_EXT = "dylib" if IS_DARWIN else "so"
+DYLIB_EXT = "dylib" if IS_DARWIN else "dll" if IS_WINDOWS else "so"
 
 OUT_OBJC_INTERNAL_DYLIB = os.path.join(OUTPUT_DIR, f"libobjc.internal.{DYLIB_EXT}")
 OUT_OBJC_INTERNAL_A     = os.path.join(OUTPUT_DIR, "libobjc.internal.a")
@@ -47,8 +48,6 @@ LOG_DIR = os.path.join(BUILD_DIR, 'logs')
 LOG_FILE = os.path.join(LOG_DIR, 'ObjCInteropGen.log')
 
 CJC_BASE_ARGS = ["-Woff", "unused", "-Woff", "parser", "-O2", f"--output-dir={OUTPUT_DIR}", "--int-overflow=wrapping", "--disable-reflection"]
-if not IS_DARWIN:
-    CJC_BASE_ARGS += ["--link-options", "-z relro", "--link-options", "-z now"]
 
 def log_output(output):
     """log command output"""
@@ -133,7 +132,7 @@ def adjust_target(target):
     return target_mapping.get(target, target)
 
 def runtime_name(target):
-    return target+"_cjnative"
+    return target if target.endswith("_cjnative") else target + "_cjnative"
 
 def download_and_patch_tinytoml():
     """Set up the tinytoml third-party library"""
@@ -201,9 +200,70 @@ def replace_in_file(text_to_search, replacement_text, filename):
         for line in file:
             print(line.replace(text_to_search, replacement_text), end='')
 
+def call_gnustep_config(argument: str) -> str:
+    if IS_WINDOWS:
+        cmd = ["sh", "-c", f"gnustep-config {argument}"]
+    else:
+        cmd = ["gnustep-config", argument]
+
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return result.stdout.strip()
+
+def get_clang_version(clang):
+    return subprocess.run([clang, "--version"], capture_output=True, text=True, check=True).stdout
+
+def get_clang_lib_paths_with_libs(clang, libraries):
+    """Query Clang for its default library search paths and return only 
+    the directories that contain at least one of the specified libraries.
+
+    :param clang: The path to the clang executable
+    :param libraries: A list of library short names (e.g., ["objc", "stdc++"])
+    :return: A list of absolute directory paths containing the library files.
+    """
+    # 1. Query Clang for its default search directories
+    try:
+        output = subprocess.check_output([clang, "-print-search-dirs"], text=True, stderr=subprocess.DEVNULL)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("Error: 'clang' executable not found in PATH or failed to execute.", file=sys.stderr)
+        return []
+
+    # 2. Parse the 'libraries:' line
+    search_paths = []
+    for line in output.splitlines():
+        if line.startswith("libraries: ="):
+            # Strip the prefix and split using the OS path separator (';' on Windows)
+            raw_paths = line.replace("libraries: =", "").split(os.pathsep)
+            # Filter empty strings and normalize paths to standard Windows format
+            search_paths = [os.path.normpath(p) for p in raw_paths if p]
+            break
+
+    matching_paths = []
+
+    # 3. Scan the valid directories for the requested libraries
+    for path in search_paths:
+        if not os.path.isdir(path):
+            continue
+
+        for lib in libraries:
+            # Generate expected static library filename patterns
+            expected_files = [
+                f"lib{lib}.a",     # Static library
+                f"lib{lib}.dll.a"  # MinGW-w64 Import library
+            ]
+
+            # Check if any of the target files exist in the current directory
+            if any(os.path.isfile(os.path.join(path, filename)) for filename in expected_files):
+                matching_paths.append(path)
+                break  # No need to check other libraries for this directory
+
+    return matching_paths
+
 def build(args):
     """interoplib or objc-interop-gen build"""
     if args.target:
+        if 'CANGJIE_HOME' not in os.environ:
+            fatal("CANGJIE_HOME environment variable must be set (are you in Cangjie SDK environment?)")
+
         runtime = runtime_name(args.target)
         LOG.info('begin build interoplib for ' + runtime + '\n')
 
@@ -233,11 +293,11 @@ def build(args):
             # version is the Apple Clang, in order to prevent objc_msgSend stub optimization.
             # The Cangjie LLVM is [currently] a fork of open-source LLVM 15,
             # which cannot link object files generated with this optimization.
-            clang_version = subprocess.run([clang, "--version"], capture_output=True, check=True).stdout.decode().splitlines()[0]
+            clang_version = get_clang_version(clang).splitlines()[0]
             if "Apple clang" in clang_version:
                 clang_opts += ["-fno-objc-msgsend-selector-stubs"]
         else:
-            clang_opts += subprocess.run(['gnustep-config', '--objc-flags'], capture_output=True).stdout.decode().split()
+            clang_opts += call_gnustep_config('--objc-flags').split()
 
         # objclib.o
         command(
@@ -247,6 +307,14 @@ def build(args):
 
         # cjc to compile cj-code of interoplib
         cjc_args = ["cjc", "--no-sub-pkg", f"--import-path={OUTPUT_DIR}"] + CJC_BASE_ARGS
+
+        # Only ELF targets support -z.
+        # Apple platforms (macOS/iOS) are MachO, Windows is COFF.
+        # Only Linux (and flavors like Android) are ELF.
+        if "linux" in args.target:
+            # Mark the whole relocation table as read-only after resolution by the dynamic linker/loader.
+            cjc_args += ["--link-options", "-z relro", "--link-options", "-z now"]
+
         if args.target_lib:
             cjc_args += ["--target=" + adjust_target(args.target_lib)]
         if args.target_sysroot:
@@ -256,6 +324,10 @@ def build(args):
 
         if IS_DARWIN:
             cjc_args += ["-lobjc"]
+        elif IS_WINDOWS:
+            for lib_path in get_clang_lib_paths_with_libs(clang, ["objc", "gnustep-base"]):
+                cjc_args += ["-L", lib_path]
+            cjc_args += ["-lobjc", "-lgnustep-base"]
 
         cjc_A = cjc_args + ["--output-type=staticlib"]
         cjc_SO = cjc_args + ["--output-type=dylib"]
@@ -265,21 +337,27 @@ def build(args):
             *(cjc_A + ["-p", SRC_INTERNAL]),
             cwd=INTEROPLIB_DIR
         )
-        command(
-            ar, "-x", "libobjc.internal.a",
-            cwd=OUTPUT_DIR,
-        )
-        os.rename(os.path.join(OUTPUT_DIR, "objc.internal.o"), os.path.join(OUTPUT_DIR, "orig.objc.internal.o"))
-        command(
-            ld, "-r", *ld_opts, "-o", "objc.internal.o", "orig.objc.internal.o", OBJCLIB_O,
-            cwd=OUTPUT_DIR,
-        )
-        os.remove(os.path.join(OUTPUT_DIR, "orig.objc.internal.o"))
-        os.remove(os.path.join(OUTPUT_DIR, "libobjc.internal.a"))
-        command(
-            ar, "-cr", "libobjc.internal.a", "objc.internal.o",
-            cwd=OUTPUT_DIR,
-        )
+        if IS_WINDOWS:
+            command(
+                ar, "-r", "libobjc.internal.a", OBJCLIB_O,
+                cwd=OUTPUT_DIR,
+            )
+        else:
+            command(
+                ar, "-x", "libobjc.internal.a",
+                cwd=OUTPUT_DIR,
+            )
+            os.rename(os.path.join(OUTPUT_DIR, "objc.internal.o"), os.path.join(OUTPUT_DIR, "orig.objc.internal.o"))
+            command(
+                ld, "-r", *ld_opts, "-o", "objc.internal.o", "orig.objc.internal.o", OBJCLIB_O,
+                cwd=OUTPUT_DIR,
+            )
+            os.remove(os.path.join(OUTPUT_DIR, "orig.objc.internal.o"))
+            os.remove(os.path.join(OUTPUT_DIR, "libobjc.internal.a"))
+            command(
+                ar, "-cr", "libobjc.internal.a", "objc.internal.o",
+                cwd=OUTPUT_DIR,
+            )
         command(
             ranlib, "-D", "libobjc.internal.a",
             cwd=OUTPUT_DIR,

@@ -9,6 +9,7 @@
 #import "Cangjie.h"
 
 #import <Foundation/Foundation.h>
+#import <objc/runtime.h>
 
 #import "pthread.h"
 #import "stdio.h"
