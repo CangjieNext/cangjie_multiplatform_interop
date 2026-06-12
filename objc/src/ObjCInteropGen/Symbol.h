@@ -341,6 +341,8 @@ public:
 
     [[nodiscard]] bool is_ctype() const noexcept;
 
+    [[nodiscard]] bool is_objc_compatible() const noexcept;
+
     [[nodiscard]] bool contains_pointer_or_func() const noexcept;
 
     /**
