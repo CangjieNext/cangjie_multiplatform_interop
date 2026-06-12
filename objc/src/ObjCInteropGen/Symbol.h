@@ -112,6 +112,32 @@ public:
     [[nodiscard]] bool operator()(Type& type) const;
 };
 
+class FileLevelSymbolScanner {
+public:
+    template <class Pred> [[nodiscard]] static auto from(const Pred& pred)
+    {
+        class VisitorImpl : public FileLevelSymbolScanner {
+        public:
+            explicit VisitorImpl(const Pred& pred) noexcept : pred(pred) {}
+
+        private:
+            bool operator()(const FileLevelSymbol& symbol) const override
+            {
+                return pred(symbol);
+            }
+
+            const Pred& pred;
+        };
+
+        return VisitorImpl(pred);
+    }
+
+    virtual ~FileLevelSymbolScanner() = default;
+
+    [[nodiscard]] virtual bool operator()(const FileLevelSymbol& symbol) const = 0;
+    [[nodiscard]] bool operator()(const Type& type) const;
+};
+
 class FileLevelSymbol : public Symbol {
 public:
     [[nodiscard]] virtual bool is_ctype() const noexcept
@@ -130,6 +156,11 @@ public:
     template <class Pred> [[nodiscard]] bool any_of_referenced_types(const Pred& pred)
     {
         return visit_referenced_types(FileLevelSymbolVisitor::from(pred));
+    }
+
+    template <class Pred> [[nodiscard]] bool any_of_referenced_types(const Pred& pred) const
+    {
+        return visit_referenced_types(FileLevelSymbolScanner::from(pred));
     }
 
     [[nodiscard]] bool any_of_referenced_types(const FileLevelSymbolVisitor& visitor)
@@ -216,6 +247,11 @@ protected:
 
 private:
     virtual bool visit_referenced_types([[maybe_unused]] const FileLevelSymbolVisitor& visitor)
+    {
+        return false;
+    }
+
+    virtual bool visit_referenced_types([[maybe_unused]] const FileLevelSymbolScanner& visitor) const
     {
         return false;
     }
@@ -548,6 +584,7 @@ private:
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
+    bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
     [[nodiscard]] bool empty() const noexcept
     {
@@ -811,6 +848,7 @@ public:
 
 private:
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
+    bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -885,6 +923,7 @@ private:
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
+    bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -919,6 +958,14 @@ public:
     [[nodiscard]] bool is_ctype() const noexcept override;
 
     [[nodiscard]] bool is_objc_compatible_signature() const noexcept;
+
+    /**
+     * Whether this declaration is currently supported by the FE.
+     * If not, then it will be commented out.
+     * @param owner owner type symbol, if any
+     */
+    [[nodiscard]] bool is_supported(const TypeDeclarationSymbol* owner) const noexcept;
+
 
     [[nodiscard]] Kind kind() const noexcept
     {
@@ -993,6 +1040,8 @@ public:
     }
 
     [[nodiscard]] const Type& return_type() const noexcept;
+
+    [[nodiscard]] const Type& property_type(const TypeDeclarationSymbol& decl) const noexcept;
 
     [[nodiscard]] Type& return_type() noexcept;
 
@@ -1105,6 +1154,7 @@ public:
 
 private:
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
+    bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
     Kind kind_;
     Modifiers modifiers_;
