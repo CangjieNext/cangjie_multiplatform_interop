@@ -324,16 +324,6 @@ static void print_enum_constant_value(
     output << ']';
 }
 
-[[nodiscard]] static bool is_objc_compatible_parameters(const NonTypeSymbol& method) noexcept
-{
-    for (const auto& parameter : method.parameters()) {
-        if (!parameter.type().is_objc_compatible()) {
-            return false;
-        }
-    }
-    return true;
-}
-
 static void write_type(std::ostream& output, const Type& type, PrintFormat format)
 {
     output << ": " << Printer(type, format);
@@ -568,52 +558,44 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
     }
 }
 
-enum class FuncKind { TopLevelFunc, InterfaceMethod, ClassMethod };
-
-static void write_function(
-    IndentingStringStream& output, FuncKind kind, const NonTypeSymbol& function, PrintFormat format)
+static void write_function(IndentingStringStream& output, const NonTypeSymbol& function, PrintFormat format)
 {
-    const auto& return_type = function.return_type();
-    auto supported = !normal_mode() || (return_type.is_objc_compatible() && is_objc_compatible_parameters(function));
+    auto supported = !normal_mode() || function.is_objc_compatible_signature();
     if (!supported) {
         output.set_comment();
     }
     bool is_ctype;
-    switch (kind) {
-        case FuncKind::TopLevelFunc: {
-            is_ctype = function.is_ctype();
+    if (function.is_global_function()) {
+        is_ctype = function.is_ctype();
 
-            // Foreign @C functions cannot have a foreign name
-            const auto& selector_attribute = function.selector_attribute();
-            if (is_ctype) {
-                output << "foreign ";
-                if (!selector_attribute.empty()) {
-                    write_foreign_name(output, foreign_name_attribute, selector_attribute, true);
-                }
-            } else {
-                auto generate_definitions = generate_definitions_mode();
-                if (!generate_definitions) {
-                    output << "@ObjCMirror\n";
-                    format = PrintFormat::EmitCangjieStrict;
-                }
-                if (!selector_attribute.empty()) {
-                    write_foreign_name(output, foreign_name_attribute, selector_attribute, generate_definitions);
-                }
-                output << "public ";
+        // Foreign @C functions cannot have a foreign name
+        const auto& selector_attribute = function.selector_attribute();
+        if (is_ctype) {
+            output << "foreign ";
+            if (!selector_attribute.empty()) {
+                write_foreign_name(output, foreign_name_attribute, selector_attribute, true);
             }
-            break;
-        }
-        case FuncKind::InterfaceMethod:
-            is_ctype = false;
-            print_objc_optional(output, function);
-            write_foreign_name(output, function);
-            break;
-        default:
-            assert(kind == FuncKind::ClassMethod);
-            is_ctype = false;
-            write_foreign_name(output, function);
+        } else {
+            auto generate_definitions = generate_definitions_mode();
+            if (!generate_definitions) {
+                output << "@ObjCMirror\n";
+                format = PrintFormat::EmitCangjieStrict;
+            }
+            if (!selector_attribute.empty()) {
+                write_foreign_name(output, foreign_name_attribute, selector_attribute, generate_definitions);
+            }
             output << "public ";
-            break;
+        }
+    } else if (function.is_protocol_method()) {
+        is_ctype = false;
+        print_objc_optional(output, function);
+        write_foreign_name(output, function);
+    } else if (function.is_interface_method()) {
+        is_ctype = false;
+        write_foreign_name(output, function);
+        output << "public ";
+    } else {
+        assert(false);
     }
     if (function.is_static()) {
         // In Objective-C, the overridden static method can have different parameter
@@ -626,7 +608,7 @@ static void write_function(
         }
         output << "static ";
     } else {
-        if (kind == FuncKind::ClassMethod) {
+        if (function.is_interface_method()) {
             output << "open ";
         }
         // In Objective-C, the overridden method can have different parameter types
@@ -640,6 +622,7 @@ static void write_function(
     }
     output << "func " << escape_keyword(function.name());
     write_method_parameters(output, function, format);
+    const auto& return_type = function.return_type();
     write_type(output, return_type, format);
     if (generate_definitions_mode() && !is_ctype) {
         if (return_type.is_unit()) {
@@ -785,7 +768,7 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
 {
     assert(constructor.is_constructor());
     auto supported =
-        decl_kind_ != DeclKind::Interface && (!normal_mode() || is_objc_compatible_parameters(constructor));
+        decl_kind_ != DeclKind::Interface && (!normal_mode() || constructor.is_objc_compatible_signature());
     if (supported) {
         any_constructor_exists_ = true;
         if (!default_constructor_exists_) {
@@ -978,9 +961,7 @@ void TypeDeclarationWriter::write()
         } else if (member.is_member_method()) {
             if (!get_property(decl_, member) &&
                 !get_overridden_property(decl_, member.selector(), member.is_static())) {
-                write_function(output_,
-                    decl_kind_ == DeclKind::Interface ? FuncKind::InterfaceMethod : FuncKind::ClassMethod, member,
-                    format_);
+                write_function(output_, member, format_);
             }
         } else if (member.is_instance_variable()) {
             write_instance_variable(member);
@@ -1042,7 +1023,7 @@ void write_cangjie()
                     write_enum_declaration(output, *enum_decl);
                 } else {
                     auto& top_level = symbol->as<NonTypeSymbol>();
-                    assert(top_level.kind() == NonTypeSymbol::Kind::GlobalFunction);
+                    assert(top_level.is_global_function());
 
                     // Ignore global functions with internal linkage.  Anyway, we cannot use them in
                     // Cangjie.
@@ -1050,7 +1031,7 @@ void write_cangjie()
                         continue;
                     }
 
-                    write_function(output, FuncKind::TopLevelFunc, top_level, PrintFormat::EmitCangjie);
+                    write_function(output, top_level, PrintFormat::EmitCangjie);
                 }
                 output << std::endl;
             }

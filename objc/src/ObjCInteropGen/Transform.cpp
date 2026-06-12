@@ -469,22 +469,17 @@ static void replace_instancetype()
             case NamedTypeSymbol::Kind::Interface:
             case NamedTypeSymbol::Kind::Protocol:
                 for (auto& member : decl.members()) {
-                    switch (member.kind()) {
-                        case NonTypeSymbol::Kind::Constructor:
-                            // For 'init' methods, the cjc frontend requires the return type to be strictly
-                            // the declaring class, and the nullability must be nonnull.
-                            replace_return_instancetype(decl, member, Nullability::Nonnull);
-                            break;
-                        case NonTypeSymbol::Kind::MemberMethod: {
-                            // For non-@ObjCInit methods, `instancetype` is mapped to the declaring class,
-                            // keeping the original nullability.
-                            const auto& original_return_type = member.return_type();
-                            if (original_return_type.symbol().name() == "instancetype") {
-                                replace_return_instancetype(decl, member, original_return_type.nullability());
-                            }
+                    if (member.is_constructor()) {
+                        // For 'init' methods, the cjc frontend requires the return type to be strictly
+                        // the declaring class, and the nullability must be nonnull.
+                        replace_return_instancetype(decl, member, Nullability::Nonnull);
+                    } else if (member.is_member_method()) {
+                        // For non-@ObjCInit methods, `instancetype` is mapped to the declaring class,
+                        // keeping the original nullability.
+                        const auto& original_return_type = member.return_type();
+                        if (original_return_type.symbol().name() == "instancetype") {
+                            replace_return_instancetype(decl, member, original_return_type.nullability());
                         }
-                        default:
-                            break;
                     }
                 }
                 break;
