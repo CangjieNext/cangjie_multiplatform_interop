@@ -149,7 +149,7 @@ protected unsafe func withObjCSuper<R>(id: NativeObjCId, objCClassName: String, 
     }
 }
 
-@When[os == "Linux"]
+@When[os == "Linux" || os == "Windows"]
 @Frozen
 /**
  * A wrapper for a method or a prop's accessor body (action) if it needs to call objc_msgSendSuper with NativeObjCSuperPtr.
@@ -291,7 +291,7 @@ protected func objCMsgSendSuper(_: NativeObjCSuperPtr, _: NativeObjCSel): CPoint
     CPointer<Unit>(objc_msgSendSuper)
 }
 
-@When[os == "Linux"]
+@When[os == "Linux" || os == "Windows"]
 /**
  * Returns a pointer to objc_msgSendSuper implementation.
  * The result should be cast to proper CFunc<(NativeObjCId, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
@@ -621,7 +621,7 @@ foreign func ivar_getOffset(ivar: NativeObjCIvar): IntNative
  */
 foreign func sel_registerName(selName: CString): NativeObjCSel
 
-@When[os == "Linux"]
+@When[os == "Linux" || os == "Windows"]
 @FastNative
 /**
  * The message lookup function used for messages sent to super in the GCC ABI.
