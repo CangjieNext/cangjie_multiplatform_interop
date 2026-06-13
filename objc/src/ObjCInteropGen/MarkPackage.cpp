@@ -11,7 +11,6 @@
 #include "InputFile.h"
 #include "Logging.h"
 #include "Package.h"
-#include "SymbolVisitor.h"
 #include "Universe.h"
 
 namespace objcgen {
@@ -74,60 +73,6 @@ namespace objcgen {
     return success;
 }
 
-class SymbolReferenceCollector final : public SymbolVisitor {
-
-public:
-    [[nodiscard]] explicit SymbolReferenceCollector(FileLevelSymbol& symbol) noexcept
-        : SymbolVisitor(true), symbol_(symbol)
-    {
-    }
-
-    void visit()
-    {
-        SymbolVisitor::visit(symbol_);
-    }
-
-private:
-    FileLevelSymbol& symbol_;
-
-    void do_visit_impl(const FileLevelSymbol& value);
-
-    void visit_type_impl(const Type& value) override
-    {
-        do_visit_impl(value.symbol());
-    }
-
-    void visit_type_impl(const NamedTypeSymbol& value) override
-    {
-        do_visit_impl(value);
-    }
-
-    void visit_type_argument_impl(const TypeLikeSymbol&, const Type& value) override
-    {
-        do_visit_impl(value.symbol());
-    }
-
-    void visit_member_impl(const NonTypeSymbol& value) override
-    {
-        do_visit_impl(value);
-    }
-
-    void visit_impl(const FileLevelSymbol&) override
-    {
-        // Skip the root type of this visit session to avoid self-referencing of each type.
-    }
-};
-
-void SymbolReferenceCollector::do_visit_impl(const FileLevelSymbol& value)
-{
-    if (&value != &symbol_ // Self-reference
-        && value.defining_file()) {
-        if (symbol_.add_reference(const_cast<FileLevelSymbol&>(value)) && verbosity >= LogLevel::TRACE) {
-            std::cerr << "Entity `" << symbol_.name() << "` references `" << value.name() << "`\n";
-        }
-    }
-}
-
 class ScopeBuilderStatus final {
     bool success_ = true;
     bool changed_ = false;
@@ -161,10 +106,19 @@ public:
 
 static void add_all_symbol_references()
 {
+    std::unordered_set<FileLevelSymbol*> candidates;
     for (const auto& input_file : inputs) {
         for (auto& symbol : input_file) {
             assert(symbol.defining_file());
-            SymbolReferenceCollector(symbol).visit();
+            symbol.collect_emitted_references(candidates);
+            for (auto* reference : candidates) {
+                if (reference != &symbol && reference->defining_file()) {
+                    if (symbol.add_reference(*reference) && verbosity >= LogLevel::TRACE) {
+                        std::cerr << "Entity `" << symbol.name() << "` references `" << reference->name() << "`\n";
+                    }
+                }
+            }
+            candidates.clear();
         }
     }
 }

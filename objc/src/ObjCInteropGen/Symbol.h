@@ -19,7 +19,6 @@ namespace objcgen {
 class NonTypeSymbol;
 class Package;
 class PackageFile;
-class SymbolVisitor;
 class TypeDeclarationSymbol;
 struct TypeMapping;
 
@@ -135,6 +134,15 @@ public:
 
     void print_referencing_packages_info() const;
 
+    /**
+     * Collect every source-defined FileLevelSymbol that appears in emitted code for
+     * this declaration.  References that occur only inside commented-out
+     * (unsupported) members, aliases, or global functions are omitted.
+     */
+    virtual void collect_emitted_references([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out) const
+    {
+    }
+
     template <class To> [[nodiscard]] bool is() const noexcept
     {
         return dynamic_cast<const To*>(this) != nullptr;
@@ -160,10 +168,6 @@ protected:
     ClosureDepthType reference_level_ = UNLIMITED_CLOSURE_DEPTH;
 
 private:
-    friend class SymbolVisitor;
-
-    virtual void visit_impl(SymbolVisitor& visitor) const = 0;
-
     // Applicable only for symbols with the same defining file
     friend bool operator<(const FileLevelSymbol& symbol1, const FileLevelSymbol& symbol2) noexcept;
 
@@ -280,7 +284,12 @@ public:
         return varray_size_;
     }
 
-    void visit_impl(SymbolVisitor& visitor) const;
+    /**
+     * Insert this type's head symbol (if any) and, recursively, the symbols of all
+     * nested type arguments (generic parameters, pointer pointees, VArray elements).
+     * Does not descend into a referenced type's own members.
+     */
+    void collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out) const;
 
     [[nodiscard]] bool is_ctype() const noexcept;
 
@@ -410,10 +419,6 @@ public:
     }
 
 private:
-    void visit_impl(SymbolVisitor&) const override
-    {
-    }
-
     [[nodiscard]] TypeLikeSymbol& map() override
     {
         return *this;
@@ -448,10 +453,6 @@ private:
         return true;
     }
 
-    void visit_impl(SymbolVisitor&) const override
-    {
-    }
-
     // In clang, the enum underlying type can also be a 128bit integral
     uint64_t value_[2];
 };
@@ -483,7 +484,7 @@ private:
 
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    void visit_impl(SymbolVisitor& visitor) const override;
+    void collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const override;
 
     [[nodiscard]] bool empty() const noexcept
     {
@@ -533,15 +534,12 @@ private:
         return true;
     }
 
-    void visit_impl(SymbolVisitor&) const override
-    {
-    }
-
     [[nodiscard]] bool is_unit() const noexcept override
     {
         return category_ == PrimitiveTypeCategory::Unit;
     }
 
+private:
     const PrimitiveTypeCategory category_;
     const PrimitiveSize size_;
 };
@@ -571,10 +569,6 @@ public:
 
 private:
     void print(StructuredString& stream, PrintFormat format) const override;
-
-    void visit_impl(SymbolVisitor&) const override
-    {
-    }
 
     [[nodiscard]] bool is_ctype() const noexcept override
     {
@@ -620,10 +614,6 @@ public:
     }
 
 private:
-    void visit_impl(SymbolVisitor&) const override
-    {
-    }
-
     [[nodiscard]] TypeParameterSymbol& map() override
     {
         return *this;
@@ -730,7 +720,7 @@ public:
     void mark_member_name_clashes_resolved() noexcept;
 
 private:
-    void visit_impl(SymbolVisitor& visitor) const override;
+    void collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -817,7 +807,7 @@ private:
 
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    void visit_impl(SymbolVisitor& visitor) const override;
+    void collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -892,7 +882,13 @@ public:
      */
     [[nodiscard]] bool is_supported(const TypeDeclarationSymbol* owner) const noexcept;
 
-    void visit_impl(SymbolVisitor& visitor) const override;
+    void collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const override;
+
+    /**
+     * Collect symbols referenced by this member's or global function's signature
+     * (parameter types and return type).  Properties have no stored signature here.
+     */
+    void collect_signature_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out) const;
 
     [[nodiscard]] Kind kind() const noexcept
     {

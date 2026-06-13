@@ -13,7 +13,6 @@
 #include "Mode.h"
 #include "Package.h"
 #include "PrintUtils.h"
-#include "SymbolVisitor.h"
 #include "Universe.h"
 
 namespace objcgen {
@@ -286,27 +285,15 @@ const Type& Type::varray_element_type() const noexcept
     return parameters_.front();
 }
 
-void Type::visit_impl(SymbolVisitor& visitor) const
+void Type::collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out) const
 {
-    switch (kind_) {
-        case Kind::Unit:
-            break;
-        case Kind::Named:
-        case Kind::Function:
-        case Kind::Block:
-            assert(symbol_);
-            for (const auto& param : parameters_) {
-                visitor.visit_type_argument(*symbol_, param);
-            }
-            break;
-        case Kind::Pointer:
-        case Kind::VArray:
-            assert(symbol_);
-            assert(parameters_.size() == 1);
-            visitor.visit_type_argument(*symbol_, parameters_.front());
-            break;
-        default:
-            break;
+    if (symbol_) {
+        out.insert(symbol_);
+    }
+    // Recurse into nested type arguments (generic args, pointer pointees, VArray
+    // elements).  Do not descend into a referenced type's own members.
+    for (const auto& param : parameters_) {
+        param.collect_referenced_symbols(out);
     }
 }
 
@@ -787,10 +774,10 @@ bool EnumDeclarationSymbol::set_reference_level(unsigned new_reference_level) no
     return set;
 }
 
-void EnumDeclarationSymbol::visit_impl(SymbolVisitor& visitor) const
+void EnumDeclarationSymbol::collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const
 {
     if (underlying_type_) {
-        visitor.visit_type(*underlying_type_);
+        out.insert(underlying_type_);
     }
 }
 
@@ -989,15 +976,17 @@ void TypeDeclarationSymbol::mark_member_name_clashes_resolved() noexcept
     member_name_clashes_resolved_ = true;
 }
 
-void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor) const
+void TypeDeclarationSymbol::collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const
 {
-    // It could make sense to analyze if infinite recursion is possible her.  With
-    // CRTP for example.
     for (auto& base : this->bases()) {
-        visitor.visit_type(base);
+        out.insert(&base);
     }
+    // Only members that will actually be emitted contribute references.  Unsupported
+    // members are commented out in the output and must not pull in their types.
     for (auto& member : this->members()) {
-        visitor.visit_member(member);
+        if (member.is_supported(this)) {
+            member.collect_signature_referenced_symbols(out);
+        }
     }
 }
 
@@ -1106,11 +1095,15 @@ bool TypeAliasSymbol::set_reference_level(unsigned new_reference_level) noexcept
     return set;
 }
 
-void TypeAliasSymbol::visit_impl(SymbolVisitor& visitor) const
+void TypeAliasSymbol::collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const
 {
+    // Unsupported aliases are commented out; their target types must not count.
+    if (!is_supported()) {
+        return;
+    }
     const auto& target = this->target();
     if (target.has_symbol_assigned()) {
-        visitor.visit_type(target);
+        target.collect_referenced_symbols(out);
     }
 }
 
@@ -1191,14 +1184,21 @@ bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexc
     assert(false);
 }
 
-void NonTypeSymbol::visit_impl(SymbolVisitor& visitor) const
+void NonTypeSymbol::collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const
+{
+    // Global functions at file level: only supported ones are emitted.
+    if (is_global_function() && is_supported(nullptr)) {
+        collect_signature_referenced_symbols(out);
+    }
+}
+
+void NonTypeSymbol::collect_signature_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out) const
 {
     for (auto& parameter : this->parameters()) {
-        visitor.visit_type(parameter.type());
+        parameter.type().collect_referenced_symbols(out);
     }
-
     if (kind_ != Kind::Property) {
-        visitor.visit_type(return_type());
+        return_type().collect_referenced_symbols(out);
     }
 }
 

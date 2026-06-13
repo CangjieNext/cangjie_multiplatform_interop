@@ -47,8 +47,6 @@ add_executable(ObjCInteropGen
         StructuredStringStream.h
         Symbol.cpp
         Symbol.h
-        SymbolVisitor.cpp
-        SymbolVisitor.h
         Transform.cpp
         Transform.h
         Universe.cpp
