@@ -8,7 +8,6 @@
 
 #include <fstream>
 #include <iostream>
-#include <set>
 #include <sstream>
 
 #include "Logging.h"
@@ -16,201 +15,14 @@
 #include "Package.h"
 #include "PrintUtils.h"
 #include "Strings.h"
+#include "StructuredString.h"
+#include "StructuredStringStream.h"
 #include "Symbol.h"
-#include "SymbolVisitor.h"
 #include "Universe.h"
 
 namespace objcgen {
 
-static constexpr char INDENT[] = "    ";
-static constexpr std::size_t INDENT_LENGTH = sizeof(INDENT) - 1;
-
-static_assert(INDENT_LENGTH == 4);
-
-constexpr char COMMENT[] = "// ";
-constexpr auto COMMENT_LENGTH = sizeof(COMMENT) - 1;
-
-class IndentingStringBuf final : public std::streambuf {
-public:
-    IndentingStringBuf() : buf_(std::ios_base::out)
-    {
-    }
-
-    void indent() noexcept
-    {
-        indentation_ += INDENT;
-    }
-
-    void dedent() noexcept
-    {
-        assert(ends_with(indentation_, INDENT));
-        indentation_.resize(indentation_.size() - INDENT_LENGTH);
-    }
-
-    void set_comment() noexcept
-    {
-        indentation_ += COMMENT;
-    }
-
-    void reset_comment() noexcept
-    {
-        assert(ends_with(indentation_, COMMENT));
-        indentation_.resize(indentation_.size() - COMMENT_LENGTH);
-    }
-
-    std::string str() const
-    {
-        return buf_.str();
-    }
-
-protected:
-    int_type overflow(const int_type ch) override
-    {
-        if (start_line_) {
-            // Print `//` (with proper indentation) even for empty lines
-            auto count = static_cast<std::streamsize>(indentation_.length());
-            if (buf_.sputn(indentation_.data(), count) != count) {
-                return traits_type::eof();
-            }
-        }
-        start_line_ = ch == '\n';
-        return buf_.sputc(traits_type::to_char_type(ch));
-    }
-
-private:
-    std::stringbuf buf_;
-    /**
-     * Indentation spaces printed currently at the beginning of each line.
-     * Includes `//` comments, if any.
-     */
-    std::string indentation_;
-    bool start_line_ = true;
-};
-
-class IndentingStringStream : public std::ostream {
-public:
-    IndentingStringStream() : std::ostream(&fos_buf)
-    {
-    }
-
-    std::string str() const
-    {
-        return fos_buf.str();
-    }
-
-    void indent() noexcept
-    {
-        fos_buf.indent();
-    }
-
-    void dedent() noexcept
-    {
-        fos_buf.dedent();
-    }
-
-    void set_comment() noexcept
-    {
-        fos_buf.set_comment();
-    }
-
-    void reset_comment() noexcept
-    {
-        fos_buf.reset_comment();
-    }
-
-private:
-    IndentingStringBuf fos_buf;
-};
-
-static const Package* current_package;
-static std::set<std::string> imports;
-
-class PackageFileScope final : NonCopyable {
-#if !defined NDEBUG
-    const Package* const package_;
-#endif
-
-public:
-#ifdef NDEBUG
-    explicit PackageFileScope(const Package& package) noexcept
-#else
-    [[nodiscard]] explicit PackageFileScope(const Package& package) noexcept : package_(&package)
-#endif
-    {
-        assert(!current_package);
-        assert(imports.empty());
-        current_package = &package;
-    }
-
-    ~PackageFileScope()
-    {
-        assert(current_package == package_);
-        current_package = nullptr;
-        imports.clear();
-    }
-};
-
-class ImportCollectVisitor final : public SymbolVisitor {
-public:
-    ImportCollectVisitor() noexcept : SymbolVisitor(false)
-    {
-    }
-
-private:
-    void visit_impl(const Type& value)
-    {
-        visit_impl(value.symbol());
-    }
-
-    void visit_type_impl(const Type& value) override
-    {
-        visit_impl(value);
-    }
-
-    void visit_type_impl(const NamedTypeSymbol& value) override
-    {
-        visit_impl(value);
-    }
-
-    void visit_type_argument_impl(const TypeLikeSymbol& owner, const Type& value) override
-    {
-        // If this is a type argument of an Objective-C generic type, ignore it.  Type
-        // arguments are erased and may be printed inside comments only.
-        if (owner.is<TypeDeclarationSymbol>()) {
-            return;
-        }
-
-        visit_impl(value);
-    }
-
-    void visit_member_impl(const NonTypeSymbol& value) override
-    {
-        visit_impl(value);
-    }
-
-    void visit_impl(const FileLevelSymbol& symbol) override;
-};
-
-void ImportCollectVisitor::visit_impl(const FileLevelSymbol& symbol)
-{
-    assert(current_package);
-    const auto* symbol_package = symbol.package();
-    if (symbol_package && symbol_package != current_package) {
-        imports.emplace(symbol_package->cangjie_name() + '.' + symbol.name());
-    }
-}
-
-static void collect_import(const TypeLikeSymbol& symbol)
-{
-    ImportCollectVisitor().visit(symbol);
-}
-
-static void collect_import(const Type& type)
-{
-    ImportCollectVisitor().visit(type);
-}
-
-[[nodiscard]] static bool write_type_alias(IndentingStringStream& output, const TypeAliasSymbol& alias)
+[[nodiscard]] static bool write_type_alias(StructuredString& output, const TypeAliasSymbol& alias)
 {
     const auto& target = alias.target();
     if (alias.name() == target.name()) {
@@ -220,21 +32,19 @@ static void collect_import(const Type& type)
     }
 
     auto supported = alias.is_supported();
-    if (supported) {
-        collect_import(target);
-    } else {
-        output.set_comment();
+    if (!supported) {
+        output << push_line_comment;
     }
     output << "public type " << emit_cangjie(alias) << " = " << emit_cangjie(target) << '\n';
     if (!supported) {
-        output.reset_comment();
+        output << pop_line_comment;
     }
     return true;
 }
 
 class DefaultValuePrinter;
 
-static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter& op);
+static StructuredString& operator<<(StructuredString& stream, const DefaultValuePrinter& op);
 
 class DefaultValuePrinter {
 public:
@@ -242,7 +52,7 @@ public:
     {
     }
 
-    friend std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter& op);
+    friend StructuredString& operator<<(StructuredString& stream, const DefaultValuePrinter& op);
 
 private:
     const Printer<Type> type_printer_;
@@ -253,14 +63,14 @@ private:
     return DefaultValuePrinter(Printer(type, format));
 }
 
-static std::ostream& operator<<(std::ostream& stream, const DefaultValuePrinter& op)
+static StructuredString& operator<<(StructuredString& stream, const DefaultValuePrinter& op)
 {
     op.type_printer_.obj().print_default_value(stream, op.type_printer_.format());
     return stream;
 }
 
 static void print_enum_constant_value(
-    std::ostream& output, const NamedTypeSymbol& underlying_type, const EnumConstantSymbol& constant)
+    StructuredString& output, const NamedTypeSymbol& underlying_type, const EnumConstantSymbol& constant)
 {
     const auto& canonical_type_symbol = underlying_type.kind() == NamedTypeSymbol::Kind::TypeDef
         ? underlying_type.as<TypeAliasSymbol>().canonical_type_symbol().as<NamedTypeSymbol>()
@@ -324,42 +134,41 @@ static void print_enum_constant_value(
     output << ']';
 }
 
-static void write_type(std::ostream& output, const Type& type, PrintFormat format)
+static void write_type(StructuredString& output, const Type& type, PrintFormat format)
 {
     output << ": " << Printer(type, format);
 }
 
-static void write_method_parameters(std::ostream& output, const NonTypeSymbol& method, PrintFormat format)
+static void write_method_parameters(StructuredString& output, const NonTypeSymbol& method, PrintFormat format)
 {
     output << '(';
     print_list(output, method.parameters(), [format](auto& output, const auto& parameter) {
         output << escape_keyword(parameter.name());
         const auto& parameter_type = parameter.type();
         write_type(output, parameter_type, format);
-        collect_import(parameter_type);
     });
     output << ')';
 }
 
 static void write_foreign_name(
-    std::ostream& output, std::string_view attribute, std::string_view value, bool hide_foreign_name)
+    StructuredString& output, std::string_view attribute, std::string_view value, bool hide_foreign_name)
 {
     // FE supports foreign name attributes in @ObjCMirror classes only.  In the
     // GENERATE_DEFINITIONS mode, where @ObjCMirror is not used, the foreign name
     // attributes are commented out.
     if (hide_foreign_name) {
-        output << "/* ";
+        output << push_block_comment << ' ';
     }
     output << attribute << "[\"" << value << "\"]";
     if (hide_foreign_name) {
-        output << " */";
+        output << ' ' << pop_block_comment;
     }
     output << ' ';
 }
 
 constexpr std::string_view foreign_name_attribute = "@ForeignName";
 
-static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method)
+static void write_foreign_name(StructuredString& output, const NonTypeSymbol& method)
 {
     assert(method.is_member_method() || method.is_constructor());
 
@@ -503,7 +312,7 @@ static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method
     return nullptr;
 }
 
-static void print_objc_optional(std::ostream& output, const NonTypeSymbol& member)
+static void print_objc_optional(StructuredString& output, const NonTypeSymbol& member)
 {
     if (member.is_objc_optional()) {
         if (member.is_property() && normal_mode()) {
@@ -530,7 +339,7 @@ static void print_objc_optional(std::ostream& output, const NonTypeSymbol& membe
         setter_name.substr(standard_setter_prefix_size + 1, prop_name.size() - 1) == prop_name.substr(1);
 }
 
-static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol& prop)
+static void print_getter_setter_names(StructuredString& output, const NonTypeSymbol& prop)
 {
     assert(prop.is_property());
     const auto& name = prop.name();
@@ -558,12 +367,12 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
     }
 }
 
-static void write_function(IndentingStringStream& output, const TypeDeclarationSymbol* decl,
-    const NonTypeSymbol& function, PrintFormat format)
+static void write_function(StructuredString& output, const TypeDeclarationSymbol* decl, const NonTypeSymbol& function,
+    PrintFormat format)
 {
     auto supported = function.is_supported(decl);
     if (!supported) {
-        output.set_comment();
+        output << push_line_comment;
     }
     bool is_ctype;
     if (function.is_global_function()) {
@@ -632,30 +441,28 @@ static void write_function(IndentingStringStream& output, const TypeDeclarationS
             output << " { " << default_value(return_type, format) << " }";
         }
     }
-    if (supported) {
-        collect_import(return_type);
-    } else {
-        output.reset_comment();
+    if (!supported) {
+        output << pop_line_comment;
     }
     output << '\n';
 }
 
-static void print_objcmirror_attribute(std::ostream& output, bool supported)
+static void print_objcmirror_attribute(StructuredString& output, bool supported)
 {
     auto hide_objcmirror_attribute = !supported;
     if (hide_objcmirror_attribute) {
-        output << "/* ";
+        output << push_block_comment << ' ';
     }
     output << "@ObjCMirror";
     if (hide_objcmirror_attribute) {
-        output << " */";
+        output << ' ' << pop_block_comment;
     }
     output << '\n';
 }
 
 class TypeDeclarationWriter final {
 public:
-    TypeDeclarationWriter(IndentingStringStream& output, TypeDeclarationSymbol& decl) noexcept;
+    TypeDeclarationWriter(StructuredString& output, TypeDeclarationSymbol& decl) noexcept;
 
     void write();
 
@@ -670,14 +477,14 @@ private:
         return decl_.kind() == NamedTypeSymbol::Kind::Protocol;
     }
 
-    IndentingStringStream& output_;
+    StructuredString& output_;
     TypeDeclarationSymbol& decl_;
     PrintFormat format_;
     bool any_constructor_exists_ = false;
     bool default_constructor_exists_ = false;
 };
 
-TypeDeclarationWriter::TypeDeclarationWriter(IndentingStringStream& output, TypeDeclarationSymbol& decl) noexcept
+TypeDeclarationWriter::TypeDeclarationWriter(StructuredString& output, TypeDeclarationSymbol& decl) noexcept
     : output_(output), decl_(decl)
 {
 }
@@ -691,7 +498,7 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
     }
     auto supported = prop.is_supported(&decl_);
     if (!supported) {
-        output_.set_comment();
+        output_ << push_line_comment;
     }
 
     // Only interfaces can have @ObjCOptional members, not classes
@@ -717,19 +524,14 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
     assert(!return_type.is_unit());
     write_type(output_, return_type, format_);
     if (generate_definitions_mode()) {
-        output_ << " {\n";
-        output_.indent();
+        BraceScope scope(output_);
         output_ << "get() { " << default_value(return_type, format_) << " }\n";
         if (!prop.is_readonly()) {
             output_ << "set(v) { }\n";
         }
-        output_.dedent();
-        output_ << '}';
     }
-    if (supported) {
-        collect_import(return_type);
-    } else {
-        output_.reset_comment();
+    if (!supported) {
+        output_ << pop_line_comment;
     }
     output_ << '\n';
 }
@@ -744,7 +546,7 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
             default_constructor_exists_ = constructor.parameter_count() == 0;
         }
     } else {
-        output_.set_comment();
+        output_ << push_line_comment;
     }
     if (is_overloading_constructor(decl_, constructor)) {
         if (!generate_definitions_mode()) {
@@ -765,9 +567,6 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
         if (generate_definitions_mode() && !is_interface()) {
             output_ << " { " << default_value(return_type, format_) << " }";
         }
-        if (supported) {
-            collect_import(return_type);
-        }
     } else {
         // The constructor will be written with the name 'init'.
         // Write @ForeignName only if the selector is different.
@@ -787,7 +586,7 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
         }
     }
     if (!supported) {
-        output_.reset_comment();
+        output_ << pop_line_comment;
     }
     output_ << '\n';
 }
@@ -800,7 +599,7 @@ void TypeDeclarationWriter::write_instance_variable(const NonTypeSymbol& ivar)
     const auto& name = ivar.name();
     auto supported = ivar.is_supported(&decl_);
     if (!supported) {
-        output_.set_comment();
+        output_ << push_line_comment;
     }
     const auto& selector_attribute = ivar.selector_attribute();
     if (!selector_attribute.empty()) {
@@ -813,10 +612,8 @@ void TypeDeclarationWriter::write_instance_variable(const NonTypeSymbol& ivar)
     if (generate_definitions_mode()) {
         output_ << " = " << default_value(return_type, format_);
     }
-    if (supported) {
-        collect_import(return_type);
-    } else {
-        output_.reset_comment();
+    if (!supported) {
+        output_ << pop_line_comment;
     }
     output_ << '\n';
 }
@@ -830,7 +627,7 @@ void TypeDeclarationWriter::write_field(const NonTypeSymbol& field)
     }
     auto supported = field.is_supported(&decl_);
     if (!supported) {
-        output_.set_comment();
+        output_ << push_line_comment;
     }
     output_ << "public var " << escape_keyword(field.name());
     const auto& return_type = field.return_type();
@@ -839,10 +636,8 @@ void TypeDeclarationWriter::write_field(const NonTypeSymbol& field)
     if (mode != Mode::EXPERIMENTAL) {
         output_ << " = " << default_value(return_type, format_);
     }
-    if (supported) {
-        collect_import(return_type);
-    } else {
-        output_.reset_comment();
+    if (!supported) {
+        output_ << pop_line_comment;
     }
     output_ << '\n';
 }
@@ -900,71 +695,84 @@ void TypeDeclarationWriter::write()
     output_ << ' ' << escape_keyword(decl_.name());
     auto parameters = decl_.parameters();
     if (!parameters.empty()) {
-        output_ << "/*<";
+        output_ << push_block_comment << '<';
         print_list(output_, parameters, [](auto& output, const auto& parameter) { output << emit_cangjie(parameter); });
-        output_ << ">*/";
+        output_ << '>' << pop_block_comment;
     }
     auto bases = decl_.bases();
     if (!bases.empty()) {
         output_ << " <: ";
         print_list(
             output_, bases,
-            [](auto& output, auto& base) {
-                output << emit_cangjie(base);
-                collect_import(base);
-            },
+            [](auto& output, auto& base) { output << emit_cangjie(base); },
             " & ");
     }
-    output_ << " {\n";
-    output_.indent();
-    for (auto&& member : decl_.members()) {
-        auto closure_depth = Config::closure_depth();
-        if (closure_depth < UNLIMITED_CLOSURE_DEPTH && member.calculate_reference_level(decl_) > closure_depth) {
-            continue;
-        }
-        if (member.is_property()) {
-            write_property(member);
-        } else if (member.is_constructor()) {
-            write_constructor(member);
-        } else if (member.is_member_method()) {
-            if (!get_property(decl_, member) &&
-                !get_overridden_property(decl_, member.selector(), member.is_static())) {
-                write_function(output_, &decl_, member, format_);
+    {
+        BraceScope scope(output_);
+        for (auto&& member : decl_.members()) {
+            auto closure_depth = Config::closure_depth();
+            if (closure_depth < UNLIMITED_CLOSURE_DEPTH && member.calculate_reference_level(decl_) > closure_depth) {
+                continue;
             }
-        } else if (member.is_instance_variable()) {
-            write_instance_variable(member);
-        } else if (member.is_field()) {
-            write_field(member);
-        } else {
-            assert(false);
+            if (member.is_property()) {
+                write_property(member);
+            } else if (member.is_constructor()) {
+                write_constructor(member);
+            } else if (member.is_member_method()) {
+                if (!get_property(decl_, member) &&
+                    !get_overridden_property(decl_, member.selector(), member.is_static())) {
+                    write_function(output_, &decl_, member, format_);
+                }
+            } else if (member.is_instance_variable()) {
+                write_instance_variable(member);
+            } else if (member.is_field()) {
+                write_field(member);
+            } else {
+                assert(false);
+            }
+        }
+
+        // In the `GENERATE_DEFINITIONS` mode, add a fake default constructor if needed.
+        // Otherwise, the following error can happen:
+        // error: there is no non-parameter constructor in super class, please invoke
+        // super call explicitly
+        if (generate_definitions_mode() && any_constructor_exists_ && !default_constructor_exists_) {
+            output_ << "public init() { }\n";
         }
     }
-
-    // In the `GENERATE_DEFINITIONS` mode, add a fake default constructor if needed.
-    // Otherwise, the following error can happen:
-    // error: there is no non-parameter constructor in super class, please invoke
-    // super call explicitly
-    if (generate_definitions_mode() && any_constructor_exists_ && !default_constructor_exists_) {
-        output_ << "public init() { }\n";
-    }
-
-    output_.dedent();
-    output_ << '}' << std::endl;
+    output_ << '\n';
 }
 
-static void write_enum_declaration(IndentingStringStream& output, const EnumDeclarationSymbol& enum_decl)
+static void write_enum_declaration(StructuredString& output, const EnumDeclarationSymbol& enum_decl)
 {
     // Can be emit_cangjie_strict, does not matter here
     auto enum_decl_printer = emit_cangjie(enum_decl);
 
     const auto& underlying_type = enum_decl.underlying_type();
-    collect_import(underlying_type);
     output << "public type " << emit_cangjie(enum_decl) << " = " << emit_cangjie(underlying_type) << '\n';
     enum_decl.for_each_constant([&output, &enum_decl_printer, &underlying_type](const auto& constant) {
         output << "public const " << escape_keyword(constant.name()) << ": " << enum_decl_printer << " = ";
         print_enum_constant_value(output, underlying_type, constant);
         output << '\n';
     });
+}
+
+[[nodiscard]] static std::string assemble_file_content(
+    const Package& package, const std::set<std::string>& imports, std::string_view body)
+{
+    std::ostringstream file_output;
+    file_output << "// Generated by ObjCInteropGen" << std::endl;
+    file_output << std::endl;
+    file_output << "package " << package.cangjie_name() << std::endl;
+    file_output << std::endl;
+    for (const auto& import : imports) {
+        file_output << "import " << import << std::endl;
+    }
+    if (!generate_definitions_mode()) {
+        file_output << "import objc.lang.*\n\n";
+    }
+    file_output << body;
+    return file_output.str();
 }
 
 void write_cangjie()
@@ -974,11 +782,9 @@ void write_cangjie()
         for (auto&& package_file : package) {
             assert(&package_file.package() == &package);
 
-            PackageFileScope scope(package);
-
             const auto& file_path = package_file.output_path();
             create_directories(file_path.parent_path());
-            IndentingStringStream output;
+            StructuredString output;
 
             for (auto* symbol : package_file) {
                 if (auto* alias = dynamic_cast<TypeAliasSymbol*>(symbol)) {
@@ -994,21 +800,23 @@ void write_cangjie()
                     assert(top_level.is_global_function());
                     write_function(output, nullptr, top_level, PrintFormat::EmitCangjie);
                 }
-                output << std::endl;
+                output << '\n';
             }
 
-            std::ofstream file_output(file_path);
-            file_output << "// Generated by ObjCInteropGen" << std::endl;
-            file_output << std::endl;
-            file_output << "package " << package.cangjie_name() << std::endl;
-            file_output << std::endl;
-            for (auto&& import : imports) {
-                file_output << "import " << import << std::endl;
+            StructuredStringStream rendered(package);
+            rendered << output;
+
+            const auto file_content = assemble_file_content(package, rendered.imports(), rendered.str());
+
+            std::string existing_content;
+            if (std::ifstream existing(file_path); existing) {
+                existing_content.assign(std::istreambuf_iterator(existing), std::istreambuf_iterator<char>());
             }
-            if (!generate_definitions_mode()) {
-                file_output << "import objc.lang.*\n\n";
+            // Skip writing when unchanged to preserve the file modification time.
+            if (existing_content != file_content) {
+                std::ofstream file_output(file_path);
+                file_output << file_content;
             }
-            file_output << output.str();
 
             generated_files++;
         }
