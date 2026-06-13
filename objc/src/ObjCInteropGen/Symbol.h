@@ -180,7 +180,7 @@ public:
         return references_symbols_;
     }
 
-    void collect_referenced_symbols();
+    [[nodiscard]] bool add_reference(FileLevelSymbol& symbol);
 
     [[nodiscard]] InputFile* defining_file() const noexcept
     {
@@ -216,6 +216,15 @@ public:
     [[nodiscard]] size_t number_of_referencing_packages() const noexcept;
 
     void print_referencing_packages_info() const;
+
+    /**
+     * Collect every source-defined FileLevelSymbol that appears in emitted code for
+     * this declaration.  References that occur only inside commented-out
+     * (unsupported) members, aliases, or global functions are omitted.
+     */
+    virtual void collect_emitted_references([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out) const
+    {
+    }
 
     template <class To> [[nodiscard]] bool is() const noexcept
     {
@@ -372,6 +381,13 @@ public:
     {
         return varray_size_;
     }
+
+    /**
+     * Insert this type's head symbol (if any) and, recursively, the symbols of all
+     * nested type arguments (generic parameters, pointer pointees, VArray elements).
+     * Does not descend into a referenced type's own members.
+     */
+    void collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out) const;
 
     [[nodiscard]] bool is_ctype() const noexcept;
 
@@ -586,6 +602,8 @@ private:
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
     bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
+    void collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const override;
+
     [[nodiscard]] bool empty() const noexcept
     {
         return constants_.empty();
@@ -639,6 +657,7 @@ private:
         return category_ == PrimitiveTypeCategory::Unit;
     }
 
+private:
     const PrimitiveTypeCategory category_;
     const PrimitiveSize size_;
 };
@@ -853,6 +872,8 @@ private:
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
     bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
+    void collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const override;
+
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
         return contains_pointer_or_func_;
@@ -934,6 +955,8 @@ private:
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
     bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
+    void collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const override;
+
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
         return target_.has_symbol_assigned() && target_.contains_pointer_or_func();
@@ -975,6 +998,13 @@ public:
      */
     [[nodiscard]] bool is_supported(const TypeDeclarationSymbol* owner) const noexcept;
 
+    void collect_emitted_references(std::unordered_set<FileLevelSymbol*>& out) const override;
+
+    /**
+     * Collect symbols referenced by this member's or global function's signature
+     * (parameter types and return type).  Properties have no stored signature here.
+     */
+    void collect_signature_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out) const;
 
     [[nodiscard]] Kind kind() const noexcept
     {
