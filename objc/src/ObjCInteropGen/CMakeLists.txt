@@ -41,6 +41,10 @@ add_executable(ObjCInteropGen
         SourceScannerConfig.cpp
         SourceScannerConfig.h
         Strings.h
+        StructuredString.cpp
+        StructuredString.h
+        StructuredStringStream.cpp
+        StructuredStringStream.h
         Symbol.cpp
         Symbol.h
         Transform.cpp
