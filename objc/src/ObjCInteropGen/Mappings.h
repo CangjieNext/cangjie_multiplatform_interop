@@ -30,6 +30,8 @@ void read_toml_mappings();
 
 void add_non_generic_mapping(std::string from, std::string to);
 
+void apply_mappings();
+
 } // namespace objcgen
 
 #endif // MAPPINGS_H

@@ -488,48 +488,43 @@ static void transform_visit()
     }
 }
 
-static void set_type_mappings() noexcept
+/** Given the N-dimensional VArray, get the type of its element */
+[[nodiscard]] static const Type& get_element_type(const Type& varray) noexcept
 {
-    for (auto&& type : Universe::get().types()) {
-        for (const auto* mapping : mappings) {
-            if (mapping->can_map(type)) {
-                if (type.mapping()) {
-                    std::cerr << "Warning: multiple mappings can be applied to type `" << type.name()
-                              << "`.  Only the first one will be used." << std::endl;
-                    break;
-                }
+    assert(varray.kind() == Type::Kind::VArray);
+    const auto& element_type = varray.varray_element_type();
+    return element_type.kind() == Type::Kind::VArray ? get_element_type(element_type) : element_type;
+}
 
-                type.set_mapping(mapping);
-            }
+/**
+ * For each function parameter, if the type of the parameter is array, convert
+ * it to pointer to its element
+ */
+static void decay_parameter_types(NonTypeSymbol& function)
+{
+    for (auto& parameter : function.parameters()) {
+        auto type = parameter.type().canonical_type();
+        if (type.kind() == Type::Kind::VArray) {
+            parameter.set_type(Type(Universe::get().pointer(), {get_element_type(type)}));
         }
     }
 }
 
-static void do_map(NonTypeSymbol& symbol)
-{
-    for (auto&& parameter : symbol.parameters()) {
-        parameter.type().map();
-    }
-    symbol.return_type().map();
-}
-
-static void do_map()
+/**
+ * For each function parameter, if the type of the parameter is array, convert
+ * it to pointer to its element
+ */
+static void decay_parameter_types()
 {
     auto& universe = Universe::get();
     for (auto& top_level : universe.top_level()) {
-        do_map(top_level);
+        decay_parameter_types(top_level);
     }
-    for (auto&& decl : universe.types()) {
-        if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(&decl)) {
-            for (auto&& member : type->members()) {
-                if (!member.is_property()) {
-                    do_map(member);
-                }
-            }
-        } else if (auto* alias = dynamic_cast<TypeAliasSymbol*>(&decl)) {
-            auto& target = alias->target();
-            if (target.has_symbol_assigned()) {
-                target.map();
+    for (auto& type : universe.types()) {
+        auto* decl = dynamic_cast<TypeDeclarationSymbol*>(&type);
+        if (decl) {
+            for (auto& member : decl->members()) {
+                decay_parameter_types(member);
             }
         }
     }
@@ -537,11 +532,8 @@ static void do_map()
 
 void apply_transforms()
 {
+    decay_parameter_types();
     transform_visit();
-
-    // Apply mappings
-    set_type_mappings();
-    do_map();
 }
 
 } // namespace objcgen

@@ -10,7 +10,8 @@
 
 namespace objcgen {
 
-bool mark_package();
+bool mark_roots();
+bool process_symbol_references();
 
 } // namespace objcgen
 

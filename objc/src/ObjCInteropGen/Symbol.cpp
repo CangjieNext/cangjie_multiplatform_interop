@@ -175,13 +175,10 @@ void FileLevelSymbol::set_definition_location(const Location& location)
     input_file_->add_symbol(*this);
 }
 
-void FileLevelSymbol::collect_referenced_symbols()
+bool FileLevelSymbol::add_reference(FileLevelSymbol& symbol)
 {
-    for_each_referenced_type([this](FileLevelSymbol& symbol) {
-        if (symbol.input_file_ && references_symbols_.insert(&symbol).second && verbosity >= LogLevel::TRACE) {
-            std::cerr << "Entity `" << name() << "` references `" << symbol.name() << "`\n";
-        }
-    });
+    assert(&symbol != this);
+    return references_symbols_.insert(&symbol).second;
 }
 
 void FileLevelSymbol::register_for_package(Package& package)
@@ -228,6 +225,14 @@ void FileLevelSymbol::print_referencing_packages_info() const
     } else {
         std::cerr << ". Specify -v for more detailed information" << std::endl;
     }
+}
+
+void FileLevelSymbol::collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out)
+{
+    auto collect = [&out](FileLevelSymbol& symbol) {
+        out.insert(&symbol);
+    };
+    for_each_referenced_type(collect);
 }
 
 // Applicable only for symbols with the same defining file
@@ -1049,6 +1054,24 @@ bool TypeDeclarationSymbol::visit_referenced_types(const FileLevelSymbolScanner&
     return false;
 }
 
+void TypeDeclarationSymbol::collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out)
+{
+    for (auto& base : this->bases()) {
+        out.insert(&base);
+    }
+    // Only members that will actually be emitted contribute references.  Unsupported
+    // members are commented out in the output and must not pull in their types.
+    for (auto& member : this->members()) {
+        if (member.is_supported(this) && !member.is_hidden()) {
+            if (member.is_property()) {
+                get_getter(member).collect_referenced_symbols(out);
+            } else {
+                member.collect_referenced_symbols(out);
+            }
+        }
+    }
+}
+
 bool TypeDeclarationSymbol::set_reference_level(unsigned new_reference_level) noexcept
 {
     auto set = FileLevelSymbol::set_reference_level(new_reference_level);
@@ -1162,6 +1185,15 @@ bool TypeAliasSymbol::visit_referenced_types(const FileLevelSymbolScanner& visit
     return target.has_symbol_assigned() && visitor(target);
 }
 
+void TypeAliasSymbol::collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out)
+{
+    // Unsupported aliases are commented out; their target types must not count.
+    if (!is_supported()) {
+        return;
+    }
+    FileLevelSymbol::collect_referenced_symbols(out);
+}
+
 static void selector_to_cj_name(NonTypeSymbol& member)
 {
     const auto& name = member.name();
@@ -1187,28 +1219,28 @@ static void selector_to_cj_name(NonTypeSymbol& member)
 }
 
 [[nodiscard]] NonTypeSymbol::NonTypeSymbol(std::string name, Kind kind, Type return_type,
-    std::vector<ParameterSymbol> parameters, Modifiers modifiers) noexcept
-    : FileLevelSymbol(std::move(name)),
-      kind_(kind),
-      modifiers_(modifiers),
-      return_type_(std::move(return_type)),
-      parameters_(std::move(parameters))
+        std::vector<ParameterSymbol> parameters, Modifiers modifiers) noexcept
+        : FileLevelSymbol(std::move(name)),
+          kind_(kind),
+          modifiers_(modifiers),
+          return_type_(std::move(return_type)),
+          parameters_(std::move(parameters))
 {
     selector_to_cj_name(*this);
 }
 
 [[nodiscard]] NonTypeSymbol::NonTypeSymbol(std::string name, Kind kind, Type return_type, Modifiers modifiers) noexcept
-    : NonTypeSymbol(std::move(name), kind, std::move(return_type), std::vector<ParameterSymbol>{}, modifiers)
+        : NonTypeSymbol(std::move(name), kind, std::move(return_type), std::vector<ParameterSymbol>{}, modifiers)
 {
 }
 
 [[nodiscard]] NonTypeSymbol::NonTypeSymbol(
-    std::string name, std::string getter, std::string setter, Modifiers modifiers) noexcept
-    : FileLevelSymbol(std::move(name)),
-      kind_(Kind::Property),
-      modifiers_(modifiers),
-      getter_(getter == this->name() ? std::string() : std::move(getter)),
-      setter_((modifiers_ & ModifierReadonly) ? std::string() : std::move(setter))
+        std::string name, std::string getter, std::string setter, Modifiers modifiers) noexcept
+        : FileLevelSymbol(std::move(name)),
+          kind_(Kind::Property),
+          modifiers_(modifiers),
+          getter_(getter == this->name() ? std::string() : std::move(getter)),
+          setter_((modifiers_ & ModifierReadonly) ? std::string() : std::move(setter))
 {
     selector_to_cj_name(*this);
 }
@@ -1326,6 +1358,15 @@ bool NonTypeSymbol::visit_referenced_types(const FileLevelSymbolScanner& visitor
     }
 
     return kind_ != Kind::Property && visitor(return_type());
+}
+
+void NonTypeSymbol::collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out)
+{
+    // Global functions at file level: only supported ones are emitted.
+    if (is_global_function() && !is_supported(nullptr)) {
+        return;
+    }
+    FileLevelSymbol::collect_referenced_symbols(out);
 }
 
 const Type& NonTypeSymbol::return_type() const noexcept
