@@ -18,7 +18,10 @@
 
 namespace objcgen {
 
-std::ostream& operator<<(std::ostream& stream, const KeywordEscaper& op)
+namespace {
+
+template <class Stream>
+void print_escaped_keyword(Stream& stream, std::string_view name)
 {
     // Do not include keywords common for Cangjie and C/Objective-C
     static constexpr const char* cangjieKeywords[] = {
@@ -93,11 +96,18 @@ std::ostream& operator<<(std::ostream& stream, const KeywordEscaper& op)
         //"while",
     };
     auto e = std::cend(cangjieKeywords);
-    if (std::find(std::cbegin(cangjieKeywords), e, op.name) != e) {
-        stream << '`' << op.name << '`';
+    if (std::find(std::cbegin(cangjieKeywords), e, name) != e) {
+        stream << '`' << name << '`';
     } else {
-        stream << op.name;
+        stream << name;
     }
+}
+
+} // namespace
+
+StructuredString& operator<<(StructuredString& stream, const KeywordEscaper& op)
+{
+    print_escaped_keyword(stream, op.name);
     return stream;
 }
 
@@ -111,7 +121,7 @@ void Symbol::rename(std::string_view new_name)
     name_ = new_name;
 }
 
-void Symbol::print(std::ostream& stream, [[maybe_unused]] PrintFormat format) const
+void Symbol::print(StructuredString& stream, [[maybe_unused]] PrintFormat format) const
 {
     stream << escape_keyword(name_);
 }
@@ -465,7 +475,7 @@ void Type::map()
     }
 }
 
-static void print_raw_type_parameter(std::ostream& stream, const Type& type_param)
+static void print_raw_type_parameter(StructuredString& stream, const Type& type_param)
 {
     assert(type_param.kind() == Type::Kind::TypeParam);
     stream << type_param.name();
@@ -477,7 +487,7 @@ static void print_raw_type_parameter(std::ostream& stream, const Type& type_para
     }
 }
 
-void Type::print(std::ostream& stream, PrintFormat format) const
+void Type::print(StructuredString& stream, PrintFormat format) const
 {
     if (is_cj_direct_option()) {
         stream << '?';
@@ -491,13 +501,13 @@ void Type::print(std::ostream& stream, PrintFormat format) const
             if (!parameters_.empty()) {
                 auto no_type_arguments = format != PrintFormat::Raw;
                 if (no_type_arguments) {
-                    stream << "/*";
+                    stream << push_block_comment;
                 }
                 stream << '<';
                 print_list(stream, parameters_, [](auto& stream, const auto& parameter) { stream << raw(parameter); });
                 stream << '>';
                 if (no_type_arguments) {
-                    stream << "*/";
+                    stream << pop_block_comment;
                 }
             }
             break;
@@ -535,9 +545,9 @@ void Type::print(std::ostream& stream, PrintFormat format) const
                 print_raw_type_parameter(stream, *this);
             } else {
                 actual_protocol().print(stream, format);
-                stream << " /*";
+                stream << ' ' << push_block_comment;
                 print_raw_type_parameter(stream, *this);
-                stream << "*/";
+                stream << pop_block_comment;
             }
             break;
         default:
@@ -547,7 +557,7 @@ void Type::print(std::ostream& stream, PrintFormat format) const
     }
 }
 
-static void print_tricky_default_value(std::ostream& stream, std::string_view type_name)
+static void print_tricky_default_value(StructuredString& stream, std::string_view type_name)
 {
     // The dirty trick is applied for printing default values of:
     // - Interface types -- instances of the interface type cannot be created.
@@ -555,7 +565,7 @@ static void print_tricky_default_value(std::ostream& stream, std::string_view ty
     stream << "Option<" << type_name << ">.None.getOrThrow()";
 }
 
-void Type::print_default_value(std::ostream& stream, PrintFormat format) const
+void Type::print_default_value(StructuredString& stream, PrintFormat format) const
 {
     if (is_cj_option()) {
         stream << "None";
@@ -705,7 +715,7 @@ Nullability Type::init_nullability(Nullability nullability) noexcept
     return Nullability::Nonnull;
 }
 
-void Type::print_func_like(std::ostream& stream, std::string_view name, PrintFormat format) const
+void Type::print_func_like(StructuredString& stream, std::string_view name, PrintFormat format) const
 {
     if (parameters_.empty()) {
         stream << name << "<() -> Unit>";
@@ -727,9 +737,11 @@ void NamedTypeSymbol::rename(const std::string_view new_name)
     Universe::get().process_rename(*this, old_name);
 }
 
-void NamedTypeSymbol::print(std::ostream& stream, PrintFormat) const
+void NamedTypeSymbol::print(StructuredString& stream, PrintFormat) const
 {
     stream << escape_keyword(name());
+    // Record a symbol reference for import collection during rendering.
+    stream << *this;
 }
 
 void NamedTypeSymbol::set_mapping(const TypeMapping* mapping) noexcept
@@ -817,10 +829,10 @@ UnexposedTypeSymbol::UnexposedTypeSymbol(std::string name, size_t size)
 {
 }
 
-void UnexposedTypeSymbol::print(std::ostream& stream, PrintFormat format) const
+void UnexposedTypeSymbol::print(StructuredString& stream, PrintFormat format) const
 {
     underlying_type().print(stream, format);
-    stream << " /*" << name() << "*/";
+    stream << ' ' << push_block_comment << name() << pop_block_comment;
 }
 
 [[nodiscard]] static bool is_ctype_by_default(NamedTypeSymbol::Kind kind, std::string_view name) noexcept
@@ -1035,7 +1047,7 @@ TypeAliasSymbol::TypeAliasSymbol(std::string name) noexcept : NamedTypeSymbol(Ki
 {
 }
 
-void TypeAliasSymbol::print(std::ostream& stream, PrintFormat format) const
+void TypeAliasSymbol::print(StructuredString& stream, PrintFormat format) const
 {
     const auto& target = this->target();
     if (target.has_symbol_assigned() && name() == target.name()) {
@@ -1065,9 +1077,9 @@ void TypeAliasSymbol::print(std::ostream& stream, PrintFormat format) const
             // the 'P2' macro and replace CPointer by ObjCPointer:
             //
             //      var x: ObjCPointer<Int32> /*P2*/
-            stream << emit_cangjie_strict(target) << " /*";
+            stream << emit_cangjie_strict(target) << ' ' << push_block_comment;
             NamedTypeSymbol::print(stream, format);
-            stream << "*/";
+            stream << pop_block_comment;
             return;
         }
     }
@@ -1076,9 +1088,9 @@ void TypeAliasSymbol::print(std::ostream& stream, PrintFormat format) const
     } else {
         // This must be a built-in typedef without any declaration in a file.
         target.print(stream, format);
-        stream << " /*";
+        stream << ' ' << push_block_comment;
         NamedTypeSymbol::print(stream, format);
-        stream << "*/";
+        stream << pop_block_comment;
     }
 }
 
