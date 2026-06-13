@@ -13,6 +13,7 @@
 
 #include "Config.h"
 #include "InputFile.h"
+#include "StructuredString.h"
 
 namespace objcgen {
 
@@ -68,7 +69,7 @@ public:
         return name_;
     }
 
-    virtual void print(std::ostream& stream, PrintFormat format) const;
+    virtual void print(StructuredString& stream, PrintFormat format) const;
 
 protected:
     [[nodiscard]] explicit Symbol(std::string name) noexcept;
@@ -416,16 +417,16 @@ public:
 
     void map();
 
-    void print(std::ostream& stream, PrintFormat format) const;
+    void print(StructuredString& stream, PrintFormat format) const;
 
-    void print_default_value(std::ostream& stream, PrintFormat format) const;
+    void print_default_value(StructuredString& stream, PrintFormat format) const;
 
     [[nodiscard]] ClosureDepthType reference_level() const noexcept;
 
 private:
     [[nodiscard]] Nullability init_nullability(Nullability nullability) noexcept;
 
-    void print_func_like(std::ostream& stream, std::string_view name, PrintFormat format) const;
+    void print_func_like(StructuredString& stream, std::string_view name, PrintFormat format) const;
 
     Kind kind_ = Kind::Unit;
     TypeLikeSymbol* symbol_ = nullptr;
@@ -453,7 +454,7 @@ public:
         Category,
     };
 
-    void print(std::ostream& stream, PrintFormat) const override;
+    void print(StructuredString& stream, PrintFormat) const override;
 
     [[nodiscard]] Kind kind() const noexcept
     {
@@ -623,7 +624,7 @@ public:
     }
 
 private:
-    void print(std::ostream& stream, PrintFormat) const override
+    void print(StructuredString& stream, PrintFormat) const override
     {
         stream << name();
     }
@@ -666,7 +667,7 @@ public:
     }
 
 private:
-    void print(std::ostream& stream, PrintFormat format) const override;
+    void print(StructuredString& stream, PrintFormat format) const override;
 
     [[nodiscard]] bool is_ctype() const noexcept override
     {
@@ -877,7 +878,7 @@ class TypeAliasSymbol final : public NamedTypeSymbol {
 public:
     TypeAliasSymbol(std::string name, Type target) noexcept;
 
-    void print(std::ostream& stream, PrintFormat format) const override;
+    void print(StructuredString& stream, PrintFormat format) const override;
 
     /**
      * Return the canonical type for `this`, in the sense of the
@@ -1193,12 +1194,6 @@ public:
     }
 
 private:
-    friend std::ostream& operator<<(std::ostream& stream, const Printer& printer)
-    {
-        printer.obj_.print(stream, printer.format_);
-        return stream;
-    }
-
     const T& obj_;
     const PrintFormat format_;
 };
@@ -1218,6 +1213,13 @@ template <class T> [[nodiscard]] Printer<T> emit_cangjie_strict(const T& obj) no
     return {obj, PrintFormat::EmitCangjieStrict};
 }
 
+template <class T>
+StructuredString& operator<<(StructuredString& stream, const Printer<T>& printer)
+{
+    printer.obj().print(stream, printer.format());
+    return stream;
+}
+
 class KeywordEscaper {
 public:
     explicit KeywordEscaper(std::string_view name) noexcept : name(name)
@@ -1225,7 +1227,7 @@ public:
     }
 
 private:
-    friend std::ostream& operator<<(std::ostream& stream, const KeywordEscaper& op);
+    friend StructuredString& operator<<(StructuredString& stream, const KeywordEscaper& op);
 
     const std::string_view name;
 };
