@@ -8,13 +8,11 @@
 #ifndef PRINTUTILS_H
 #define PRINTUTILS_H
 
-#include <iosfwd>
-
 namespace objcgen {
 
 /** Print a list of comma-delimited items */
-template <class It, class PrintItem, class Delimiter = const char*>
-void print_list(std::ostream& stream, It begin, It end, PrintItem print_item, const Delimiter& delimiter = ", ")
+template <class Stream, class It, class PrintItem, class Delimiter = const char*>
+void print_list(Stream& stream, It begin, It end, PrintItem print_item, const Delimiter& delimiter = ", ")
 {
     if (begin != end) {
         print_item(stream, *begin);
@@ -26,9 +24,8 @@ void print_list(std::ostream& stream, It begin, It end, PrintItem print_item, co
 }
 
 /** Print a list of comma-delimited items */
-template <class Container, class PrintItem, class Delimiter = const char*>
-void print_list(
-    std::ostream& stream, const Container& container, PrintItem print_item, const Delimiter& delimiter = ", ")
+template <class Stream, class Container, class PrintItem, class Delimiter = const char*>
+void print_list(Stream& stream, const Container& container, PrintItem print_item, const Delimiter& delimiter = ", ")
 {
     print_list(stream, container.begin(), container.end(), print_item, delimiter);
 }
