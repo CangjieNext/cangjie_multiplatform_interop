@@ -620,20 +620,9 @@ void Type::print_default_value(StructuredString& stream, PrintFormat format) con
                 }
                 break;
             case NamedTypeSymbol::Kind::TypeDef: {
-                assert(dynamic_cast<const TypeAliasSymbol*>(named_type));
-                auto canonical_type = this->canonical_type();
-                const auto* named_target = dynamic_cast<const NamedTypeSymbol*>(&canonical_type.symbol());
-                if (named_target) {
-                    switch (named_target->kind()) {
-                        case NamedTypeSymbol::Kind::Interface:
-                        case NamedTypeSymbol::Kind::Protocol:
-                            break;
-                        default:
-                            canonical_type.print_default_value(stream, format);
-                            return;
-                    }
-                }
-                break;
+                assert(type_symbol.is<TypeAliasSymbol>());
+                this->canonical_type().print_default_value(stream, format);
+                return;
             }
             case NamedTypeSymbol::Kind::Unexposed:
                 named_type->as<UnexposedTypeSymbol>().underlying_type().print_default_value(stream, format);
@@ -1283,6 +1272,9 @@ bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexc
             if (type.name() == "IMP" || (type.has_symbol_assigned() && &type.symbol() == &Universe::get().sel())) {
                 return false;
             }
+        }
+        if (type.kind() == Type::Kind::VArray && !type.is_ctype()) {
+            return false;
         }
 
         switch (owner->kind()) {
