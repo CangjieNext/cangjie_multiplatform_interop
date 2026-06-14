@@ -147,6 +147,12 @@ void FileLevelSymbol::set_definition_location(const Location& location)
     input_file_->add_symbol(*this);
 }
 
+const std::unordered_set<FileLevelSymbol*>& FileLevelSymbol::referenced_by_symbols() const noexcept
+{
+    assert(verbosity > LogLevel::WARNING);
+    return referenced_by_symbols_;
+}
+
 bool FileLevelSymbol::add_reference(FileLevelSymbol& symbol)
 {
     assert(&symbol != this);
@@ -163,17 +169,9 @@ void FileLevelSymbol::register_for_package(Package& package)
     output_file_ = file ? file : &package.add_file(file_name);
 }
 
-[[nodiscard]] static bool referencing_packages_detailed_info() noexcept
+bool FileLevelSymbol::add_candidate_package(Package& package)
 {
-    return verbosity > LogLevel::WARNING;
-}
-
-void FileLevelSymbol::add_referencing_package(const Package& package)
-{
-    ++number_of_referencing_packages_;
-    if (referencing_packages_detailed_info()) {
-        referencing_packages_.insert(&package);
-    }
+    return candidate_packages_.insert(&package).second;
 }
 
 Package* FileLevelSymbol::package() const noexcept
@@ -182,21 +180,18 @@ Package* FileLevelSymbol::package() const noexcept
     return file ? &file->package() : nullptr;
 }
 
-size_t FileLevelSymbol::number_of_referencing_packages() const noexcept
+bool FileLevelSymbol::add_referencing_symbol(FileLevelSymbol& symbol)
 {
-    return referencing_packages_detailed_info() ? referencing_packages_.size() : number_of_referencing_packages_;
-}
-
-void FileLevelSymbol::print_referencing_packages_info() const
-{
-    if (referencing_packages_detailed_info()) {
-        std::cerr << ":\n";
-        for (const auto* package : referencing_packages_) {
-            std::cerr << "* " << package->cangjie_name() << std::endl;
-        }
-    } else {
-        std::cerr << ". Specify -v for more detailed information" << std::endl;
+    bool changed = output_status_ == OutputStatus::Undefined;
+    if (changed) {
+        output_status_ = OutputStatus::Referenced;
     }
+    if (verbosity > LogLevel::WARNING) {
+        if (referenced_by_symbols_.insert(&symbol).second) {
+            changed = true;
+        }
+    }
+    return changed;
 }
 
 // Applicable only for symbols with the same defining file
@@ -1004,7 +999,7 @@ bool TypeDeclarationSymbol::set_reference_level(unsigned new_reference_level) no
         } else {
             // Set the same reference level for all base classes and protocols, because that
             // is required for compilability at the Cangjie side.
-            for (auto base : bases_) {
+            for (auto* base : bases_) {
                 base->set_reference_level(new_reference_level);
             }
         }
