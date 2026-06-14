@@ -105,10 +105,14 @@ public:
     }
 };
 
+// `filters` defines which entities may belong to a package. When `root-filters` is set,
+// only `root-filters` matches become closure roots; filter-only members join the package
+// only when reached via reference closure.
 class Package final : NonCopyable {
     const std::string cangjie_name_;
     const std::string output_path_;
     const PackageFilter* filters_ = nullptr;
+    const PackageFilter* root_filters_ = nullptr;
     package_file_map_t files_;
     std::unordered_set<Package*> depends_on_;
 
@@ -135,6 +139,11 @@ public:
         return filters_;
     }
 
+    [[nodiscard]] const PackageFilter* root_filters() const noexcept
+    {
+        return root_filters_;
+    }
+
     [[nodiscard]] const std::unordered_set<Package*>& depends_on() const noexcept
     {
         return depends_on_;
@@ -144,6 +153,12 @@ public:
     {
         assert(!filters_);
         filters_ = &filters;
+    }
+
+    void set_root_filters(const PackageFilter& root_filters) noexcept
+    {
+        assert(!root_filters_);
+        root_filters_ = &root_filters;
     }
 
     [[nodiscard]] PackageFile& add_file(std::string file_name)

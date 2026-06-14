@@ -66,7 +66,12 @@ enum class ReferenceKind { None, Likely, True };
 {
     const auto& name = original_symbol_name(symbol);
 
-    // Otherwise, anything that matches a `filters` property is a root.
+    // When `root-filters` is present, only those matches become closure roots.
+    if (const auto* filter = package.root_filters()) {
+        return filter->apply(name);
+    }
+
+    // Otherwise, other filter properties act as roots.
     if (const auto* filter = package.filters(); filter && filter->apply(name)) {
         return true;
     }
@@ -77,6 +82,10 @@ enum class ReferenceKind { None, Likely, True };
 [[nodiscard]] static bool matches_any_filter(const Package& package, const FileLevelSymbol& symbol) noexcept
 {
     const auto& name = original_symbol_name(symbol);
+
+    if (const auto* filter = package.root_filters(); filter && filter->apply(name)) {
+        return true;
+    }
 
     if (const auto* filter = package.filters(); filter && filter->apply(name)) {
         return true;
@@ -129,6 +138,10 @@ static void collect_ambiguity_reasons(
     const Package& package, const FileLevelSymbol& symbol, std::vector<std::string>& reasons) noexcept
 {
     const auto& name = original_symbol_name(symbol);
+
+    if (const auto* filter = package.root_filters(); filter && filter->apply(name)) {
+        reasons.emplace_back("matches `root-filters`");
+    }
 
     if (const auto* filter = package.filters(); filter && filter->apply(name)) {
         reasons.emplace_back("matches `filters`");

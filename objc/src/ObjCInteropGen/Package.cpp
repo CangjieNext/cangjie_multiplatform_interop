@@ -51,6 +51,10 @@ static void create_package(std::size_t package_index, const toml::Table& config)
     auto& package = *new Package(package_cangjie_name, expand_string(output_path));
     package.set_filters(create_filter(package, filters_it->second));
 
+    if (auto root_filters_it = config.find("root-filters"); root_filters_it != config.end()) {
+        package.set_root_filters(create_filter(package, root_filters_it->second));
+    }
+
     packages.insert(package);
 }
 
