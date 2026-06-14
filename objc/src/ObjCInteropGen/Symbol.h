@@ -10,6 +10,7 @@
 
 #include <array>
 #include <functional>
+#include <optional>
 
 #include "Config.h"
 #include "InputFile.h"
@@ -82,7 +83,7 @@ private:
     std::string name_;
 };
 
-enum class OutputStatus { Undefined, Root, Referenced, ReferencedMarked, MultiReferenced };
+enum class OutputStatus { Undefined, Root, Referenced };
 
 class FileLevelSymbolVisitor {
 public:
@@ -187,6 +188,8 @@ public:
         return references_symbols_;
     }
 
+    [[nodiscard]] const std::unordered_set<FileLevelSymbol*>& referenced_by_symbols() const noexcept;
+
     bool add_reference(FileLevelSymbol& symbol);
 
     [[nodiscard]] InputFile* defining_file() const noexcept
@@ -201,7 +204,19 @@ public:
 
     void register_for_package(Package& package);
 
-    void add_referencing_package(const Package& package);
+    [[nodiscard]] bool add_candidate_package(Package& package);
+
+    [[nodiscard]] bool matches_any_filters() const noexcept
+    {
+        assert(matches_any_filters_.has_value());
+        return *matches_any_filters_;
+    }
+
+    void set_matches_any_filters(bool flag) noexcept
+    {
+        assert(!matches_any_filters_.has_value());
+        matches_any_filters_ = flag;
+    }
 
     [[nodiscard]] Package* package() const noexcept;
 
@@ -210,19 +225,23 @@ public:
         return output_status_;
     }
 
-    void set_output_status(OutputStatus output_status) noexcept
+    void mark_root() noexcept
     {
-        output_status_ = output_status;
+        assert(output_status_ == OutputStatus::Undefined);
+        output_status_ = OutputStatus::Root;
     }
+
+    [[nodiscard]] bool add_referencing_symbol(FileLevelSymbol& symbol);
 
     [[nodiscard]] ClosureDepthType reference_level() const noexcept
     {
         return reference_level_;
     }
 
-    [[nodiscard]] size_t number_of_referencing_packages() const noexcept;
-
-    void print_referencing_packages_info() const;
+    [[nodiscard]] const std::unordered_set<Package*>& candidate_packages() const noexcept
+    {
+        return candidate_packages_;
+    }
 
     /**
      * Collect every source-defined FileLevelSymbol that appears in emitted code for
@@ -269,19 +288,23 @@ private:
     // Applicable only for symbols with the same defining file
     friend bool operator<(const FileLevelSymbol& symbol1, const FileLevelSymbol& symbol2) noexcept;
 
-    InputFile* input_file_ = nullptr; // Stage 1
-    LineCol location_{};
-    std::unordered_set<FileLevelSymbol*> references_symbols_; // Stage 2
-
-    std::string cangjie_package_name_;
-    PackageFile* output_file_ = nullptr; // Stage 3
-
+    // Pipeline of assigning the output Cangjie file:
     OutputStatus output_status_ = OutputStatus::Undefined;
 
-    size_t number_of_referencing_packages_ = 0;
+    // Stage 1: the declaration location in the input sources
+    InputFile* input_file_ = nullptr;
+    LineCol location_{};
 
-    // Used only for debug print when verbosity > LogLevel::WARNING
-    std::unordered_set<const Package*> referencing_packages_;
+    // Stage 2: all references from this symbol
+    std::unordered_set<FileLevelSymbol*> references_symbols_;
+    std::unordered_set<FileLevelSymbol*> referenced_by_symbols_; // filled only on non-default verbosity
+
+    // Stage 3: all owner package candidates
+    std::optional<bool> matches_any_filters_;
+    std::unordered_set<Package*> candidate_packages_;
+
+    // Stage 4: the assigned output Cangjie file
+    PackageFile* output_file_ = nullptr;
 };
 
 class TypeLikeSymbol : public FileLevelSymbol {
