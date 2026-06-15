@@ -197,7 +197,7 @@ static void symbol_references_to_packages_pass(ScopeBuilderStatus& status, FileL
                     assert(!reference->package());
                     reference->set_output_status(OutputStatus::Referenced);
                     reference->add_referencing_package(*package);
-                    if (reference->reference_level() <= g_closure_depth) {
+                    if (reference->reference_level() <= Config::closure_depth()) {
                         reference->register_for_package(*package);
                     }
                     status.mark_changed();

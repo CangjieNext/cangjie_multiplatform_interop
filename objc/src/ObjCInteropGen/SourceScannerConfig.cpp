@@ -151,14 +151,14 @@ static void parse_sources(const toml::Table& options, const std::string& source_
 
 void parse_sources()
 {
-    const auto* sources_any = config.find("sources");
+    const auto* sources_any = Config::find("sources");
     if (!sources_any || !sources_any->is<toml::Table>()) {
         fatal("`sources` should be a TOML table");
     }
     auto session_ptr = ClangSession::create();
     auto& session = *session_ptr;
 
-    const auto* mixins_any = config.find("sources-mixins");
+    const auto* mixins_any = Config::find("sources-mixins");
     for (auto&& [source_name, source_any] : sources_any->as<toml::Table>()) {
         if (!source_any.is<toml::Table>()) {
             fatal("`sources` entry `", source_name, "` is not a TOML table");

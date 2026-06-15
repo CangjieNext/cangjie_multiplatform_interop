@@ -15,7 +15,8 @@
 
 namespace objcgen {
 
-toml::Value config;
+static toml::Value g_config;
+static ClosureDepthType g_closure_depth;
 
 static void append_to_left(toml::Value& lhs, const toml::Array& rhs)
 {
@@ -152,10 +153,30 @@ toml::Value TomlFileParser::parse(const std::string& path)
     return parse_result.value;
 }
 
-void parse_toml_config_file(const std::string& path)
+void Config::parse_from_toml_file(const std::string& path)
 {
-    TomlFileParser parser;
-    config = parser.parse(path);
+    g_config = TomlFileParser().parse(path);
+    assert(g_config.is<toml::Table>());
+    const auto* closure_depth_value = g_config.find("closure-depth");
+    if (closure_depth_value) {
+        auto int_closure_depth = closure_depth_value->as<int64_t>();
+        g_closure_depth =
+            int_closure_depth < 0 ? UNLIMITED_CLOSURE_DEPTH : static_cast<ClosureDepthType>(int_closure_depth);
+    } else {
+        g_closure_depth = UNLIMITED_CLOSURE_DEPTH;
+    }
+}
+
+const toml::Value* Config::find(const std::string& key)
+{
+    assert(g_config.is<toml::Table>());
+    return g_config.find(key);
+}
+
+ClosureDepthType Config::closure_depth() noexcept
+{
+    assert(g_config.is<toml::Table>());
+    return g_closure_depth;
 }
 
 } // namespace objcgen

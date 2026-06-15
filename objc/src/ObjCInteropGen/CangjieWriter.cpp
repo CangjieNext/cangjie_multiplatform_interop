@@ -993,7 +993,8 @@ void TypeDeclarationWriter::write()
     output_ << " {\n";
     output_.indent();
     for (auto&& member : decl_.members()) {
-        if (g_closure_depth < UNLIMITED_CLOSURE_DEPTH && member.calculate_reference_level(decl_) > g_closure_depth) {
+        auto closure_depth = Config::closure_depth();
+        if (closure_depth < UNLIMITED_CLOSURE_DEPTH && member.calculate_reference_level(decl_) > closure_depth) {
             continue;
         }
         if (member.is_property()) {
