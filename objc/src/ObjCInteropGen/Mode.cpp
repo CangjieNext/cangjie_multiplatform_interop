@@ -10,6 +10,4 @@ namespace objcgen {
 
 Mode mode = Mode::NORMAL;
 
-ClosureDepthType g_closure_depth = UNLIMITED_CLOSURE_DEPTH;
-
 } // namespace objcgen

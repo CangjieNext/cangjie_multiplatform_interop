@@ -12,9 +12,18 @@
 
 namespace objcgen {
 
-extern toml::Value config;
+using ClosureDepthType = uint64_t;
 
-void parse_toml_config_file(const std::string& path);
+constexpr ClosureDepthType UNLIMITED_CLOSURE_DEPTH = std::numeric_limits<ClosureDepthType>::max();
+
+class Config {
+public:
+    static void parse_from_toml_file(const std::string& path);
+
+    static const toml::Value* find(const std::string& key);
+
+    static ClosureDepthType closure_depth() noexcept;
+};
 
 } // namespace objcgen
 

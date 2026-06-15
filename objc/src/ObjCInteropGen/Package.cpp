@@ -57,7 +57,7 @@ static void create_package(std::size_t package_index, const toml::Table& config)
 
 void create_packages()
 {
-    if (const auto* packages = config.find("packages")) {
+    if (const auto* packages = Config::find("packages")) {
         std::size_t i = 0;
         for (auto&& package_any : packages->as<toml::Array>()) {
             if (!package_any.is<toml::Table>()) {

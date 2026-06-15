@@ -9,10 +9,9 @@
 #define SYMBOL_H
 
 #include <array>
-#include <cassert>
 
+#include "Config.h"
 #include "InputFile.h"
-#include "Mode.h"
 
 namespace objcgen {
 

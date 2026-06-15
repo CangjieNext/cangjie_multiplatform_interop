@@ -40,12 +40,6 @@ extern enum class Mode {
     return mode == Mode::GENERATE_DEFINITIONS;
 }
 
-using ClosureDepthType = unsigned;
-
-constexpr ClosureDepthType UNLIMITED_CLOSURE_DEPTH = std::numeric_limits<ClosureDepthType>::max();
-
-extern ClosureDepthType g_closure_depth;
-
 } // namespace objcgen
 
 #endif // MODE_H
