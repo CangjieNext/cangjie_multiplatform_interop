@@ -15,6 +15,7 @@ namespace objcgen {
 
 std::deque<TypeMapping*> mappings;
 
+namespace {
 struct NonGenericMapping final : TypeMapping {
     explicit NonGenericMapping(std::string from, std::string to) : from_(std::move(from)), to_(std::move(to))
     {
@@ -25,21 +26,22 @@ struct NonGenericMapping final : TypeMapping {
         return from_ == type.name();
     }
 
-    TypeLikeSymbol& map(NamedTypeSymbol& type) const override;
+    [[nodiscard]] Type map(const NamedTypeSymbol& type) const override;
 
 private:
     std::string from_;
     std::string to_;
 };
+} // namespace
 
-TypeLikeSymbol& NonGenericMapping::map([[maybe_unused]] NamedTypeSymbol& type) const
+Type NonGenericMapping::map([[maybe_unused]] const NamedTypeSymbol& type) const
 {
     assert(can_map(type));
     auto* result = Universe::get().type(to_);
     if (!result) {
         fatal("Unknown type ", to_, " specified in [[mappings]]");
     }
-    return *result;
+    return Type(*result);
 }
 
 void initialize_mappings()

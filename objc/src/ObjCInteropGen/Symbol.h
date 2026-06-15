@@ -325,8 +325,6 @@ public:
         return false;
     }
 
-    [[nodiscard]] virtual TypeLikeSymbol& map() = 0;
-
     [[nodiscard]] virtual bool is_objc_compatible() const noexcept = 0;
 
 protected:
@@ -524,14 +522,14 @@ public:
 
     [[nodiscard]] bool is_objc_compatible() const noexcept override;
 
+    [[nodiscard]] virtual std::optional<Type> map();
+
 protected:
     explicit NamedTypeSymbol(const Kind kind, std::string name) noexcept : TypeLikeSymbol(std::move(name)), kind_(kind)
     {
     }
 
 private:
-    [[nodiscard]] TypeLikeSymbol& map() override;
-
     void rename(std::string new_name) noexcept;
 
     [[nodiscard]] bool is_optionable_reference() const noexcept override;
@@ -554,10 +552,9 @@ public:
     {
     }
 
-private:
-    [[nodiscard]] TypeLikeSymbol& map() override
+    [[nodiscard]] std::optional<Type> map() override
     {
-        return *this;
+        return std::nullopt;
     }
 };
 
@@ -628,7 +625,7 @@ private:
         return constants_.empty();
     }
 
-    NamedTypeSymbol* const underlying_type_;
+    NamedTypeSymbol* underlying_type_;
     std::vector<EnumConstantSymbol> constants_;
 };
 
@@ -755,11 +752,6 @@ public:
     }
 
 private:
-    [[nodiscard]] TypeParameterSymbol& map() override
-    {
-        return *this;
-    }
-
     [[nodiscard]] bool is_optionable_reference() const noexcept override
     {
         return true;
@@ -940,6 +932,12 @@ public:
     [[nodiscard]] Type& target() noexcept
     {
         return target_;
+    }
+
+    void set_target(Type target) noexcept
+    {
+        // It could makes sense to check the underlying type is identical
+        target_ = std::move(target);
     }
 
     /**
