@@ -20,6 +20,7 @@ namespace objcgen {
 class NonTypeSymbol;
 class Package;
 class PackageFile;
+class Type;
 class TypeDeclarationSymbol;
 struct TypeMapping;
 
@@ -227,8 +228,6 @@ public:
         return false;
     }
 
-    [[nodiscard]] virtual TypeLikeSymbol& map() = 0;
-
     [[nodiscard]] virtual bool is_objc_compatible() const noexcept = 0;
 
 protected:
@@ -416,14 +415,14 @@ public:
 
     [[nodiscard]] bool is_objc_compatible() const noexcept override;
 
+    [[nodiscard]] virtual std::optional<Type> map();
+
 protected:
     explicit NamedTypeSymbol(const Kind kind, std::string name) noexcept : TypeLikeSymbol(std::move(name)), kind_(kind)
     {
     }
 
 private:
-    [[nodiscard]] TypeLikeSymbol& map() override;
-
     [[nodiscard]] bool is_optionable_reference() const noexcept override;
 
     const TypeMapping* mapping_ = nullptr;
@@ -441,10 +440,9 @@ public:
     {
     }
 
-private:
-    [[nodiscard]] TypeLikeSymbol& map() override
+    [[nodiscard]] std::optional<Type> map() override
     {
-        return *this;
+        return std::nullopt;
     }
 };
 
@@ -514,7 +512,7 @@ private:
         return constants_.empty();
     }
 
-    NamedTypeSymbol* const underlying_type_;
+    NamedTypeSymbol* underlying_type_;
     std::vector<EnumConstantSymbol> constants_;
 };
 
@@ -637,11 +635,6 @@ public:
     }
 
 private:
-    [[nodiscard]] TypeParameterSymbol& map() override
-    {
-        return *this;
-    }
-
     [[nodiscard]] bool is_optionable_reference() const noexcept override
     {
         return true;
@@ -1130,6 +1123,15 @@ template <class T>
 StructuredString& operator<<(StructuredString& stream, const Printer<T>& printer)
 {
     printer.obj().print(stream, printer.format());
+    return stream;
+}
+
+template <class T>
+std::ostream& operator<<(std::ostream& stream, const Printer<T>& printer)
+{
+    StructuredString string;
+    string << printer;
+    string.print(stream);
     return stream;
 }
 
