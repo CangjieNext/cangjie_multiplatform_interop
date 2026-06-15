@@ -19,7 +19,7 @@ struct TypeMapping {
 
     [[nodiscard]] virtual bool can_map(const NamedTypeSymbol& type) const noexcept = 0;
 
-    virtual TypeLikeSymbol& map(NamedTypeSymbol& type) const = 0;
+    [[nodiscard]] virtual Type map(const NamedTypeSymbol& type) const = 0;
 };
 
 extern std::deque<TypeMapping*> mappings;

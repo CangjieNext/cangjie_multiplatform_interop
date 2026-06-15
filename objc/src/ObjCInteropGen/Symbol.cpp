@@ -439,10 +439,17 @@ void Type::map()
         case Kind::Unit:
             break;
         case Kind::Named:
+            assert(symbol_);
+            if (const auto mapped = symbol_->as<NamedTypeSymbol>().map()) {
+                *this = *mapped;
+            } else {
+                for (auto& parameter : parameters_) {
+                    parameter.map();
+                }
+            }
+            break;
         case Kind::Function:
         case Kind::Block:
-            assert(symbol_);
-            symbol_ = &symbol_->map();
             for (auto& parameter : parameters_) {
                 parameter.map();
             }
@@ -452,9 +459,11 @@ void Type::map()
             assert(parameters_.size() == 1);
             parameters_.front().map();
             break;
-        default:
+        case Kind::TypeParam:
             assert(symbol_);
-            symbol_ = &symbol_->map();
+            break;
+        default:
+            assert(false);
             break;
     }
 }
@@ -747,13 +756,13 @@ bool NamedTypeSymbol::is_objc_compatible() const noexcept
     }
 }
 
-TypeLikeSymbol& NamedTypeSymbol::map()
+std::optional<Type> NamedTypeSymbol::map()
 {
     if (auto* mapping = this->mapping()) {
         assert(mapping->can_map(*this));
         return mapping->map(*this);
     }
-    return *this;
+    return std::nullopt;
 }
 
 [[nodiscard]] bool NamedTypeSymbol::is_optionable_reference() const noexcept

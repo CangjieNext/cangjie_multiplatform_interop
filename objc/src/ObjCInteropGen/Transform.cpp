@@ -666,6 +666,9 @@ static void do_map()
         do_map(top_level);
     }
     for (auto&& decl : universe.types()) {
+        // Not handled: TypeDeclarationSymbol::bases
+        // Not handled: CategoryDeclarationSymbol::interface
+        // Not handled: EnumDeclarationSymbol::underlying_type
         if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(&decl)) {
             for (auto&& member : type->members()) {
                 if (!member.is_property()) {
@@ -673,9 +676,10 @@ static void do_map()
                 }
             }
         } else if (auto* alias = dynamic_cast<TypeAliasSymbol*>(&decl)) {
-            auto& target = alias->target();
-            if (target.has_symbol_assigned()) {
-                target.map();
+            if (auto mapped_opt = alias->map()) {
+                alias->set_target(*mapped_opt);
+            } else {
+                alias->target().map();
             }
         }
     }
