@@ -169,7 +169,7 @@ static void add_all_symbol_references()
     }
 }
 
-static void filter_by_closure_depth() noexcept
+static void set_root_reference_level() noexcept
 {
     for (const auto& input_file : inputs) {
         for (auto& symbol : input_file) {
@@ -241,6 +241,8 @@ static void symbol_references_to_packages_pass(ScopeBuilderStatus& status, FileL
 
 [[nodiscard]] static bool symbol_references_to_packages()
 {
+    set_root_reference_level();
+
     auto status = symbol_references_to_packages_pass(true);
     auto error = status.error();
     while (status.changed()) {
@@ -349,8 +351,6 @@ bool mark_package()
     }
 
     add_all_symbol_references();
-
-    filter_by_closure_depth();
 
     if (!symbol_references_to_packages()) {
         return false;
