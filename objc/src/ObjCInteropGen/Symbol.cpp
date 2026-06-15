@@ -931,8 +931,10 @@ void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor) const
 bool TypeDeclarationSymbol::set_reference_level(unsigned new_reference_level) noexcept
 {
     auto set = FileLevelSymbol::set_reference_level(new_reference_level);
-    if (set && !bases_.empty()) {
-        bases_.front()->set_reference_level(new_reference_level);
+    if (set) {
+        for (auto base : bases_) {
+            base->set_reference_level(new_reference_level);
+        }
     }
     return set;
 }
