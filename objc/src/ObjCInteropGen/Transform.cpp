@@ -536,7 +536,42 @@ static void do_map()
     }
 }
 
-void apply_transforms()
+/** Given the N-dimensional VArray, get the type of its element */
+[[nodiscard]] static const Type& get_element_type(const Type& varray) noexcept
+{
+    assert(varray.kind() == Type::Kind::VArray);
+    const auto& element_type = varray.varray_element_type();
+    return element_type.kind() == Type::Kind::VArray ? get_element_type(element_type) : element_type;
+}
+
+/**
+ * For each function parameter, if the type of the parameter is array, convert
+ * it to pointer to its element
+ */
+static void decay_parameter_types(NonTypeSymbol& function)
+{
+    for (auto& parameter : function.parameters()) {
+        auto type = parameter.type().canonical_type();
+        if (type.kind() == Type::Kind::VArray) {
+            parameter.set_type(Type(Universe::get().pointer(), {get_element_type(type)}));
+        }
+    }
+}
+
+static void decay_parameter_types()
+{
+    auto& universe = Universe::get();
+    for (auto& top_level : universe.top_level()) {
+        decay_parameter_types(top_level);
+    }
+    for (auto& type : universe.type_definitions()) {
+        for (auto& member : type.members()) {
+            decay_parameter_types(member);
+        }
+    }
+}
+
+void apply_transforms_early()
 {
     // 1) Replace `instancetype` by the declaring class type.
     // 2) Replace the constructor return type by the strictly nonnull declaring
@@ -548,15 +583,25 @@ void apply_transforms()
     // 2) Set ModifierOverride where needed.
     fix_override_return_types();
 
+    // For each function parameter, if the type of the parameter is array,
+    // convert it to pointer to its element
+    decay_parameter_types();
+}
+
+void apply_mappings()
+{
+    // Apply mappings
+    set_type_mappings();
+    do_map();
+}
+
+void apply_transforms_late()
+{
     // 1) Resolve class/protocol name clashes.
     // 2) Rename methods in accordance with their Objective-C selectors.
     // 3) Resolve static/instance name clashes.
     // 4) Resolve global function - class/protocol/structure name clashes.
     do_rename();
-
-    // Apply mappings
-    set_type_mappings();
-    do_map();
 }
 
 } // namespace objcgen
