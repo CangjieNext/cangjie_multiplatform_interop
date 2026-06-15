@@ -31,7 +31,7 @@ static void read_table_mappings(const toml::Table& mapping, std::size_t i)
 
 void read_toml_mappings()
 {
-    if (const auto* mappings_any = config.find("mappings")) {
+    if (const auto* mappings_any = Config::find("mappings")) {
         if (mappings_any->is<toml::Array>()) {
             std::size_t i = 0;
             for (auto&& mapping_any : mappings_any->as<toml::Array>()) {

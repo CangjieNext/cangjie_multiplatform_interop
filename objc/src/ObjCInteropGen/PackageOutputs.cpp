@@ -35,7 +35,7 @@ std::optional<std::string> get_string_value(
 
 [[nodiscard]] static std::string compute_output_root(const std::string_view package_name)
 {
-    if (const auto* output_roots_any = config.find("output-roots")) {
+    if (const auto* output_roots_any = Config::find("output-roots")) {
         if (!output_roots_any->is<toml::Table>()) {
             fatal("`output-roots` should be a TOML table");
         }
@@ -92,7 +92,7 @@ std::optional<std::string> get_string_value(
 [[nodiscard]] static std::string compute_output_path_by_root_name(const std::string_view package_name,
     const std::string_view output_root_name, const std::string_view package_cangjie_name)
 {
-    if (const auto* output_roots_any = config.find("output-roots")) {
+    if (const auto* output_roots_any = Config::find("output-roots")) {
         if (!output_roots_any->is<toml::Table>()) {
             fatal("`output-roots` should be a TOML table");
         }
