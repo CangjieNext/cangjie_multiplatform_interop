@@ -11,6 +11,7 @@
 namespace objcgen {
 
 void apply_transforms();
+void apply_mappings();
 
 } // namespace objcgen
 
