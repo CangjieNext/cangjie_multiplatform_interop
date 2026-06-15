@@ -428,49 +428,8 @@ static void symbol_references_to_packages()
     return true;
 }
 
-/** Given the N-dimensional VArray, get the type of its element */
-[[nodiscard]] static const Type& get_element_type(const Type& varray) noexcept
-{
-    assert(varray.kind() == Type::Kind::VArray);
-    const auto& element_type = varray.varray_element_type();
-    return element_type.kind() == Type::Kind::VArray ? get_element_type(element_type) : element_type;
-}
-
-/**
- * For each function parameter, if the type of the parameter is array, convert
- * it to pointer to its element
- */
-static void decay_parameter_types(NonTypeSymbol& function)
-{
-    for (auto& parameter : function.parameters()) {
-        auto type = parameter.type().canonical_type();
-        if (type.kind() == Type::Kind::VArray) {
-            parameter.set_type(Type(Universe::get().pointer(), {get_element_type(type)}));
-        }
-    }
-}
-
-/**
- * For each function parameter, if the type of the parameter is array, convert
- * it to pointer to its element
- */
-static void decay_parameter_types()
-{
-    auto& universe = Universe::get();
-    for (auto& top_level : universe.top_level()) {
-        decay_parameter_types(top_level);
-    }
-    for (auto& type : universe.type_definitions()) {
-        for (auto& member : type.members()) {
-            decay_parameter_types(member);
-        }
-    }
-}
-
 bool mark_package()
 {
-    decay_parameter_types();
-
     mark_roots();
 
     add_all_symbol_references();

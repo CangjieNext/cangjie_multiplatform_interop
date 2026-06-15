@@ -10,7 +10,9 @@
 
 namespace objcgen {
 
-void apply_transforms();
+void apply_transforms_early();
+void apply_mappings();
+void apply_transforms_late();
 
 } // namespace objcgen
 
