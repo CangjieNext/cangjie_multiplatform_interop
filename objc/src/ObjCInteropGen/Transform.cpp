@@ -683,10 +683,27 @@ static void do_map()
 
 void apply_transforms()
 {
-    decay_parameter_types();
+    // 1) Replace `instancetype` by the declaring class type.
+    // 2) Replace the constructor return type by the strictly nonnull declaring
+    //    class type (that is a cjc frontend requirement).
+    // 3) Resolve contravariance and nullability clashes in return types of override
+    //    methods.
+    // 4) Set ModifierOverride where needed.
+    // 5) Resolve class/protocol name clashes.
+    // 6) Resolve propery/ivar name clashes.
+    // 7) Resolve static/instance name clashes.
+    // 8) Resolve parameter name clashes.
+    // 9) Rename methods in accordance with their Objective-C selectors.
+    // 10) Resolve global function - class/protocol/structure name clashes.
     transform_visit();
 
-    // Apply mappings
+    // For each function parameter, if the type of the parameter is array,
+    // convert it to pointer to its element
+    decay_parameter_types();
+}
+
+void apply_mappings()
+{
     set_type_mappings();
     do_map();
 }

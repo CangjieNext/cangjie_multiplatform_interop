@@ -154,6 +154,7 @@ int main(int argc, char* argv[])
             return 1;
         }
 
+        stage = "Preparing mappings";
         initialize_mappings();
 
         stage = "Parsing Objective-C sources";
@@ -165,9 +166,15 @@ int main(int argc, char* argv[])
         stage = "Transforming sources";
         apply_transforms();
 
+        stage = "Applying mappings";
+        apply_mappings();
+
+        stage = "Filling Cangjie packages";
         if (!mark_package()) {
             return 1;
         }
+
+        stage = "Checking sources";
         check_marked_symbols();
 
         stage = "Writing Cangjie outputs";
