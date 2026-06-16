@@ -8,6 +8,7 @@ package interoplib.interop
 
 import std.collection.ArrayQueue
 import std.sync.AtomicBool
+import std.sync.AtomicOptionReference
 import std.sync.Mutex
 
 public type jobject = CPointer<Unit>
@@ -52,10 +53,54 @@ public class JNIException <: Exception {
 public const INTEROPLIB_VERSION: Int64 = 9
 
 var jvm = CPointer<JavaVM>()
+var classLoading = AtomicOptionReference<ClassLoading>()
+
+class ClassLoading {
+    private let classLoader: jobject
+    private let forNameID: jmethodID
+    private let javaLangClass: jclass
+
+    init(classLoader: jobject, forNameID: jmethodID, javaLangClass: jclass) {
+        assert(!classLoader.isNull())
+        assert(!forNameID.isNull())
+        assert(!javaLangClass.isNull())
+        this.classLoader = classLoader
+        this.forNameID = forNameID
+        this.javaLangClass = javaLangClass
+    }
+
+    /**
+     * Loads class by its fully-qualified name.
+     *
+     * @return local reference to the loaded class, or null if the class wasn't found
+     */
+    func loadClass(env: JNIEnv_ptr, name: String): jclass {
+        var result = jclass()
+        unsafe {
+            try (searchName = LibC.mallocCString(name.replace("/", ".")).asResource()) {
+                let envCJ = env.read().read()
+                var args: VArray<jvalue, $3> = [
+                    UInt64(envCJ.NewStringUTF(env, searchName.value).toUIntNative()),
+                    0,
+                    UInt64(classLoader.toUIntNative())
+                ]
+                result = envCJ.CallStaticObjectMethodA(env, javaLangClass, forNameID, inout args)
+            }
+        }
+        handlePendingException(env)
+        result
+    }
+}
 
 @C
-func setJavaVM(javaVM: CPointer<JavaVM>): Unit {
+func setJavaVmAndInitClassLoading(javaVM: CPointer<JavaVM>, env: JNIEnv_ptr, classLoader: jobject, methodID: jmethodID, javaLangClass: jclass): Unit {
     jvm = javaVM
+
+    let classLoaderRef = unsafe {
+        let envCJ = env.read().read()
+        envCJ.NewGlobalRef(env, classLoader)
+    }
+    classLoading.store(ClassLoading(classLoaderRef, methodID, javaLangClass))
 }
 
 @C
@@ -759,12 +804,7 @@ public class Java_CFFI_Class <: ToString {
             name
         }
 
-        unsafe {
-            let envCJ = env.read().read()
-            let cName = LibC.mallocCString(this.name)
-            obj = envCJ.FindClass(env, cName)
-            LibC.free(cName)
-        }
+        obj = classLoading.load().getOrThrow().loadClass(env, this.name)
 
         if (obj.isNull()) {
             throw InteropLibException("Cannot find class ${name}")
@@ -2271,8 +2311,12 @@ private func to_jstring(env: JNIEnv_ptr, str: String): jstring {
 public func Java_CFFI_get_env(): JNIEnv_ptr {
     var envPtr = JNIEnv_ptr()
 
+    let javaVM = jvm
+    if (javaVM.isNull()) {
+        throw InteropLibException("JVM instance is not yet set")
+    }
+
     unsafe {
-        let javaVM: JNIInvokeInterface_ = jvm.read().read()
         /*
             Thread should be attached as daemon to prevent waiting for Cangjie threads.
             Because Cangjie runtime threads are registered (for example, during objects finalization),
@@ -2280,7 +2324,7 @@ public func Java_CFFI_get_env(): JNIEnv_ptr {
 
             A better solution is to detach Cangjie thread from JVM.
         */
-        javaVM.AttachCurrentThreadAsDaemon(jvm, inout envPtr, CPointer<Unit>())
+        javaVM.read().read().AttachCurrentThreadAsDaemon(jvm, inout envPtr, CPointer<Unit>())
     }
 
     envPtr

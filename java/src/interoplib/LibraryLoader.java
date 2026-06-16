@@ -10,8 +10,8 @@ public class LibraryLoader {
     public static void loadLibrary(String libName) {
         System.loadLibrary(libName);
         String systemLibName = System.mapLibraryName(libName);
-        nativeLoadCJLibrary(systemLibName);
+        nativeLoadCJLibrary(systemLibName, LibraryLoader.class.getClassLoader());
     }
 
-    private static native void nativeLoadCJLibrary(String libName);
+    private static native void nativeLoadCJLibrary(String libName, ClassLoader classLoader);
 }
