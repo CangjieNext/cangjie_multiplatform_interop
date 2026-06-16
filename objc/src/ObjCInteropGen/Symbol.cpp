@@ -728,6 +728,8 @@ bool EnumDeclarationSymbol::set_reference_level(unsigned new_reference_level) no
 {
     auto set = FileLevelSymbol::set_reference_level(new_reference_level);
     if (set) {
+        // Set the same reference level for the underlying type, because it is required
+        // for compilability at the Cangjie side.
         assert(underlying_type_);
         underlying_type_->set_reference_level(new_reference_level);
     }
@@ -932,8 +934,19 @@ bool TypeDeclarationSymbol::set_reference_level(unsigned new_reference_level) no
 {
     auto set = FileLevelSymbol::set_reference_level(new_reference_level);
     if (set) {
-        for (auto base : bases_) {
-            base->set_reference_level(new_reference_level);
+        // Set the same reference level for all filelds of the @C structure.  Binary
+        // compatibility will be broken if any @C field is ommitted at the Cangjie side.
+        if (is_ctype_) {
+            for (auto* reference : references_symbols()) {
+                assert(reference);
+                reference->set_reference_level(new_reference_level);
+            }
+        } else {
+            // Set the same reference level for all base classes and protocols, because that
+            // is required for compilability at the Cangjie side.
+            for (auto base : bases_) {
+                base->set_reference_level(new_reference_level);
+            }
         }
     }
     return set;
@@ -1005,8 +1018,13 @@ void TypeAliasSymbol::print(std::ostream& stream, PrintFormat format) const
 bool TypeAliasSymbol::set_reference_level(unsigned new_reference_level) noexcept
 {
     auto set = FileLevelSymbol::set_reference_level(new_reference_level);
-    if (set && target_.has_symbol_assigned()) {
-        target_.symbol().set_reference_level(new_reference_level);
+    if (set) {
+        // Set the same reference level for the target type, because that is required
+        // for compilability at the Cangjie side.
+        for (auto* reference : references_symbols()) {
+            assert(reference);
+            reference->set_reference_level(new_reference_level);
+        }
     }
     return set;
 }
