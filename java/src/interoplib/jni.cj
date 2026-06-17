@@ -979,7 +979,7 @@ private func withPinnedArray<T, R>(array: Array<T>, action: (array: CPointer<T>)
     }
 }
 
-protected enum Java_CFFI_JavaEntityKind <: ToString {
+public enum Java_CFFI_JavaEntityKind <: ToString {
     | JVOID
     | JOBJECT
     | JWEAK
@@ -1034,9 +1034,9 @@ private unsafe func reinterpretCast<A, B>(value: B): A where A <: CType, B <: CT
     newValue
 }
 
-protected struct Java_CFFI_JavaEntity {
-    let kind: Java_CFFI_JavaEntityKind
-    private let value: jvalue
+public struct Java_CFFI_JavaEntity {
+    public let kind: Java_CFFI_JavaEntityKind
+    public let value: jvalue
 
     public init() {
         this.kind = JVOID
@@ -1230,7 +1230,7 @@ protected struct Java_CFFI_JavaEntity {
         }
     }
 
-    /* public */ unsafe func asJValue(): jvalue {
+    public unsafe func asJValue(): jvalue {
         value
     }
 
