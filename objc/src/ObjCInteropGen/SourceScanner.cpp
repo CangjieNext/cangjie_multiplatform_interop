@@ -422,9 +422,13 @@ std::string SourceScanner::new_anonymous_name(const CXCursor& decl)
 
 template <CXTypeKind type_kind> Type SourceScanner::get_named_type(const CXType& type, Nullability nullability)
 {
-    assert(type.kind == type_kind || type_kind == CXType_Unexposed);
+    static_assert(type_kind == CXType_Unexposed || type_kind == CXType_Record || type_kind == CXType_Enum ||
+        type_kind == CXType_Typedef || type_kind == CXType_ObjCInterface);
     auto decl = clang_getTypeDeclaration(type);
-    assert(is_valid(decl) || type_kind == CXType_Unexposed);
+    if constexpr (type_kind != CXType_Unexposed) {
+        assert(type.kind == type_kind);
+        assert(is_valid(decl));
+    }
 
     bool unnamed;
     if constexpr (type_kind == CXType_Record || type_kind == CXType_Enum) {
@@ -545,11 +549,11 @@ template <CXTypeKind type_kind> Type SourceScanner::get_named_type(const CXType&
                         std::move(name), type_like_symbol(underlying_type).symbol().as<NamedTypeSymbol>());
                 } else {
                     symbol = new TypeDeclarationSymbol(symbol_kind, std::move(name));
-                    if constexpr (type_kind == CXType_Record || type_kind == CXType_Enum) {
-                        if (unnamed) {
-                            assert(unnamed_decls_.find(decl) == unnamed_decls_.end());
-                            unnamed_decls_.try_emplace(decl, symbol);
-                        }
+                }
+                if constexpr (type_kind == CXType_Record || type_kind == CXType_Enum) {
+                    if (unnamed) {
+                        assert(unnamed_decls_.find(decl) == unnamed_decls_.end());
+                        unnamed_decls_.try_emplace(decl, symbol);
                     }
                 }
                 symbol->set_definition_location(loc);
