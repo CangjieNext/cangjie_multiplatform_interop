@@ -63,8 +63,6 @@ LOG_DIR = os.path.join(BUILD_DIR, 'logs')
 LOG_FILE = os.path.join(LOG_DIR, 'JavaInterop.log')
 
 CJC_BASE_ARGS = ["-Woff", "unused", "-Woff", "parser", "--strip-all", "-O2", "--output-dir=" + DIST_DIR, "--int-overflow=wrapping", "--disable-reflection"]
-if not IS_DARWIN:
-    CJC_BASE_ARGS += ["--link-options", "-z relro", "--link-options", "-z now"]
 
 def log_output(output):
     """log command output"""
@@ -149,6 +147,11 @@ def dylib_ext(target):
         return "dll"
     else:
         return "so"
+
+def cjc_linker_hardening_args(target):
+    if target is None:
+        return [] if IS_DARWIN or IS_WINDOWS else ["--link-options", "-z relro", "--link-options", "-z now"]
+    return ["--link-options", "-z relro", "--link-options", "-z now"] if dylib_ext(target) == "so" else []
 
 def repack_jar_stable(jar):
     tmp_dir = os.path.join(REPACK_DIR, f"{pathlib.Path(jar).stem}-unpacked")
@@ -363,7 +366,7 @@ def build(args):
         command(*clang_O, cwd=INTEROPLIB_DIR)
 
         #cjc jni.cj registry.cj
-        cjc_args = ["cjc"] + list(CJC_BASE_ARGS)
+        cjc_args = ["cjc"] + list(CJC_BASE_ARGS) + cjc_linker_hardening_args(args.target)
         if args.target:
             cjc_args += ["--target=" + args.target]
         if args.target_sysroot:
