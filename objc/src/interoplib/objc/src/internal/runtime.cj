@@ -105,22 +105,47 @@ protected unsafe func putToRegistry(any: Any): RegistryId {
 protected unsafe func removeFromRegistry(registryId: RegistryId): Unit {
     REGISTRY.remove(registryId)
 }
-
+@Frozen
 /**
  * Allocates a pointer to the class by its name.
  * Effectively a wrapper around [cls alloc], but with Cangjie String as a parameter for convenience.
  * Note: MUST be called in a transaction with corresponding init* method of the class and the pointer, returned by this function, MUST NOT be stored anywhere.
  */
-protected unsafe func alloc(className: String): NativeObjCId {
-    const ALLOC_SEL = "alloc"
-    CFunc<(NativeObjCId, NativeObjCSel) -> NativeObjCId>(objCMsgSend())(getClass(className), registerName(ALLOC_SEL))
+protected unsafe func alloc(clazz: NativeObjCClass): NativeObjCId {
+    objc_alloc(clazz)
 }
-
+@Frozen
 /**
  * Returns super_class field from NativeObjCSuperPtr
  */
 protected unsafe func getSuperClass(objCSuper: NativeObjCSuperPtr): NativeObjCClass {
     return objCSuper.read().super_class
+}
+@Frozen
+/**
+ * A wrapper for a method or a prop's accessor body (action) if it needs all of the following:
+ * 1. To be executed within an @autoreleasepool.
+ * 2. To call objc_msgSendSuper with NativeObjCSuperPtr.
+ * 3. To return an object.
+ * Note: the result of this call supposed to be sent to a constructor of a desired return result.
+ */
+protected unsafe func withMethodEnvObj(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> NativeObjCId): NativeObjCId {
+    withObjCSuper(id, objCClassName) {
+        receiver: CPointer<Unit>, objCSuper: NativeObjCSuperPtr => withAutoreleasePoolObj( { => action(receiver, objCSuper) } )
+    }
+}
+
+@Frozen
+/**
+ * A wrapper for a method or a prop's accessor body (action) if it needs all of the following:
+ * 1. To be executed within an @autoreleasepool.
+ * 2. To call objc_msgSendSuper with NativeObjCSuperPtr.
+ * 3. To return an Objective-C compatible primitive type value.
+ */
+protected unsafe func withMethodEnv<R>(id: NativeObjCId, objCClassName: String, action: (CPointer<Unit>, NativeObjCSuperPtr) -> R): R where R <: CType {
+    withObjCSuper(id, objCClassName) {
+        receiver: CPointer<Unit>, objCSuper: NativeObjCSuperPtr => withAutoreleasePool( {=> action(receiver, objCSuper)} )
+    }
 }
 
 @When[os == "macOS" || os == "iOS"]
@@ -164,22 +189,26 @@ protected unsafe func withObjCSuper<R>(id: NativeObjCId, objCClassName: String, 
  * Note: This function is intended to be used with action returns primitive types. For instancetype(ObjCId) use `autoreleasePoolObj` (or autorelease manually).
  */
 protected unsafe func withAutoreleasePool<R>(action: () -> R): R where R <: CType {
-    let pool = objc_autoreleasePoolPush()
-    try {
-        action()
-    } finally {
-        objc_autoreleasePoolPop(pool)
-    }
+    return action()
+    // let pool = objc_autoreleasePoolPush()
+    // try {
+    //     action()
+    // } finally {
+    //     objc_autoreleasePoolPop(pool)
+    // }
 }
 
 /*
  * Performs an `action` within an @autoreleasepool.
  * The overall effect of this function for return value is retain + autorelease.
  */
+@Frozen
 protected unsafe func withAutoreleasePoolObj(action: () -> NativeObjCId): NativeObjCId {
-    withAutoreleasePool<NativeObjCId>( {=> objc_retainAutoreleasedReturnValue(action())} )
+    return objc_retainAutoreleasedReturnValue(action())
+    //withAutoreleasePool<NativeObjCId>( {=> objc_retainAutoreleasedReturnValue(action())} )
 }
 
+@Frozen
 /**
  * Registers a selector in the Objective-C runtime by its name.
  * Effectively a wrapper around sel_registerName(sel), but with Cangjie String as a parameter for convenience.
@@ -193,6 +222,7 @@ protected unsafe func registerName(selName: String): NativeObjCSel {
     sel
 }
 
+@Frozen
 /**
  * Gets a value of an object's instance variable.
  * Effectively a wrapper around object_getIvar(id, ivar), but with Cangjie String as a parameter for convenience.
@@ -236,7 +266,7 @@ protected unsafe func setInstanceVariable<T>(id: NativeObjCId, name: String, val
     let fieldPtr = getFieldPtr<T>(id, name)
     fieldPtr.write(value)
 }
-
+@Frozen
 /**
  * Gets a class NativeObjCId by it's name.
  * Effectively a wrapper around objc_getClass(classname), but with Cangjie String as a parameter for convenience.
@@ -262,7 +292,7 @@ protected unsafe func getProtocol(protoName: String): NativeObjCProtocol {
 
     proto
 }
-
+@Frozen
 /**
  * Returns a pointer to objc_msgSend implementation.
  * The result should be cast to proper CFunc<(NativeObjCId, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
@@ -299,8 +329,9 @@ protected func convertToNSString(str: String): NativeObjCId {
     unsafe {
         let cstr = LibC.mallocCString(str)
         let ptr = CPointer<Unit>(cstr.getChars())
+        let nsString = getClass("NSString")
         let result = CFunc<(NativeObjCId, NativeObjCSel, CPointer<Unit>) -> NativeObjCId>(objCMsgSend())(
-            alloc("NSString"), registerName("initWithUTF8String:"), ptr
+            objc_alloc(nsString), registerName("initWithUTF8String:"), ptr
         )
         LibC.free(cstr)
         return result
@@ -320,40 +351,44 @@ protected func descriptionAsString(id: NativeObjCId): String {
         return str.toString()
     }
 }
-
+@Frozen
 /**
  * Autoreleases the argument. Equivalent to [id autorelease].
  */
 protected unsafe func objCAutorelease(id: NativeObjCId): NativeObjCId {
     objc_autorelease(id)
 }
-
+@Frozen
 /**
  * Autoreleases the argument by objc_autoreleaseReturnValue call.
  */
 protected unsafe func objCAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId {
     objc_autoreleaseReturnValue(id)
 }
-
+@Frozen
 /**
  * Decreases the reference counter by one.
  */
 protected unsafe func objCRelease(id: NativeObjCId): Unit {
     objc_release(id)
 }
-
+@Frozen
 /**
  * Increases the reference counter by one.
  */
 protected unsafe func objCRetain(id: NativeObjCId): NativeObjCId {
     objc_retain(id)
 }
-
+@Frozen
 /**
  * Autoreleases and retains the argument by objc_retainAutoreleaseReturnValue call.
  */
 protected unsafe func objCRetainAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId {
     objc_retainAutoreleaseReturnValue(id)
+}
+@Frozen
+protected unsafe func objCRetainAutoreleasedReturnValue(id: NativeObjCId): NativeObjCId {
+    objc_retainAutoreleasedReturnValue(id)
 }
 
 protected unsafe func objCRetainAutoreleasedReturnValue(id: NativeObjCId): NativeObjCId {
@@ -615,3 +650,6 @@ foreign func sel_registerName(selName: CString): NativeObjCSel
  * Note: nonportable
  */
 foreign func objc_msg_lookup_super(objCSuper: NativeObjCSuperPtr, sel: NativeObjCSel): NativeObjCImp
+
+@FastNative
+foreign func objc_alloc(clazz: NativeObjCClass): NativeObjCId
