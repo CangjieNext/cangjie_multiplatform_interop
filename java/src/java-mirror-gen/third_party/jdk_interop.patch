@@ -12675,7 +12675,7 @@ index 8e5a71d..d051a9b 100644
          // See if lint options checking was explicitly disabled by the
          // user; this is distinct from the options check being
          // enabled/disabled.
-@@ -957,29 +961,16 @@ public class JavaCompiler {
+@@ -957,29 +961,15 @@ public class JavaCompiler {
                  todo.retainFiles(inputFiles);
              }
  
@@ -12700,12 +12700,12 @@ index 8e5a71d..d051a9b 100644
 -
 -                default:
 -                    Assert.error("unknown compile policy");
+-                }
 +            Collection<String> classNames = composeClassNamesList(classnames);
-+            for (final var name : classNames) {
-+                final var classSymbol = loadClassSymbol(name);
-+                if (classSymbol != null && !classSymbol.isAnonymous()) {
-+                    bindGenerator.traverseDependenciesClosure(classSymbol);
-                 }
++            Collection<Symbol.ClassSymbol> classSymbols = composeClassSymbolsList(classNames);
++            bindGenerator.initialize(classSymbols);
++            for (final var classSymbol : classSymbols) {
++                bindGenerator.traverseDependenciesClosure(classSymbol);
              }
 +            bindGenerator.computeSymbolsToMangle();
 +            bindGenerator.generateMirrorsWithDependencies();
@@ -12713,7 +12713,7 @@ index 8e5a71d..d051a9b 100644
          } catch (Abort ex) {
              if (devVerbose)
                  ex.printStackTrace(System.err);
-@@ -1210,7 +1201,7 @@ public class JavaCompiler {
+@@ -1210,7 +1200,7 @@ public class JavaCompiler {
              }
              // If not processing annotations, classnames must be empty
              if (!classnames.isEmpty()) {
@@ -12722,10 +12722,10 @@ index 8e5a71d..d051a9b 100644
              }
              Assert.checkNull(deferredDiagnosticHandler);
              return ; // continue regular compilation
-@@ -1946,6 +1937,76 @@ public class JavaCompiler {
+@@ -1946,6 +1936,87 @@ public class JavaCompiler {
          todo.clear();
      }
- 
+
 +    private ClassSymbol loadClassSymbol(String className) {
 +        try {
 +            ModuleSymbol msym = modules.getDefaultModule();
@@ -12772,6 +12772,17 @@ index 8e5a71d..d051a9b 100644
 +        }
 +
 +        return classNames;
++    }
++
++    private Collection<Symbol.ClassSymbol> composeClassSymbolsList(Collection<String> classNames) {
++        Collection<Symbol.ClassSymbol> classSymbols = new ArrayList<>();
++        for (final var name : classNames) {
++            final var classSymbol = loadClassSymbol(name);
++            if (classSymbol != null && !classSymbol.isAnonymous()) {
++                classSymbols.add(classSymbol);
++            }
++        }
++        return classSymbols;
 +    }
 +
 +    Set<RootPackageDeclaration> readPackagesConfig() {
