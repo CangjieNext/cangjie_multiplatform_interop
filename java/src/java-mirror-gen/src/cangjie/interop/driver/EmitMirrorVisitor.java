@@ -192,6 +192,16 @@ public final class EmitMirrorVisitor {
         return instance == null ? new EmitMirrorVisitor(context) : instance;
     }
 
+    public void initialize(Collection<Symbol.ClassSymbol> classSymbols) {
+        if (!limitedDepth) {
+            return;
+        }
+
+        for (final var classSymbol : classSymbols) {
+            traversalPathMap.put(classSymbol, 0);
+        }
+    }
+
     private static cangjie.interop.cangjie.sema.TypeKind kind(Symbol.ClassSymbol sym) {
         return switch (sym.getKind()) {
             case CLASS, ENUM, RECORD -> cangjie.interop.cangjie.sema.TypeKind.CLASS;
@@ -454,8 +464,15 @@ public final class EmitMirrorVisitor {
                 return;
             }
             queue.add(paramSymbol);
-            if (limitedDepth && !traversalPathMap.containsKey(paramSymbol)) {
-                traversalPathMap.put(paramSymbol, pathLevel);
+            if (limitedDepth) {
+                final var depth = traversalPathMap.get(paramSymbol);
+                if (depth == null) {
+                    traversalPathMap.put(paramSymbol, pathLevel);
+                } else if (depth > pathLevel) {
+                    traversalPathMap.put(paramSymbol, pathLevel);
+                    visited.remove(paramSymbol);
+                    clashingClasses.remove(getFlatNameWithoutPackage(paramSymbol).toString());
+                }
             }
         }
     }
