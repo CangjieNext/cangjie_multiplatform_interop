@@ -54,7 +54,7 @@ protected class JNIException <: Exception {
  * Version value should be the same as for cjc for the same SDK.
  * Version value must be bumped up on: API changes in interop library that require compatibility with cjc.
  */
-protected const INTEROPLIB_VERSION: Int64 = 10
+protected const INTEROPLIB_VERSION: Int64 = 11
 
 var jvm = CPointer<JavaVM>()
 var classLoading = AtomicOptionReference<ClassLoading>()
@@ -788,6 +788,14 @@ protected func Java_CFFI_parseMethodSignature(signature: String): Java_CFFI_Meth
     Java_CFFI_MethodSignature(args, ret)
 }
 
+private func normalizeClassName(name: String): String {
+    let size = name.size
+    if (size > 2 && name[0] == b'L' && name[size - 1] == b';') {
+        return name[1..(size - 1)]
+    }
+    return name
+}
+
 protected class Java_CFFI_Class <: ToString {
     var obj = jclass()
     public let name: String
@@ -803,15 +811,8 @@ protected class Java_CFFI_Class <: ToString {
     }
 
     public init(env: JNIEnv_ptr, name: String) {
-        let size = name.size
-        this.name = if (size > 2 && name[0] == b'L' && name[size-1] == b';') {
-            name[1..(size - 1)]
-        } else {
-            name
-        }
-
+        this.name = normalizeClassName(name)
         obj = classLoading.load().getOrThrow().loadClass(env, this.name)
-
         if (obj.isNull()) {
             throw InteropLibException("Cannot find class ${name}")
         }
@@ -847,9 +848,9 @@ protected open class Java_CFFI_EntityID {
     }
 
     static func constr(env: JNIEnv_ptr, clazz: Java_CFFI_Class, entityName: String, signature: Java_CFFI_EntitySignature, `static`: Bool): Java_CFFI_EntityID {
-        let envCJ = unsafe { env.read().read() }
         var id = CPointer<Unit>()
         unsafe {
+            let envCJ = env.read().read()
             let cSignature = LibC.mallocCString(signature.forJNI())
             let cEntityName = LibC.mallocCString(entityName)
             match (signature) {
@@ -1330,7 +1331,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
         case PRIMITIVE(base) => match (base) {
             case BYTE =>
                 withLocalRef(env, obj.asJObject()) { localRef => 
-                    withPinnedArray(argsCallNest.array) { argsPtr => 
+                    withPinnedArray(argsCallNest.array) { argsPtr =>
                         let envCJ = env.read().read()
                         let jResult = envCJ.CallNonvirtualByteMethodA(env, localRef, envCJ.GetObjectClass(env, localRef), method.id, argsPtr)
                         Java_CFFI_JavaEntity(JBYTE, jResult)
@@ -1538,7 +1539,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
                 case PRIMITIVE(base) => match (base) {
                     case BYTE =>
                         withLocalRef(env, obj.asJObject()) { localRef => 
-                            withPinnedArray(argsCallNest.array) { argsPtr => 
+                            withPinnedArray(argsCallNest.array) { argsPtr =>
                                 let envCJ = env.read().read()
                                 let jResult = envCJ.CallByteMethodA(env, localRef, method.id, argsPtr)
                                 Java_CFFI_JavaEntity(JBYTE, jResult)
@@ -2115,7 +2116,7 @@ protected func Java_CFFI_newJavaObject(env: JNIEnv_ptr, clazz: Java_CFFI_Class, 
             argsCallNest.array[i] = unsafe { args[i].asJValue() }
         }
         let result = Box(Java_CFFI_JavaEntity())
-        withPinnedArray(argsCallNest.array) { argsPtr: CPointer<jvalue> => 
+        withPinnedArray(argsCallNest.array) { argsPtr: CPointer<jvalue> =>
             unsafe {
                 let envCJ = env.read().read()
                 let jResult = envCJ.NewObjectA(env, clazz.obj, constructor.id, argsPtr)
@@ -2488,18 +2489,21 @@ private func Java_CFFI_throw_exception(env: JNIEnv_ptr, exception: jthrowable) {
     }
 }
 
-private func handlePendingException(env: JNIEnv_ptr) {
+protected func handlePendingException(env: JNIEnv_ptr) {
     unsafe {
         let envCJ : JNINativeInterface_ = env.read().read()
         let pendingException = envCJ.ExceptionOccurred(env)
         if (!pendingException.isNull()) {
             envCJ.ExceptionClear(env)
 
-            let clazz = Java_CFFI_Class(env, "java/lang/Throwable")
-            let signature = Java_CFFI_parseMethodSignature("()Ljava/lang/String;")
-            let id = Java_CFFI_MethodID.constr(env, clazz, "toString", signature)
-            let jMessage = Java_CFFI_callVirtualMethod_no_exception_handling(env, Java_CFFI_JavaEntity(JOBJECT, pendingException),
-                id, [], Java_CFFI_JavaCallNest())
+            let clazz = Java_CFFI_getClass(env, "java/lang/Throwable")
+            let id = Java_CFFI_getMethodID(env, clazz, "toString", "()Ljava/lang/String;")
+            let obj = Java_CFFI_JavaEntity(JOBJECT, pendingException)
+            let res = unsafe {
+                 let envCJ = env.read().read()
+                 envCJ.CallObjectMethod(env, obj.asJObject(), id)
+            }
+            let jMessage = Java_CFFI_JavaEntity(JOBJECT, res)
 
             let getMessageException = envCJ.ExceptionOccurred(env)
             var cjMessage: String
@@ -2533,6 +2537,34 @@ protected func withExceptionHandling<R>(env: JNIEnv_ptr, action: () -> R): R whe
     }
 }
 
+protected func Java_CFFI_getMethodID(env: JNIEnv_ptr, jclazz: jclass, name: String, signature: String): jmethodID {
+    var id = CPointer<Unit>()
+    unsafe {
+        try (
+            cName = LibC.mallocCString(name).asResource(),
+            cSignature = LibC.mallocCString(signature).asResource()
+        ) {
+            let envCJ = env.read().read()
+            id = envCJ.GetMethodID(env, jclazz, cName.value, cSignature.value)
+        }
+    }
+    id
+}
+
+protected func Java_CFFI_getStaticMethodID(env: JNIEnv_ptr, jclazz: jclass, name: String, signature: String): jmethodID {
+    var id = CPointer<Unit>()
+    unsafe {
+        try (
+            cName = LibC.mallocCString(name).asResource(),
+            cSignature = LibC.mallocCString(signature).asResource()
+        ) {
+            let envCJ = env.read().read()
+            id = envCJ.GetStaticMethodID(env, jclazz, cName.value, cSignature.value)
+        }
+    }
+    id
+}
+
 protected func Java_CFFI_MethodIDConstr(env: JNIEnv_ptr, clazz: Java_CFFI_Class, methodName: String, signature: Java_CFFI_MethodSignature): Java_CFFI_MethodID {
     Java_CFFI_MethodID.constr(env, clazz, methodName, signature)
 }
@@ -2551,6 +2583,15 @@ protected func Java_CFFI_FieldIDConstrStatic(env: JNIEnv_ptr, clazz: Java_CFFI_C
 
 protected func Java_CFFI_ClassInit(env: JNIEnv_ptr, name: String) : Java_CFFI_Class {
     Java_CFFI_Class(env, name)
+}
+
+protected func Java_CFFI_getClass(env: JNIEnv_ptr, name: String) : jclass {
+    let classname = normalizeClassName(name)
+    let obj = classLoading.load().getOrThrow().loadClass(env, classname)
+    if (obj.isNull()) {
+        throw InteropLibException("Cannot find class ${name}")
+    }
+    obj
 }
 
 protected func Java_CFFI_JavaCallNestInit(n: Int64) : Java_CFFI_JavaCallNest {
@@ -2623,7 +2664,7 @@ protected func getJavaLambdaEntity(fun : Any, className: String) : Java_CFFI_Jav
     let cjId = Java_CFFI_put_to_registry_1(fun)
     let env = Java_CFFI_get_env()
     let clazz = Java_CFFI_ClassInit(env, className)
-    let methodId = Java_CFFI_MethodIDConstr(env, clazz, "<init>", Java_CFFI_parseMethodSignature("(J)V"));
+    let methodId = Java_CFFI_MethodIDConstr(env, clazz, "<init>", Java_CFFI_parseMethodSignature("(J)V"))
     let obj = Java_CFFI_newJavaObject(env, clazz, methodId, [Java_CFFI_JavaEntity(cjId)], Java_CFFI_JavaCallNest(1))
     obj
 }
@@ -2635,7 +2676,7 @@ protected class JavaObjectController<T> {
     var skipDetach = false
     var cjLock: ?Java_CFFI_JavaEntity = None
     var waitId: ?Java_CFFI_MethodID = None
-    var attachCJObjectId: ?Java_CFFI_MethodID = None
+    var attachCJObjectId: jmethodID
 
     public init(obj: Java_CFFI_JavaEntity, className: String) {
         this.obj = obj
@@ -2646,7 +2687,7 @@ protected class JavaObjectController<T> {
         cjLock = Java_CFFI_newGlobalReference(env, cjLockLocal, false)
         let objectClass = Java_CFFI_Class(env, "java/lang/Object")
         waitId = Java_CFFI_MethodID.constr(env, objectClass, "wait", Java_CFFI_parseMethodSignature("()V"))
-        attachCJObjectId = Java_CFFI_MethodID.constr(env, clazz, "attachCJObject", Java_CFFI_parseMethodSignature("(J)V"))
+        attachCJObjectId = Java_CFFI_getMethodID(env, clazz.obj, "attachCJObject", "(J)V")
     }
 
     private func waitAndGetJavaObject(env: JNIEnv_ptr): Java_CFFI_JavaEntity {
@@ -2666,7 +2707,14 @@ protected class JavaObjectController<T> {
             if (detached) {
                 println("Attaching CJ object")
                 let cjObjId = Java_CFFI_put_to_registry_1(cjObj.getOrThrow())
-                Java_CFFI_callMethod(env, localRef, attachCJObjectId.getOrThrow(), [Java_CFFI_JavaEntity(JLONG, cjObjId)], Java_CFFI_JavaCallNest(1))
+                let args = [UInt64(cjObjId)]
+                unsafe {
+                    withPinnedArray(args) { argsPtr =>
+                        let envCJ = env.read().read()
+                        envCJ.CallVoidMethodA(env, localRef.asJObject(), attachCJObjectId, argsPtr)
+                    }
+                }
+                handlePendingException(env)
                 Java_CFFI_deleteGlobalReference(env, this.obj)
                 this.obj = Java_CFFI_newGlobalReference(env, localRef, true)
                 detached = false
