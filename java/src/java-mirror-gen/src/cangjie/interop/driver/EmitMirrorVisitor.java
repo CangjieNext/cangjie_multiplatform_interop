@@ -97,8 +97,8 @@ import java.util.Queue;
 import java.util.Set;
 
 public final class EmitMirrorVisitor {
-    public final Queue<Symbol.ClassSymbol> queue;
-    public final Set<Symbol.ClassSymbol> visited;
+    private final Queue<Symbol.ClassSymbol> queue;
+    private final Set<Symbol.ClassSymbol> visited;
     private final HashMap<Symbol.ClassSymbol, Integer> traversalPathMap;
     private final JavaFileManager fileManager;
     private final Types types;
@@ -473,7 +473,9 @@ public final class EmitMirrorVisitor {
                 final var depth = traversalPathMap.get(paramSymbol);
                 if (depth == null) {
                     traversalPathMap.put(paramSymbol, pathLevel);
-                } else if (depth > pathLevel) {
+                    return;
+                }
+                if (depth > pathLevel) {
                     traversalPathMap.put(paramSymbol, pathLevel);
                     visited.remove(paramSymbol);
                 }
@@ -1019,6 +1021,10 @@ public final class EmitMirrorVisitor {
         }
     }
 
+    /**
+     * Traverse all specified classes and generate mirrors for their transitive closure.
+     * @param classNames fully qualified root class names
+     */
     public void traverseAndGenerate(Collection<String> classNames) {
         Collection<Symbol.ClassSymbol> classSymbols = composeClassSymbolsList(classNames);
         initialize(classSymbols);
@@ -1030,23 +1036,18 @@ public final class EmitMirrorVisitor {
         warnAboutOverwrite();
     }
 
-    private Symbol.ClassSymbol loadClassSymbol(String className) {
-        try {
-            Symbol.ModuleSymbol msym = modules.getDefaultModule();
-            msym.complete();
-            return moduleFinder.classFinder.loadClass(msym, names.fromString(className));
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        return null;
-    }
-
     private Collection<Symbol.ClassSymbol> composeClassSymbolsList(Collection<String> classNames) {
         Collection<Symbol.ClassSymbol> classSymbols = new ArrayList<>();
         for (final var name : classNames) {
-            final var classSymbol = loadClassSymbol(name);
-            if (classSymbol != null && !classSymbol.isAnonymous()) {
-                classSymbols.add(classSymbol);
+            try {
+                final var msym = modules.getDefaultModule();
+                msym.complete();
+                final var classSymbol = moduleFinder.classFinder.loadClass(msym, names.fromString(name));
+                if (classSymbol != null && !classSymbol.isAnonymous()) {
+                    classSymbols.add(classSymbol);
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
             }
         }
         return classSymbols;
