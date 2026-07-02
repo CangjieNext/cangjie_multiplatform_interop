@@ -9,11 +9,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #if !defined(__ANDROID__) && !defined(_WIN64)
 #include <signal.h>
 #endif
+
 #include <ctype.h>
 #include <jni.h>
+
+#if defined(__ANDROID__)
+#include <android/log.h>
+#define LOG_TAG "Cangjie-Interop"
+#endif
+
 #include "Cangjie.h"
 
 static enum RTLogLevel InitLogLevel(void)
@@ -56,9 +64,6 @@ static enum RTLogLevel InitLogLevel(void)
     return RTLOG_ERROR;
 }
 
-extern void setJavaVmAndInitClassLoading(
-    JavaVM* vm, JNIEnv* env, jobject classLoader, jmethodID methodID, jclass javaLangClass);
-
 #if !defined(__ANDROID__) && !defined(_WIN64)
 static void setEmptyDefaultSIGSEGVHandler(void)
 {
@@ -81,38 +86,99 @@ static void setEmptyDefaultSIGSEGVHandler(void)
 }
 #endif
 
+static JavaVM* jvm = NULL;
 static jclass javaLangClass = NULL;
 static jmethodID forNameMethodID = NULL;
+static volatile jobject classLoaderRef = NULL;
 
 JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(
     JNIEnv* env, jclass unused, jstring libName, jobject classLoader)
 {
-    JavaVM* vm = NULL;
+    jobject oldClassLoaderRef = classLoaderRef;
+    if ((*env)->IsSameObject(env, oldClassLoaderRef, classLoader) == JNI_FALSE) {
+        classLoaderRef = (*env)->NewGlobalRef(env, classLoader);
+        if (oldClassLoaderRef != NULL) {
+            (*env)->DeleteGlobalRef(env, oldClassLoaderRef);
+        }
+    }
+
     jboolean isCopy = JNI_FALSE;
     const char* cjLibraryName = (*env)->GetStringUTFChars(env, libName, &isCopy);
     // This string will be in Modified UTF-8, which is almost certainly not the filesystem encoding (for dlopen).
     // The filesystem encoding is very likely to be UTF-8 on Linux, this will cause problems with surrogate pairs,
     // if present in the library name.
     // Consider string encoding conversion from MUTF-8 to UTF-8, at least on Linux.
-    LoadCJLibraryWithInit(cjLibraryName);
+
+    if (LoadCJLibraryWithInit(cjLibraryName)) {
+#if defined(__ANDROID__)
+        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "Failed to load Cangjie library '%s' in LibraryLoader", cjLibraryName);
+#else
+        printf("Failed to load Cangjie library '%s' in LibraryLoader\n", cjLibraryName);
+#endif
+    }
+        
     (*env)->ReleaseStringUTFChars(env, libName, cjLibraryName);
+}
 
-    (*env)->GetJavaVM(env, &vm);
+JNIEXPORT JNIEnv* GetJNIEnv(void)
+{
+    // Thread should be attached as daemon to prevent waiting for Cangjie threads.
+    // Because Cangjie runtime threads are registered (for example, during objects finalization),
+    // they may call back into JVM, and if the thread is not attached as daemon, the JVM may wait for them to finish,
+    // which may cause deadlock if the thread is waiting for the JVM to do something.
+    //
+    // A better solution is to detach Cangjie thread from JVM.
 
-    setJavaVmAndInitClassLoading(vm, env, classLoader, forNameMethodID, javaLangClass);
+    if (jvm == NULL) {
+#if defined(__ANDROID__)
+        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "JavaVM instance is not set");
+#else
+        printf("JavaVM instance is not set\n");
+#endif
+        return NULL;
+    }
+
+    JNIEnv *env = NULL;
+#if defined(__ANDROID__)
+    if ((*jvm)->AttachCurrentThreadAsDaemon(jvm, &env, NULL) != JNI_OK) {
+        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "Failed to attach current thread to JVM");
+#else
+    if ((*jvm)->AttachCurrentThreadAsDaemon(jvm, (void**)&env, NULL) != JNI_OK) {
+        printf("Failed to attach current thread to JVM\n");
+#endif
+        return NULL;
+    }
+
+    return env;
+}
+
+JNIEXPORT jclass LoadJavaClass(JNIEnv* env, char* searchName)
+{
+    jstring searchNameStr = (*env)->NewStringUTF(env, searchName);
+    jclass result = (*env)->CallStaticObjectMethod(env, javaLangClass, forNameMethodID, searchNameStr, JNI_FALSE, classLoaderRef);
+    (*env)->DeleteLocalRef(env, searchNameStr);
+    return result;
 }
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
+    jvm = vm;
+
     struct RuntimeParam param = {0};
     param.logParam.logLevel = InitLogLevel();
     InitCJRuntime(&param);
+
 #if !defined(__ANDROID__) && !defined(_WIN64)
     setEmptyDefaultSIGSEGVHandler();
 #endif
 
     JNIEnv* env = NULL;
     if ((*vm)->GetEnv(vm, (void**)&env, JNI_VERSION_1_6) != JNI_OK) {
+#if defined(__ANDROID__)
+        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "Failed to get JNIEnv in JNI_OnLoad");
+#else
+        printf("Failed to get JNIEnv in JNI_OnLoad\n");
+#endif
         return JNI_ERR;
     }
 
