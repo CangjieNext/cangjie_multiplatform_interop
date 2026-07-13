@@ -62,7 +62,7 @@ OUT_JAVA_LANG_CJO = os.path.join(DIST_DIR, "java.lang.cjo")
 LOG_DIR = os.path.join(BUILD_DIR, 'logs')
 LOG_FILE = os.path.join(LOG_DIR, 'JavaInterop.log')
 
-CJC_BASE_ARGS = ["-Woff", "unused", "-Woff", "parser", "--strip-all", "-O2", "--output-dir=" + DIST_DIR, "--int-overflow=wrapping", "--disable-reflection"]
+CJC_BASE_ARGS = ["-Woff", "unused", "-Woff", "parser", "--output-dir=" + DIST_DIR, "--int-overflow=wrapping", "--disable-reflection"]
 if not IS_DARWIN:
     CJC_BASE_ARGS += ["--link-options", "-z relro", "--link-options", "-z now"]
 
@@ -355,6 +355,8 @@ def build(args):
             clang_args += ["--target=" + args.target]
         if args.target_sysroot:
             clang_args += ["-isysroot", args.target_sysroot]
+        if args.build_type == BuildType.debug:
+            clang_args += ["-g"]
 
         clang_O = clang_args.copy() + ["-c", "-fstack-protector-strong", "-fPIC"]
         clang_O += ["-o", OUT_CINTEROPLIB_O]
@@ -370,6 +372,11 @@ def build(args):
             cjc_args += ["--sysroot", args.target_sysroot]
         if args.target_toolchain:
             cjc_args += ["-B", args.target_toolchain]
+        if args.build_type == BuildType.debug:
+            cjc_args += ["-g"]
+        else:
+            cjc_args += ["--strip-all"]
+            cjc_args += ["-O2"]
 
         cjc_A = cjc_args.copy() + ["--output-type=staticlib"]
         cjc_SO = cjc_args.copy() + ["--output-type=dylib"]
@@ -596,4 +603,3 @@ if __name__ == '__main__':
     LOG = init_log('root')
     os.environ['LANG'] = "C.UTF-8"
     main()
-
