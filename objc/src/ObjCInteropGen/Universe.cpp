@@ -6,6 +6,8 @@
 
 #include "Universe.h"
 
+#include <algorithm>
+
 namespace objcgen {
 
 Universe& Universe::get()
@@ -14,10 +16,11 @@ Universe& Universe::get()
     return universe;
 }
 
-NonTypeSymbol& TopLevel::add_function(std::string name, Type return_type, Modifiers modifiers)
+NonTypeSymbol& TopLevel::add_function(
+    std::string name, Type return_type, std::vector<ParameterSymbol> parameters, Modifiers modifiers)
 {
     return members_.emplace_back(
-        std::move(name), NonTypeSymbol::Kind::GlobalFunction, std::move(return_type), modifiers);
+        std::move(name), NonTypeSymbol::Kind::GlobalFunction, std::move(return_type), std::move(parameters), modifiers);
 }
 
 Universe::Universe()
@@ -68,9 +71,10 @@ Universe::Universe()
     register_type(sel_);
 }
 
-NonTypeSymbol& Universe::register_top_level_function(std::string name, Type return_type, Modifiers modifiers)
+NonTypeSymbol& Universe::register_top_level_function(
+    std::string name, Type return_type, std::vector<ParameterSymbol> parameters, Modifiers modifiers)
 {
-    return top_level_.add_function(std::move(name), std::move(return_type), modifiers);
+    return top_level_.add_function(std::move(name), std::move(return_type), std::move(parameters), modifiers);
 }
 
 [[nodiscard]] static TypeNamespace kind_to_typename(NamedTypeSymbol::Kind kind) noexcept
@@ -124,35 +128,37 @@ NamedTypeSymbol* Universe::type(std::string_view name) const
     return nullptr;
 }
 
-void Universe::process_rename(NamedTypeSymbol& symbol, const std::string& old_name)
+void Universe::rename_type(NamedTypeSymbol& symbol, std::string new_name)
 {
-    auto new_name = symbol.name();
-    const auto type_namespace = kind_to_typename(symbol.kind());
     assert(!new_name.empty());
+    std::string_view old_name = symbol.name();
     assert(!old_name.empty());
     assert(new_name != old_name);
-
+    const auto type_namespace = kind_to_typename(symbol.kind());
     auto& types_map = this->types_map(type_namespace);
-    auto it = types_map.find(old_name);
-    assert(it != types_map.end());
-    assert(it->first == old_name);
-    assert(it->second == &symbol);
-    types_map.erase(it);
 
-    assert(types_map.find(new_name) == types_map.end());
-    types_map.try_emplace(new_name, &symbol);
+    auto type_order_it = std::find(type_order_.begin(), type_order_.end(), TypeOrderElement{type_namespace, old_name});
+    assert(type_order_it != type_order_.end());
+    auto node = types_map.extract(old_name);
+    assert(node);
+    assert(node.key() == old_name);
+    assert(node.mapped() == &symbol);
+    symbol.rename(std::move(new_name));
+    std::string_view new_name_view = symbol.name();
+    node.key() = new_name_view;
+    types_map.insert(std::move(node));
+    type_order_it->name = new_name_view;
+}
 
-    [[maybe_unused]] auto changed = false;
-
-    for (auto& [fst, snd] : type_order_) {
-        if (fst == type_namespace && snd == old_name) {
-            assert(!changed);
-            snd = new_name;
-            changed = true;
-        }
-    }
-
-    assert(changed);
+const NonTypeSymbol* Universe::global_non_type_symbol(std::string_view name) const
+{
+    auto top_level = this->top_level();
+    auto top_level_end = top_level.end();
+    auto it = std::find_if(top_level.begin(), top_level_end, [name](const auto& global_func) {
+        assert(global_func.is_global_function());
+        return global_func.name() == name;
+    });
+    return it == top_level_end ? nullptr : &*it;
 }
 
 } // namespace objcgen
