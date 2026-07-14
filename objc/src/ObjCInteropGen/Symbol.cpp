@@ -105,15 +105,17 @@ Symbol::Symbol(std::string name) noexcept : name_(std::move(name))
 {
 }
 
-void Symbol::rename(std::string_view new_name)
-{
-    assert(!new_name.empty());
-    name_ = new_name;
-}
-
 void Symbol::print(std::ostream& stream, [[maybe_unused]] PrintFormat format) const
 {
     stream << escape_keyword(name_);
+}
+
+std::string Symbol::rename(std::string new_name) noexcept
+{
+    assert(!new_name.empty());
+    auto old_name = std::move(name_);
+    name_ = std::move(new_name);
+    return old_name;
 }
 
 bool FileLevelSymbol::set_reference_level(unsigned new_reference_level) noexcept
@@ -673,16 +675,18 @@ void Type::print_func_like(std::ostream& stream, std::string_view name, PrintFor
     }
 }
 
-void NamedTypeSymbol::rename(const std::string_view new_name)
-{
-    auto old_name = name();
-    TypeLikeSymbol::rename(new_name);
-    Universe::get().process_rename(*this, old_name);
-}
-
 void NamedTypeSymbol::print(std::ostream& stream, PrintFormat) const
 {
     stream << escape_keyword(name());
+}
+
+void NamedTypeSymbol::rename(std::string new_name) noexcept
+{
+    assert(!new_name.empty());
+    auto old_name = FileLevelSymbol::rename(std::move(new_name));
+    if (objc_name_.empty()) {
+        objc_name_ = std::move(old_name);
+    }
 }
 
 void NamedTypeSymbol::set_mapping(const TypeMapping& mapping) noexcept
@@ -1037,13 +1041,54 @@ void TypeAliasSymbol::visit_impl(SymbolVisitor& visitor) const
     }
 }
 
-void NonTypeSymbol::rename(std::string_view new_name)
+static void selector_to_cj_name(NonTypeSymbol& member)
+{
+    const auto& name = member.name();
+    if (name.find(':') == std::string::npos) {
+        return;
+    }
+    std::string new_name;
+    auto upcase = false;
+    for (auto c : name) {
+        if (c == ':') {
+            upcase = true;
+            continue;
+        }
+
+        if (upcase) {
+            c = static_cast<char>(std::toupper(c));
+            upcase = false;
+        }
+
+        new_name += c;
+    }
+    member.rename(std::move(new_name));
+}
+
+[[nodiscard]] NonTypeSymbol::NonTypeSymbol(std::string name, Kind kind, Type return_type, Modifiers modifiers) noexcept
+    : FileLevelSymbol(std::move(name)), kind_(kind), modifiers_(modifiers), return_type_(std::move(return_type))
+{
+    selector_to_cj_name(*this);
+}
+
+[[nodiscard]] NonTypeSymbol::NonTypeSymbol(
+    std::string name, std::string getter, std::string setter, Modifiers modifiers) noexcept
+    : FileLevelSymbol(std::move(name)),
+      kind_(Kind::Property),
+      modifiers_(modifiers),
+      getter_(std::move(getter)),
+      setter_(std::move(setter))
+{
+    selector_to_cj_name(*this);
+}
+
+void NonTypeSymbol::rename(std::string new_name) noexcept
 {
     assert(!new_name.empty());
+    auto old_name = FileLevelSymbol::rename(std::move(new_name));
     if (selector_attribute_.empty()) {
-        selector_attribute_ = name();
+        selector_attribute_ = std::move(old_name);
     }
-    FileLevelSymbol::rename(new_name);
 }
 
 bool NonTypeSymbol::is_ctype() const noexcept
