@@ -91,30 +91,30 @@ NonTypeSymbol& Universe::register_top_level_function(std::string name, Type retu
 
 void Universe::register_type(NamedTypeSymbol& symbol)
 {
-    const auto& name = symbol.name();
+    std::string_view name = symbol.name();
     auto type_namespace = kind_to_typename(symbol.kind());
 
     auto& types_map = this->types_map(type_namespace);
     assert(types_map.find(name) == types_map.end());
 
     types_map.try_emplace(name, &symbol);
-    type_order_.emplace_back(type_namespace, name);
+    type_order_.emplace_back(TypeOrderElement{type_namespace, name});
 }
 
-NamedTypeSymbol* Universe::type(NamedTypeSymbol::Kind where, const std::string& name) const noexcept
+NamedTypeSymbol* Universe::type(NamedTypeSymbol::Kind where, std::string_view name) const noexcept
 {
     assert(where != NamedTypeSymbol::Kind::Primitive);
     return this->type(kind_to_typename(where), name);
 }
 
-NamedTypeSymbol* Universe::type(TypeNamespace where, const std::string& name) const
+NamedTypeSymbol* Universe::type(TypeNamespace where, std::string_view name) const
 {
     auto& types_map = this->types_map(where);
     const auto it = types_map.find(name);
     return it == types_map.end() ? nullptr : it->second;
 }
 
-NamedTypeSymbol* Universe::type(const std::string& name) const
+NamedTypeSymbol* Universe::type(std::string_view name) const
 {
     for (std::uint8_t i = 0; i < TYPE_NAMESPACE_COUNT; ++i) {
         if (auto* result = type(static_cast<TypeNamespace>(i), name)) {
