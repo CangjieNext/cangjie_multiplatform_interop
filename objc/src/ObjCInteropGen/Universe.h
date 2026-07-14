@@ -122,7 +122,8 @@ public:
         return Collection(members_);
     }
 
-    [[nodiscard]] NonTypeSymbol& add_function(std::string name, Type return_type, Modifiers modifiers);
+    [[nodiscard]] NonTypeSymbol& add_function(
+        std::string name, Type return_type, std::vector<ParameterSymbol> parameters, Modifiers modifiers);
 
 private:
     std::deque<NonTypeSymbol> members_;
@@ -177,7 +178,8 @@ class Universe final : NonCopyable {
 public:
     [[nodiscard]] static Universe& get();
 
-    [[nodiscard]] NonTypeSymbol& register_top_level_function(std::string name, Type return_type, Modifiers modifiers);
+    [[nodiscard]] NonTypeSymbol& register_top_level_function(
+        std::string name, Type return_type, std::vector<ParameterSymbol> parameters, Modifiers modifiers);
 
     void register_type(NamedTypeSymbol& symbol);
 
@@ -293,7 +295,7 @@ public:
     // has been registered.
     [[nodiscard]] NamedTypeSymbol* type(std::string_view name) const;
 
-    void process_rename(NamedTypeSymbol& symbol, const std::string& old_name);
+    void rename_type(NamedTypeSymbol& symbol, std::string new_name);
 
     [[nodiscard]] auto top_level() const noexcept
     {
@@ -304,6 +306,10 @@ public:
     {
         return top_level_.members();
     }
+
+    // Find a global non-type symbol by its name.  Return nullptr if no such symbol
+    // has been registered.
+    [[nodiscard]] const NonTypeSymbol* global_non_type_symbol(std::string_view name) const;
 
     [[nodiscard]] auto all_declarations() const noexcept
     {
