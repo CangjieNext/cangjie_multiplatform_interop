@@ -62,9 +62,6 @@ class InputFile final {
 
     const std::filesystem::path path_;
 
-    std::unordered_set<LineCol, LineCol::Hash> cursors_up_to_this_translation_;
-    std::unordered_set<LineCol, LineCol::Hash> cursors_in_this_translation_;
-
     std::multiset<FileLevelSymbol*, SymbolComparator> symbols_;
 
     friend class FileLevelSymbol;
@@ -88,10 +85,6 @@ public:
     {
         return PointerIterator<decltype(symbols_.end())>(symbols_.end());
     }
-
-    void next_translation();
-
-    [[nodiscard]] bool add_cursor(const LineCol& location);
 };
 
 class InputDirectory final {
@@ -143,15 +136,8 @@ public:
         return *files_.emplace_back(new InputFile(std::move(input_file_name)));
     }
 
-    void next_translation();
-
-    [[nodiscard]] bool add_cursor(const Location& location, const std::string& name);
-
 private:
     std::deque<InputFile*> files_;
-
-    std::set<std::string> builtin_cursors_up_to_this_translation_;
-    std::set<std::string> builtin_cursors_in_this_translation_;
 };
 
 extern Inputs inputs;
