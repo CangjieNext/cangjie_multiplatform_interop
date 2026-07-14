@@ -66,14 +66,14 @@ public:
         return name_;
     }
 
-    virtual void rename(std::string_view new_name);
-
     virtual void print(std::ostream& stream, PrintFormat format) const;
 
 protected:
     [[nodiscard]] explicit Symbol(std::string name) noexcept;
 
     virtual ~Symbol() = default;
+
+    [[nodiscard]] std::string rename(std::string new_name) noexcept;
 
 private:
     std::string name_;
@@ -357,9 +357,9 @@ public:
         TopLevel,
     };
 
-    void rename(std::string_view new_name) override;
-
     void print(std::ostream& stream, PrintFormat) const override;
+
+    void rename(std::string new_name) noexcept;
 
     [[nodiscard]] Kind kind() const noexcept
     {
@@ -372,6 +372,18 @@ public:
     }
 
     void set_mapping(const TypeMapping& mapping) noexcept;
+
+    // String value for the @ObjCMirror attribute.  If empty, no value is specified
+    // for @ObjCMirror.
+    const std::string& objc_name_attribute() const noexcept
+    {
+        return objc_name_;
+    }
+
+    const std::string& objc_name() const noexcept
+    {
+        return objc_name_.empty() ? name() : objc_name_;
+    }
 
 protected:
     explicit NamedTypeSymbol(const Kind kind, std::string name) noexcept : TypeLikeSymbol(std::move(name)), kind_(kind)
@@ -389,7 +401,10 @@ private:
     }
 
     const TypeMapping* mapping_ = nullptr;
+
     const Kind kind_;
+
+    std::string objc_name_;
 };
 
 /**
@@ -845,21 +860,11 @@ public:
         Constructor
     };
 
-    [[nodiscard]] NonTypeSymbol(std::string name, Kind kind, Type return_type, Modifiers modifiers = 0) noexcept
-        : FileLevelSymbol(std::move(name)), kind_(kind), modifiers_(modifiers), return_type_(std::move(return_type))
-    {
-    }
+    [[nodiscard]] NonTypeSymbol(std::string name, Kind kind, Type return_type, Modifiers modifiers = 0) noexcept;
 
-    [[nodiscard]] NonTypeSymbol(std::string name, std::string getter, std::string setter, Modifiers modifiers) noexcept
-        : FileLevelSymbol(std::move(name)),
-          kind_(Kind::Property),
-          modifiers_(modifiers),
-          getter_(std::move(getter)),
-          setter_(std::move(setter))
-    {
-    }
+    [[nodiscard]] NonTypeSymbol(std::string name, std::string getter, std::string setter, Modifiers modifiers) noexcept;
 
-    void rename(std::string_view new_name) override;
+    void rename(std::string new_name) noexcept;
 
     [[nodiscard]] bool is_ctype() const noexcept override;
 
@@ -870,6 +875,8 @@ public:
         return kind_;
     }
 
+    // String value for the @ForeignName attribute.  If empty, no value is specified
+    // for @ForeignName.
     [[nodiscard]] const std::string& selector_attribute() const noexcept
     {
         return selector_attribute_;
