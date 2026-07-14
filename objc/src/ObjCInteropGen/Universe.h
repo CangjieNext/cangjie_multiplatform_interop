@@ -37,7 +37,17 @@ enum class TypeNamespace : std::uint8_t {
 
 constexpr std::uint8_t TYPE_NAMESPACE_COUNT = static_cast<std::uint8_t>(TypeNamespace::Max) + 1;
 
-using type_order_t = std::vector<std::pair<TypeNamespace, std::string>>;
+struct TypeOrderElement {
+    friend bool operator==(const TypeOrderElement& el1, const TypeOrderElement& el2) noexcept
+    {
+        return el1.name == el2.name && el1.namespaze == el2.namespaze;
+    }
+
+    TypeNamespace namespaze;
+    std::string_view name;
+};
+
+using type_order_t = std::vector<TypeOrderElement>;
 
 template <bool constant> class UniverseNamedTypeIterator final {
     using Iterator = std::conditional_t<constant, type_order_t::const_iterator, type_order_t::iterator>;
@@ -119,7 +129,7 @@ private:
 };
 
 class Universe final : NonCopyable {
-    using type_map_t = std::unordered_map<std::string, NamedTypeSymbol*>;
+    using type_map_t = std::unordered_map<std::string_view, NamedTypeSymbol*>;
 
     template <bool constant> friend class UniverseNamedTypeIterator;
     template <bool constant> friend class UniverseTypeDeclarationIterator;
@@ -273,15 +283,15 @@ public:
 
     // Find the registered type symbol by its name and kind.  Return nullptr if no
     // such type has been registered.
-    [[nodiscard]] NamedTypeSymbol* type(NamedTypeSymbol::Kind where, const std::string& name) const noexcept;
+    [[nodiscard]] NamedTypeSymbol* type(NamedTypeSymbol::Kind where, std::string_view name) const noexcept;
 
     // Find the registered type symbol by its name and namespace.  Return nullptr if
     // no such type has been registered.
-    [[nodiscard]] NamedTypeSymbol* type(TypeNamespace where, const std::string& name) const;
+    [[nodiscard]] NamedTypeSymbol* type(TypeNamespace where, std::string_view name) const;
 
     // Find a registered type symbol by its name.  Return nullptr if no such type
     // has been registered.
-    [[nodiscard]] NamedTypeSymbol* type(const std::string& name) const;
+    [[nodiscard]] NamedTypeSymbol* type(std::string_view name) const;
 
     void process_rename(NamedTypeSymbol& symbol, const std::string& old_name);
 
@@ -326,7 +336,7 @@ typename UniverseNamedTypeIterator<constant>::Value& UniverseNamedTypeIterator<c
 {
     assert(it_ != Universe::get().type_order_.end());
     auto& el = *it_;
-    auto* symbol = Universe::get().type(el.first, el.second);
+    auto* symbol = Universe::get().type(el.namespaze, el.name);
     assert(symbol);
     return *symbol;
 }
@@ -340,7 +350,7 @@ template <bool constant> void UniverseTypeDeclarationIterator<constant>::get()
             break;
         }
         auto& el = *it_;
-        auto* s = universe.type(el.first, el.second);
+        auto* s = universe.type(el.namespaze, el.name);
         assert(s);
         symbol_ = dynamic_cast<TypeDeclarationSymbol*>(s);
         if (symbol_) {
