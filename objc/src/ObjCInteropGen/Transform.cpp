@@ -127,7 +127,7 @@ static void fix_override_return_types()
     }
 }
 
-static void resolve_static_instance_clash(Symbol& symbol, bool is_static)
+static void resolve_static_instance_clash(NonTypeSymbol& symbol, bool is_static)
 {
     symbol.rename(std::string(symbol.name()).append(is_static ? "Static" : "Instance"));
 }
