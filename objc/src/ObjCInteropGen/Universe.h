@@ -40,10 +40,10 @@ constexpr std::uint8_t TYPE_NAMESPACE_COUNT = static_cast<std::uint8_t>(TypeName
 struct TypeOrderElement {
     friend bool operator==(const TypeOrderElement& el1, const TypeOrderElement& el2) noexcept
     {
-        return el1.name == el2.name && el1.namespaze == el2.namespaze;
+        return el1.name == el2.name && el1.ns == el2.ns;
     }
 
-    TypeNamespace namespaze;
+    TypeNamespace ns;
     std::string_view name;
 };
 
@@ -342,7 +342,7 @@ typename UniverseNamedTypeIterator<constant>::Value& UniverseNamedTypeIterator<c
 {
     assert(it_ != Universe::get().type_order_.end());
     auto& el = *it_;
-    auto* symbol = Universe::get().type(el.namespaze, el.name);
+    auto* symbol = Universe::get().type(el.ns, el.name);
     assert(symbol);
     return *symbol;
 }
@@ -356,7 +356,7 @@ template <bool constant> void UniverseTypeDeclarationIterator<constant>::get()
             break;
         }
         auto& el = *it_;
-        auto* s = universe.type(el.namespaze, el.name);
+        auto* s = universe.type(el.ns, el.name);
         assert(s);
         symbol_ = dynamic_cast<TypeDeclarationSymbol*>(s);
         if (symbol_) {
