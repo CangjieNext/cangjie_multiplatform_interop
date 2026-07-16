@@ -1000,6 +1000,7 @@ bool SourceScanner::is_fully_processed(const CXCursor& cursor)
                 return clang_isCursorDefinition(cursor) ? !visited_symbols_.emplace(std::move(cursor_usr)).second
                                                         : visited_symbols_.find(cursor_usr) != visited_symbols_.end();
             }
+            break;
         }
         case CXCursor_FunctionDecl:
         case CXCursor_ObjCInterfaceDecl:
@@ -1017,6 +1018,7 @@ bool SourceScanner::is_fully_processed(const CXCursor& cursor)
             if (!cursor_usr.empty()) {
                 return !visited_symbols_.emplace(cursor_usr.string()).second;
             }
+            break;
         }
         default:
             break;
