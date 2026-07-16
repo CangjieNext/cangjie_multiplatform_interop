@@ -19,6 +19,16 @@ protected type ForwarderMutex = Mutex
 protected type NativeObjCId = CPointer<Unit>
 
 /**
+ * Internal marker used as argument for generated constructors in mirror and impl ObjC interop classes.
+ * It is meant to remove possible clashes of internal constructors with user defined ones.
+ * Do not use it! Usage in user-defined constructors can lead to various ambiguous compilation errors.
+ */
+protected struct NativeObjCIdMarker {
+    internal NativeObjCIdMarker() {}
+}
+protected let __NATIVE_OBJC_ID_MARKER = NativeObjCIdMarker()
+
+/**
  * SEL.
  */
 protected type NativeObjCSel = CPointer<Unit>
