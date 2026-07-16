@@ -496,18 +496,10 @@ static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method
     return false;
 }
 
-[[nodiscard]] static const Type& get_property_type(
-    const TypeDeclarationSymbol& decl, const NonTypeSymbol& property) noexcept
+[[nodiscard]] static const Type& get_property_type(TypeDeclarationSymbol& decl, const NonTypeSymbol& property) noexcept
 {
-    auto is_static = property.is_static();
-    const auto& selector = property.getter();
-    auto members = decl.members();
-    auto e = members.end();
-    auto it = std::find_if(members.begin(), e, [is_static, &selector](const auto& member) {
-        return member.is_member_method() && member.is_static() == is_static && member.selector() == selector;
-    });
-    assert(it != e);
-    return it->return_type();
+    assert(property.is_property());
+    return decl.get_getter(property).return_type();
 }
 
 static void print_objc_optional(std::ostream& output, const NonTypeSymbol& member)
@@ -536,26 +528,19 @@ static void print_objc_optional(std::ostream& output, const NonTypeSymbol& membe
 
 static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol& prop)
 {
-    assert(prop.kind() == NonTypeSymbol::Kind::Property);
-    const auto& name = prop.name();
+    assert(prop.is_property());
+    const auto& objc_name = prop.selector();
+    if (!prop.selector_attribute().empty()) {
+        write_foreign_name(output, foreign_name_attribute, objc_name);
+    }
+
     const auto& getter_name = prop.getter();
-    bool standard_getter = getter_name == name;
-    if (prop.is_readonly()) {
-        if (!standard_getter) {
-            write_foreign_name(output, "@ForeignGetterName", getter_name);
-        }
-    } else {
+    if (getter_name != objc_name) {
+        write_foreign_name(output, "@ForeignGetterName", getter_name);
+    }
+    if (!prop.is_readonly()) {
         const auto& setter_name = prop.setter();
-        if (is_standard_setter_name(name, setter_name)) {
-            if (!standard_getter) {
-                write_foreign_name(output, "@ForeignGetterName", getter_name);
-            }
-        } else if (standard_getter) {
-            write_foreign_name(output, "@ForeignSetterName", setter_name);
-        } else if (is_standard_setter_name(getter_name, setter_name)) {
-            write_foreign_name(output, foreign_name_attribute, getter_name);
-        } else {
-            write_foreign_name(output, "@ForeignGetterName", getter_name);
+        if (!is_standard_setter_name(objc_name, setter_name)) {
             write_foreign_name(output, "@ForeignSetterName", setter_name);
         }
     }
