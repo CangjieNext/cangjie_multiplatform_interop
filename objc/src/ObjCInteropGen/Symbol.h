@@ -776,6 +776,10 @@ public:
 
     void add_property(std::string name, std::string getter, std::string setter, Modifiers modifiers);
 
+    NonTypeSymbol& get_getter(const NonTypeSymbol& property);
+
+    NonTypeSymbol& get_setter(const NonTypeSymbol& property);
+
     [[nodiscard]] bool transformed() const noexcept
     {
         return transformed_;
@@ -1028,24 +1032,18 @@ public:
         return modifiers_ & ModifierInternalLinkage;
     }
 
+    // Used for Kind::Property.  Returns a reference to the Objective-C selector of
+    // the property getter.
     [[nodiscard]] const std::string& getter() const noexcept
     {
         return getter_.empty() ? selector() : getter_;
     }
 
-    void rename_getter(std::string getter) noexcept
-    {
-        getter_ = std::move(getter);
-    }
-
+    // Used for Kind::Property.  Returns a reference to the Objective-C selector of
+    // the property setter.
     [[nodiscard]] const std::string& setter() const noexcept
     {
         return setter_;
-    }
-
-    void rename_setter(std::string setter) noexcept
-    {
-        setter_ = std::move(setter);
     }
 
     [[nodiscard]] bool is_bit_field() const noexcept
@@ -1072,8 +1070,13 @@ private:
     Kind kind_;
     Modifiers modifiers_;
 
-    // used for Kind::Property
+    // Used for Kind::Property.  This is the Objective-C selector of the property
+    // getter if it differs from the selector of the property itself.  Empty string
+    // if the selectors are the same.
     std::string getter_;
+
+    // Used for Kind::Property.  This is the Objective-C selector of the property
+    // setter.  Empty string if the property is readonly.
     std::string setter_;
 
     Type return_type_;
