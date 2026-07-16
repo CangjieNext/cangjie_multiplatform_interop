@@ -59,36 +59,9 @@ static void replace_instancetype(TypeDeclarationSymbol& decl)
     }
 }
 
-// Rename the method and update properties attached to it, if any
-static void rename_method(TypeDeclarationSymbol& decl, NonTypeSymbol& method, std::string new_name)
+static void resolve_static_instance_clash(NonTypeSymbol& method)
 {
-    assert(method.is_member_method());
-    auto is_static = method.is_static();
-    const auto& selector = method.selector();
-    for (auto& member : decl.members()) {
-        if (!member.is_property() || member.is_static() != is_static) {
-            continue;
-        }
-        if (member.getter() == selector) {
-            if (member.selector() == selector) {
-                member.rename(new_name);
-                member.rename_getter({});
-            } else {
-                member.rename_getter(new_name);
-            }
-        } else if (member.setter() == selector) {
-            member.rename_setter(new_name);
-        } else if (member.selector() == selector) {
-            member.rename(new_name);
-        }
-    }
-    method.rename(std::move(new_name));
-}
-
-static void resolve_static_instance_clash(TypeDeclarationSymbol& decl, NonTypeSymbol& method, bool is_static)
-{
-    assert(method.is_member_method());
-    rename_method(decl, method, method.name() + (is_static ? "Static" : "Instance"));
+    method.rename(method.name() + (method.is_static() ? "Static" : "Instance"));
 }
 
 struct StaticInstancePair {
@@ -126,33 +99,9 @@ void StaticInstancePair::add(NonTypeSymbol& type) noexcept
     }
 }
 
-static NonTypeSymbol& get_getter(TypeDeclarationSymbol& decl, const NonTypeSymbol& property)
+[[nodiscard]] bool clashes_by_name(const FileLevelSymbol& symbol1, const FileLevelSymbol* symbol2)
 {
-    assert(property.is_property());
-    auto is_static = property.is_static();
-    const auto& getter = property.getter();
-    auto members = decl.members();
-    auto e = members.end();
-    auto it = std::find_if(members.begin(), e, [is_static, &getter](auto& member) {
-        return member.is_member_method() && member.is_static() == is_static && member.selector() == getter;
-    });
-    assert(it != e);
-    return *it;
-}
-
-static NonTypeSymbol& get_setter(TypeDeclarationSymbol& decl, const NonTypeSymbol& property)
-{
-    assert(property.is_property());
-    assert(!property.is_readonly());
-    auto is_static = property.is_static();
-    const auto& setter = property.setter();
-    auto members = decl.members();
-    auto e = members.end();
-    auto it = std::find_if(members.begin(), e, [is_static, &setter](auto& member) {
-        return member.is_member_method() && member.is_static() == is_static && member.selector() == setter;
-    });
-    assert(it != e);
-    return *it;
+    return symbol2 && symbol2->package() == symbol1.package();
 }
 
 static void transform_type(TypeDeclarationSymbol& decl)
@@ -167,16 +116,19 @@ static void transform_type(TypeDeclarationSymbol& decl)
             // among all global symbols.  Note that the results may depend on the order of
             // declarations and on the current closure specified in the configuration.
             auto& universe = Universe::get();
-            std::string_view name = decl.name();
-            if (!universe.type(TypeNamespace::Primary, name) && !universe.type(TypeNamespace::Tagged, name) &&
-                !universe.global_non_type_symbol(name)) {
+            const auto& name = decl.name();
+            if (!clashes_by_name(decl, universe.type(TypeNamespace::Primary, name)) &&
+                !clashes_by_name(decl, universe.type(TypeNamespace::Tagged, name)) &&
+                !clashes_by_name(decl, universe.global_non_type_symbol(name))) {
                 break;
             }
-            auto new_name = std::string(name);
+            auto new_name = name;
             do {
                 new_name += "Protocol";
-            } while (universe.type(TypeNamespace::Primary, new_name) ||
-                universe.type(TypeNamespace::Tagged, new_name) || universe.type(TypeNamespace::Protocols, new_name));
+            } while (clashes_by_name(decl, universe.type(TypeNamespace::Primary, new_name)) ||
+                clashes_by_name(decl, universe.type(TypeNamespace::Tagged, new_name)) ||
+                clashes_by_name(decl, universe.global_non_type_symbol(new_name)) ||
+                clashes_by_name(decl, universe.type(TypeNamespace::Protocols, new_name)));
             if (verbosity >= LogLevel::INFO) {
                 std::cerr << "Renaming clashing protocol `" << name << "` to `" << new_name << '`' << std::endl;
             }
@@ -243,28 +195,35 @@ static void transform_type(TypeDeclarationSymbol& decl)
 
     auto members = decl.members();
 
+    // Hide getters/setters
+    for (const auto& member : members) {
+        if (member.is_property()) {
+            decl.get_getter(member).set_hidden();
+            if (!member.is_readonly()) {
+                decl.get_setter(member).set_hidden();
+            }
+        }
+    }
+
     // Resolve static/instance clashes inside 'decl'
     std::unordered_map<std::string_view, StaticInstancePair> map;
     for (auto& member : members) {
-        if (member.is_member_method()) {
-            map[member.selector()].add(member);
+        switch (member.kind()) {
+            case NonTypeSymbol::Kind::Property:
+            case NonTypeSymbol::Kind::MemberMethod:
+                if (!member.is_hidden()) {
+                    map[member.name()].add(member);
+                }
+                break;
+            default:
+                break;
         }
     }
     for (const auto& [name, methods] : map) {
         if (methods.both()) {
             auto& static_method = *methods.get_static();
-            assert(static_method.selector() == methods.get_instance()->selector());
-            resolve_static_instance_clash(decl, static_method, true);
-        }
-    }
-
-    // Hide getters/setters
-    for (const auto& member : members) {
-        if (member.is_property()) {
-            get_getter(decl, member).set_hidden();
-            if (!member.is_readonly()) {
-                get_setter(decl, member).set_hidden();
-            }
+            assert(static_method.name() == methods.get_instance()->name());
+            resolve_static_instance_clash(static_method);
         }
     }
 }
@@ -282,75 +241,116 @@ static void transform_type(TypeDeclarationSymbol& decl)
     return false;
 }
 
+static void resolve_base_derived_name_clashes(const NonTypeSymbol& base, NonTypeSymbol& derived)
+{
+    assert(base.is_member_method() || base.is_property());
+    assert(derived.is_member_method() || derived.is_property());
+    if (base.is_static() == derived.is_static()) {
+        if (base.selector() == derived.selector()) {
+            if (base.kind() == derived.kind() && base.is_member_method()) {
+                // 'base' and 'derived' is a pair of non-init methods, and 'derived' overrides
+                // 'base' in terms of Objective-C (same selector).  At the Cangjie side, it must
+                // override as well (have the same Cangjie name).  If the names are different
+                // (if 'base' was renamed at earlier transformation stages), then rename
+                // 'derived' as well.
+                const auto& base_name = base.name();
+                if (base_name != derived.name()) {
+                    derived.rename(base_name);
+                }
+            } else {
+                // 'base' and 'derived' have the same selector.  If they are of different kind
+                // (Property/MemberMethod or MemberMethod/Property) they cannot have the same
+                // Cangjie name.  Also (this is mentioned in the documentation) they cannot have
+                // the same Cangjie name if they are both properties.  Make 'derived' hidden in
+                // both cases.
+                derived.set_hidden();
+            }
+        }
+    } else if (base.name() == derived.name()) {
+        // 'base' and 'derived' have different "staticity".  Therefore, this is not an
+        // override, in terms of either Objective-C or Cangjie.  But, regardless of the
+        // kind (Property or MemberMethod), they must not clash by Cangjie name.  If
+        // they do, rename 'derived' by adding the 'Static' or 'Instance' suffix.
+        resolve_static_instance_clash(derived);
+    }
+}
+
 static void transform_base_derived(const TypeDeclarationSymbol& base, TypeDeclarationSymbol& derived)
 {
     for (auto& derived_member : derived.members()) {
         switch (derived_member.kind()) {
+            case NonTypeSymbol::Kind::Property:
+                for (const auto& base_member : base.members()) {
+                    switch (base_member.kind()) {
+                        case NonTypeSymbol::Kind::Property:
+                        case NonTypeSymbol::Kind::MemberMethod:
+                            resolve_base_derived_name_clashes(base_member, derived_member);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                break;
             case NonTypeSymbol::Kind::MemberMethod:
                 for (const auto& base_member : base.members()) {
-                    if (!base_member.is_member_method() || base_member.selector() != derived_member.selector()) {
-                        continue;
-                    }
+                    switch (base_member.kind()) {
+                        case NonTypeSymbol::Kind::Property:
+                            resolve_base_derived_name_clashes(base_member, derived_member);
+                            break;
+                        case NonTypeSymbol::Kind::MemberMethod: {
+                            resolve_base_derived_name_clashes(base_member, derived_member);
 
-                    // Resolve the following clashes in override method return types:
-                    //
-                    // - In Cangjie, Option is not covariant.  If 'base_member' and 'derived_member'
-                    //   have different nullabilities, change the nullability of the derived return
-                    //   type.
-                    // - In Cangjie, Option is not covariant.  If both 'base_member' and
-                    //   'derived_member' are nullable, ensure that 'derived_member' has the same
-                    //   return type as 'base_member'.
-                    // - In Objective-C, contravariant return types are allowed.  That will not
-                    //   compile in Cangjie. Change the return type of 'derived_member' accordingly.
-                    if (base_member.is_static() == derived_member.is_static()) {
-                        derived_member.set_override();
-                        const auto& base_member_type = base_member.return_type();
-                        auto& derived_member_type = derived_member.return_type();
-                        if (base_member_type.nullability() != Nullability::Nonnull) {
-                            if (derived_member_type.nullability() == Nullability::Nonnull) {
-                                derived_member_type.set_nullability(Nullability::Nullable);
+                            if (base_member.selector() != derived_member.selector() ||
+                                base_member.is_static() != derived_member.is_static()) {
+                                continue;
                             }
+                            // Resolve the following clashes in override method return types:
+                            //
+                            // - In Cangjie, Option is not covariant.  If 'base_member' and 'derived_member'
+                            //   have different nullabilities, change the nullability of the derived return
+                            //   type.
+                            // - In Cangjie, Option is not covariant.  If both 'base_member' and
+                            //   'derived_member' are nullable, ensure that 'derived_member' has the same
+                            //   return type as 'base_member'.
+                            // - In Objective-C, contravariant return types are allowed.  That will not
+                            //   compile in Cangjie. Change the return type of 'derived_member' accordingly.
+                            derived_member.set_override();
+                            const auto& base_member_type = base_member.return_type();
+                            auto& derived_member_type = derived_member.return_type();
+                            if (base_member_type.nullability() != Nullability::Nonnull) {
+                                if (derived_member_type.nullability() == Nullability::Nonnull) {
+                                    derived_member_type.set_nullability(Nullability::Nullable);
+                                }
 
-                            // Both are Option.  Must be the same type.
-                            derived_member.set_return_type(base_member_type);
-                        } else {
-                            if (derived_member_type.nullability() != Nullability::Nonnull) {
-                                derived_member_type.set_nullability(Nullability::Nonnull);
-                            }
-
-                            // Both are non-Option.  Either they must be the same or the overridden must be
-                            // a base of the overrider.
-                            if (is_instancetype(derived_member_type)) {
-                                // For non-init methods, 'instancetype' is mapped to the declaring class
-                                replace_return_instancetype(derived, derived_member, Nullability::Nonnull);
+                                // Both are Option.  Must be the same type.
+                                derived_member.set_return_type(base_member_type);
                             } else {
-                                const auto* derived_member_type_decl = dynamic_cast<const TypeDeclarationSymbol*>(
-                                    &derived_member_type.canonical_type_symbol());
-                                if (derived_member_type_decl) {
-                                    const auto* base_member_type_decl = dynamic_cast<const TypeDeclarationSymbol*>(
-                                        &base_member_type.canonical_type_symbol());
-                                    if (base_member_type_decl &&
-                                        !is_base_of(*base_member_type_decl, *derived_member_type_decl)) {
-                                        derived_member.set_return_type(base_member_type);
+                                if (derived_member_type.nullability() != Nullability::Nonnull) {
+                                    derived_member_type.set_nullability(Nullability::Nonnull);
+                                }
+
+                                // Both are non-Option.  Either they must be the same or the overridden must be
+                                // a base of the overrider.
+                                if (is_instancetype(derived_member_type)) {
+                                    // For non-init methods, 'instancetype' is mapped to the declaring class
+                                    replace_return_instancetype(derived, derived_member, Nullability::Nonnull);
+                                } else {
+                                    const auto* derived_member_type_decl = dynamic_cast<const TypeDeclarationSymbol*>(
+                                        &derived_member_type.canonical_type_symbol());
+                                    if (derived_member_type_decl) {
+                                        const auto* base_member_type_decl = dynamic_cast<const TypeDeclarationSymbol*>(
+                                            &base_member_type.canonical_type_symbol());
+                                        if (base_member_type_decl &&
+                                            !is_base_of(*base_member_type_decl, *derived_member_type_decl)) {
+                                            derived_member.set_return_type(base_member_type);
+                                        }
                                     }
                                 }
                             }
+                            break;
                         }
-                    }
-
-                    const auto& base_name = base_member.name();
-                    if (base_name == derived_member.name()) {
-                        // Resolve static/instance name clashes
-                        if (derived_member.is_static()) {
-                            if (!base_member.is_static()) {
-                                resolve_static_instance_clash(derived, derived_member, true);
-                            }
-                        } else if (base_member.is_static()) {
-                            resolve_static_instance_clash(derived, derived_member, false);
-                        }
-                    } else {
-                        // The base member has been renamed.  Rename the derived accordingly.
-                        derived_member.rename(base_name);
+                        default:
+                            break;
                     }
                 }
                 break;
@@ -361,46 +361,6 @@ static void transform_base_derived(const TypeDeclarationSymbol& base, TypeDeclar
                     }
                 }
                 break;
-            default:
-                break;
-        }
-    }
-
-    // Make hidden (non-printed):
-    // - Overridden properties.
-    // - Properties conflicting by name with a base method.
-    // - Methods conflicting by name with a base property.
-    for (auto& derived_member : derived.members()) {
-        switch (derived_member.kind()) {
-            case NonTypeSymbol::Kind::Property: {
-                const auto& derived_name = derived_member.name();
-                for (const auto& base_member : base.members()) {
-                    switch (base_member.kind()) {
-                        case NonTypeSymbol::Kind::Property:
-                            if (derived_name == base_member.name()) {
-                                derived_member.set_hidden();
-                            }
-                            break;
-                        case NonTypeSymbol::Kind::MemberMethod:
-                            if (derived_name == base_member.name()) {
-                                derived_member.set_hidden();
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                }
-                break;
-            }
-            case NonTypeSymbol::Kind::MemberMethod: {
-                const auto& derived_name = derived_member.name();
-                for (const auto& base_member : base.members()) {
-                    if (base_member.is_property() && derived_name == base_member.name()) {
-                        derived_member.set_hidden();
-                    }
-                }
-                break;
-            }
             default:
                 break;
         }

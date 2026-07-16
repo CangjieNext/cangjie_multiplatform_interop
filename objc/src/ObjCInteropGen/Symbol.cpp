@@ -909,6 +909,29 @@ void TypeDeclarationSymbol::add_property(std::string name, std::string getter, s
     members_.emplace_back(std::move(name), std::move(getter), std::move(setter), modifiers);
 }
 
+[[nodiscard]] static NonTypeSymbol& get_method(
+    std::vector<NonTypeSymbol>& members, const std::string& selector, bool is_static)
+{
+    auto e = members.end();
+    auto it = std::find_if(members.begin(), e, [is_static, &selector](const auto& member) {
+        return member.is_member_method() && member.is_static() == is_static && member.selector() == selector;
+    });
+    assert(it != e);
+    return *it;
+}
+
+NonTypeSymbol& TypeDeclarationSymbol::get_getter(const NonTypeSymbol& property)
+{
+    assert(property.is_property());
+    return get_method(members_, property.getter(), property.is_static());
+}
+
+NonTypeSymbol& TypeDeclarationSymbol::get_setter(const NonTypeSymbol& property)
+{
+    assert(property.is_property());
+    return get_method(members_, property.setter(), property.is_static());
+}
+
 void TypeDeclarationSymbol::mark_transformed() noexcept
 {
     assert(!transformed_);
