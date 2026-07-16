@@ -25,6 +25,8 @@ package cangjie.interop.driver;
 import static cangjie.interop.driver.VisitorUtils.hasOnlyAppropriateDeps;
 import static cangjie.interop.driver.VisitorUtils.isPackagePrivate;
 import static cangjie.interop.driver.VisitorUtils.shouldBeGenerated;
+import static vendor.com.sun.tools.javac.util.Assert.check;
+import static vendor.com.sun.tools.javac.util.Assert.checkNonNull;
 
 import vendor.com.sun.tools.javac.code.Flags;
 import vendor.com.sun.tools.javac.code.Kinds;
@@ -92,7 +94,10 @@ final class OverrideChains {
     }
 
     public boolean overridesNonAbstractMethod(Symbol.MethodSymbol symbolImpl) {
+        check(symbolImpl.getModifiers().contains(Modifier.ABSTRACT), symbolImpl);
+
         final var chains = buildMethodOverrideChains(symbolImpl, (Symbol.TypeSymbol) symbolImpl.owner);
+        check(!chains.isEmpty(), symbolImpl);
 
         for (final var chain : chains) {
             for (final var symbols : chain) {
@@ -154,6 +159,7 @@ final class OverrideChains {
         final var currentOrChildMethod = currentMethods != null && currentMethods.size() == 1
                 ? currentMethods.get(0)
                 : childMethod;
+        checkNonNull(currentOrChildMethod);
 
         List<Deque<List<Symbol.MethodSymbol>>> result = null;
         final var superTypes = types.directSupertypes(currentClass.type);
@@ -211,6 +217,7 @@ final class OverrideChains {
     public Symbol.MethodSymbol findRootMethod(Symbol.MethodSymbol method, Symbol.ClassSymbol classSymbol,
                                               boolean considerModifiers) {
         final var chains = buildMethodOverrideChains(method, classSymbol);
+        check(!chains.isEmpty(), method + " | " + classSymbol);
         // Get any root method
         if (!considerModifiers) {
             return chains.get(0).getLast().get(0);
@@ -287,6 +294,7 @@ final class OverrideChains {
         final var inInterface = classSymbol.isInterface();
 
         final var chains = buildMethodOverrideChains(methodSymbol, classSymbol);
+        check(!chains.isEmpty(), methodSymbol);
 
         for (final var chain : chains) {
             if (isRenamedInChain(methodSymbol, chain, inInterface)) {

@@ -22,6 +22,10 @@
 
 package cangjie.interop.cangjie.emit;
 
+import static vendor.com.sun.tools.javac.util.Assert.check;
+import static vendor.com.sun.tools.javac.util.Assert.checkNonNull;
+import static vendor.com.sun.tools.javac.util.Assert.error;
+
 import cangjie.interop.cangjie.sema.TypeKind;
 import cangjie.interop.cangjie.tree.CJTree;
 import cangjie.interop.cangjie.tree.Modifiers;
@@ -130,21 +134,21 @@ public final class CangjieEmitVisitor extends Translator<IndentedString> {
             }
             final var arg = args[Integer.parseInt(argIndex)];
             if (processArg.test(arg)) {
-                assert delimiter == null;
+                check(delimiter == null);
             } else if (arg instanceof Collection<?> collection) {
-                assert delimiter != null;
+                check(delimiter != null);
                 int j = 0;
                 for (var iterator = collection.iterator(); iterator.hasNext(); j++) {
                     if (j != 0) {
                         result.append(delimiter);
                     }
                     final var item = iterator.next();
-                    assert item != null;
+                    checkNonNull(item);
                     boolean success = processArg.test(item);
-                    assert success : item.getClass().getSimpleName();
+                    check(success, item.getClass().getSimpleName());
                 }
             } else {
-                assert false : Objects.toString(arg);
+                throw error(Objects.toString(arg));
             }
         }
         result.append(template.substring(i));
@@ -289,7 +293,7 @@ public final class CangjieEmitVisitor extends Translator<IndentedString> {
         if (tree.getType() != null && tree.getInitializer() != null) {
             return template("$0$$1$: $2$ = $3$", args);
         }
-        assert tree.getType() != null || tree.getInitializer() != null;
+        check(tree.getType() != null || tree.getInitializer() != null);
         if (tree.getType() != null) {
             return template("$0$: $2$", args);
         }
@@ -446,7 +450,7 @@ public final class CangjieEmitVisitor extends Translator<IndentedString> {
 
     @Override
     public IndentedString translate(CJTree.Expression.Block tree) {
-        assert tree.expressions.stream().noneMatch(Objects::isNull);
+        check(tree.expressions.stream().noneMatch(Objects::isNull));
         if (tree.preferMultiline) {
             return tree.expressions.isEmpty() ? produceEmpty() : produceMultiple(tree);
         }

@@ -22,6 +22,8 @@
 
 package cangjie.interop.cangjie.tree;
 
+import static vendor.com.sun.tools.javac.util.Assert.check;
+
 import cangjie.interop.Utils;
 import cangjie.interop.cangjie.QualifiedName;
 import cangjie.interop.cangjie.emit.CangjieEmitVisitor;
@@ -189,7 +191,7 @@ public abstract sealed class CJTree {
 
             public TypeDeclaration(TypeKind kind) {
                 this.kind = kind;
-                assert supported(kind);
+                check(supported(kind));
             }
 
             public Expression.Name.SimpleName.IdentifierName getType() {
@@ -486,8 +488,8 @@ public abstract sealed class CJTree {
                     public final String identifier;
 
                     public IdentifierName(String identifier) {
-                        assert identifier.indexOf('.') == -1 : identifier;
-                        assert identifier.indexOf('$') == -1 : identifier;
+                        check(identifier.indexOf('.') == -1, identifier);
+                        check(identifier.indexOf('$') == -1, identifier);
                         this.identifier = identifier;
                     }
 

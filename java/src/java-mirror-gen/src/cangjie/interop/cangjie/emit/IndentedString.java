@@ -22,6 +22,9 @@
 
 package cangjie.interop.cangjie.emit;
 
+import static vendor.com.sun.tools.javac.util.Assert.check;
+import static vendor.com.sun.tools.javac.util.Assert.error;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -40,8 +43,8 @@ public final class IndentedString {
     }
 
     public void append(IndentedString ts) {
-        assert !finished;
-        assert ts.finished;
+        check(!finished);
+        check(ts.finished);
 
         if (ts.events.isEmpty()) {
             return;
@@ -52,7 +55,7 @@ public final class IndentedString {
     }
 
     public void append(String s) {
-        assert s.indexOf('\r') == -1 : '"' + s + "\" should not contain CR, only LF";
+        check(s.indexOf('\r') == -1, '"' + s + "\" should not contain CR, only LF");
         int i = 0;
         for (int nl; (nl = s.indexOf('\n', i)) != -1; i = nl + 1) {
             if (i != nl) {
@@ -70,22 +73,22 @@ public final class IndentedString {
     }
 
     public void indentInc() {
-        assert !finished;
+        check(!finished);
         events.add(INDENT_INC);
     }
 
     public void indentDec() {
-        assert !finished;
+        check(!finished);
         events.add(INDENT_DEC);
     }
 
     public void newLine() {
-        assert !finished;
+        check(!finished);
         events.add(NEW_LINE);
     }
 
     public void finish() {
-        assert !finished;
+        check(!finished);
         this.events = Collections.unmodifiableList(events);
         this.finished = true;
     }
@@ -120,14 +123,14 @@ public final class IndentedString {
                     appendIndented(sb, indent, str);
                 }
             } else {
-                assert false : Objects.toString(event);
+                throw error(Objects.toString(event));
             }
         }
     }
 
     private void appendIndented(StringBuilder sb, int indent, String str) {
-        assert !str.isEmpty();
-        assert str.indexOf('\n') == -1;
+        check(!str.isEmpty());
+        check(str.indexOf('\n') == -1);
 
         if (!sb.isEmpty() && sb.charAt(sb.length() - 1) == '\n') {
             sb.append("    ".repeat(indent));

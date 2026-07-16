@@ -22,6 +22,8 @@
 
 package cangjie.interop;
 
+import static vendor.com.sun.tools.javac.util.Assert.check;
+
 import vendor.com.sun.tools.javac.code.Symbol;
 import vendor.com.sun.tools.javac.util.Convert;
 import vendor.com.sun.tools.javac.util.Name;
@@ -104,7 +106,7 @@ public interface Utils {
     }
 
     private static String mangleIfNeeded(String name, char c) {
-        assert !name.isEmpty();
+        check(!name.isEmpty());
         final var result = new StringBuilder();
         final var iterator = name.codePoints().iterator();
         var changed = false;
@@ -192,7 +194,7 @@ public interface Utils {
                 continue;
             }
 
-            assert 0 <= item && item < length;
+            check(0 <= item && item < length);
             min = Math.min(min, item);
         }
         return min;

@@ -49,6 +49,8 @@ import static cangjie.interop.driver.VisitorUtils.setSymtab;
 import static cangjie.interop.driver.VisitorUtils.shouldBeGenerated;
 import static cangjie.interop.util.StdCoreNames.STD_CORE_NAMES;
 import static vendor.com.sun.tools.javac.code.Kinds.Kind.VAR;
+import static vendor.com.sun.tools.javac.util.Assert.check;
+import static vendor.com.sun.tools.javac.util.Assert.checkNonNull;
 import static vendor.javax.tools.StandardLocation.CJ_OUTPUT;
 
 import cangjie.interop.Utils;
@@ -418,6 +420,8 @@ public final class EmitMirrorVisitor {
     }
 
     private boolean methodStillNotImplemented(Symbol.MethodSymbol superMethod) {
+        check(superMethod.getModifiers().contains(Modifier.ABSTRACT), superMethod);
+
         var implMethod = superMethod.implementation(currentClass, types, true);
         if (implMethod == null || implMethod == superMethod) {
             // Search for default implementations.
@@ -617,6 +621,9 @@ public final class EmitMirrorVisitor {
                     ? methodImpl
                     : overrideChains.getImplementationOfSuper(symbol, tmpScope);
 
+            check(methodSymbol == symbol || !symbol.isStatic(),
+                    classSymbol + " : " + symbol + " | " + methodSymbol);
+
             if ((symbol.flags() & Flags.BRIDGE) != 0
                     && methodSymbol == symbol
                     && overrideChains.isPackagePrivateOverridden(methodSymbol, classSymbol)) {
@@ -667,6 +674,8 @@ public final class EmitMirrorVisitor {
         }
 
         CJTree.Declaration.TypeDeclaration translateClass() {
+            check(shouldBeGenerated(classSymbol), classSymbol);
+
             setType();
             translateTypeParameters(classSymbol.getTypeParameters(), classDecl);
             addSuperTypes();
@@ -870,6 +879,7 @@ public final class EmitMirrorVisitor {
         unit.imports.retainAll(filteredImports);
 
         final var path = new StringBuilder();
+        checkNonNull(moduleName);
         path.append(moduleName).append('/').append("src/");
 
         if (!onePackageMode) {
@@ -1183,6 +1193,7 @@ public final class EmitMirrorVisitor {
         try {
             generateMirror(curSymbol);
         } finally {
+            check(currentClass == curSymbol);
             currentClass = null;
         }
 

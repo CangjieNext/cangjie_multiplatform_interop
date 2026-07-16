@@ -23,6 +23,8 @@
 package cangjie.interop.cangjie;
 
 import static cangjie.interop.Utils.split;
+import static vendor.com.sun.tools.javac.util.Assert.check;
+import static vendor.com.sun.tools.javac.util.Assert.checkNonNull;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -50,17 +52,17 @@ public final class QualifiedName {
     }
 
     public static QualifiedName get(String... parts) {
-        assert parts != null;
-        assert parts.length > 0;
+        checkNonNull(parts);
+        check(parts.length > 0);
         final var sb = new StringBuilder(parts.length * 5);
         for (final var part : parts) {
-            assert part != null : Arrays.toString(parts);
-            assert part.strip().equals(part) : Arrays.toString(parts);
-            assert !part.isEmpty() : Arrays.toString(parts);
-            assert part.indexOf('.') == -1 : Arrays.toString(parts);
-            assert part.indexOf('/') == -1 : Arrays.toString(parts);
-            assert part.indexOf('<') == -1 : Arrays.toString(parts);
-            assert part.indexOf('>') == -1 : Arrays.toString(parts);
+            check(part != null, Arrays.toString(parts));
+            check(part.strip().equals(part), Arrays.toString(parts));
+            check(!part.isEmpty(), Arrays.toString(parts));
+            check(part.indexOf('.') == -1, Arrays.toString(parts));
+            check(part.indexOf('/') == -1, Arrays.toString(parts));
+            check(part.indexOf('<') == -1, Arrays.toString(parts));
+            check(part.indexOf('>') == -1, Arrays.toString(parts));
             if (!sb.isEmpty()) {
                 sb.append('.');
             }
@@ -121,7 +123,7 @@ public final class QualifiedName {
     }
 
     public String generateImport() {
-        assert requiresImport();
+        check(requiresImport());
         final var builder = new StringBuilder(64);
         builder.append("import ");
         if (isUnsupported()) {

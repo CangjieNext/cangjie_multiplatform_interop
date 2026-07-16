@@ -22,6 +22,8 @@
 
 package cangjie.interop.cangjie.tree;
 
+import static vendor.com.sun.tools.javac.util.Assert.checkNull;
+
 public abstract class Translator<R> {
     private final Visitor visitor = new Visitor();
 
@@ -127,133 +129,133 @@ public abstract class Translator<R> {
 
         @Override
         public void visit(CJTree.CompilationUnit tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Declaration.Annotation tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Declaration.Modifier tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Declaration.TypeDeclaration tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Declaration.FunctionDeclaration tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Declaration.VariableDeclaration.Parameter tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Declaration.VariableDeclaration.Variable tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.GenericConstraint tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.TypeArguments tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Literal.Numeric tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Literal.Rune tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Literal.String tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Literal.InterpolatedString tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Literal.Singleton tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Name.SimpleName.IdentifierName tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Name.SimpleName.OptionName tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Name.SimpleName.GenericName tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Name.SimpleName.ErasedTypeVariableName tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Name.VariancedTypeName tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Name.QualifiedName tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visit(CJTree.Expression.Block tree) {
-            assert result == null;
+            checkNull(result);
             result = translate(tree);
         }
 
         @Override
         public void visitDefault(CJTree tree) {
-            assert result == null;
+            checkNull(result);
             result = translateDefault(tree);
         }
     }
