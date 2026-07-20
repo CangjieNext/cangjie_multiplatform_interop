@@ -70,6 +70,10 @@ public abstract class Translator<R> {
         return translateDefault(tree);
     }
 
+    public R translate(CJTree.TypeArguments tree) {
+        return translateDefault(tree);
+    }
+
     public R translate(CJTree.Expression.Literal.Numeric tree) {
         return translateDefault(tree);
     }
@@ -94,11 +98,19 @@ public abstract class Translator<R> {
         return translateDefault(tree);
     }
 
+    public R translate(CJTree.Expression.Name.SimpleName.OptionName tree) {
+        return translateDefault(tree);
+    }
+
     public R translate(CJTree.Expression.Name.SimpleName.GenericName tree) {
         return translateDefault(tree);
     }
 
-    public R translate(CJTree.Expression.Name.SimpleName.OptionName tree) {
+    public R translate(CJTree.Expression.Name.SimpleName.FreeTypeVariableName tree) {
+        return translateDefault(tree);
+    }
+
+    public R translate(CJTree.Expression.Name.VariancedTypeName tree) {
         return translateDefault(tree);
     }
 
@@ -162,6 +174,12 @@ public abstract class Translator<R> {
         }
 
         @Override
+        public void visit(CJTree.TypeArguments tree) {
+            assert result == null;
+            result = translate(tree);
+        }
+
+        @Override
         public void visit(CJTree.Expression.Literal.Numeric tree) {
             assert result == null;
             result = translate(tree);
@@ -198,13 +216,25 @@ public abstract class Translator<R> {
         }
 
         @Override
+        public void visit(CJTree.Expression.Name.SimpleName.OptionName tree) {
+            assert result == null;
+            result = translate(tree);
+        }
+
+        @Override
         public void visit(CJTree.Expression.Name.SimpleName.GenericName tree) {
             assert result == null;
             result = translate(tree);
         }
 
         @Override
-        public void visit(CJTree.Expression.Name.SimpleName.OptionName tree) {
+        public void visit(CJTree.Expression.Name.SimpleName.FreeTypeVariableName tree) {
+            assert result == null;
+            result = translate(tree);
+        }
+
+        @Override
+        public void visit(CJTree.Expression.Name.VariancedTypeName tree) {
             assert result == null;
             result = translate(tree);
         }

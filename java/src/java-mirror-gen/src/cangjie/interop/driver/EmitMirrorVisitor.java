@@ -42,6 +42,7 @@ import static cangjie.interop.driver.VisitorUtils.hasNotNullTypeAnnotation;
 import static cangjie.interop.driver.VisitorUtils.isVarFinal;
 import static cangjie.interop.driver.VisitorUtils.mangleClassName;
 import static cangjie.interop.driver.VisitorUtils.name;
+import static cangjie.interop.driver.VisitorUtils.nameTypeVar;
 import static cangjie.interop.driver.VisitorUtils.setImportsMap;
 import static cangjie.interop.driver.VisitorUtils.setNames;
 import static cangjie.interop.driver.VisitorUtils.setSymtab;
@@ -259,6 +260,24 @@ public final class EmitMirrorVisitor {
         return new MethodTranslation(symbol, symbolImpl).translate();
     }
 
+    private void translateTypeParameters(
+            List<Symbol.TypeVariableSymbol> jTypeParameters,
+            CJTree.Declaration.TypeParameterOwnerDeclaration owner) {
+        for (final var jTypeParameter: jTypeParameters) {
+            final var name = nameTypeVar(jTypeParameter);
+            owner.addTypeParameter(name);
+            final var boundsAsNames = jTypeParameter.getBounds().stream()
+                    .filter(bound -> bound.tsym != symtab.objectType.tsym)
+                    .map(VisitorUtils::name)
+                    .toList();
+            if (!boundsAsNames.isEmpty()) {
+                final var constraint = new CJTree.GenericConstraint(name);
+                constraint.bounds.addAll(boundsAsNames);
+                owner.addConstraint(constraint);
+            }
+        }
+    }
+
     private final class MethodTranslation {
         private final Symbol.MethodSymbol symbol;
         private final Symbol.MethodSymbol symbolImpl;
@@ -284,6 +303,7 @@ public final class EmitMirrorVisitor {
 
         CJTree.Declaration.FunctionDeclaration translate() {
             translateMethodParameters();
+            translateTypeParameters(symbol.getTypeParameters(), methodDecl);
             computeMethodModifiers();
             if (!symbol.isConstructor()) {
                 adjustNonConstructor();
@@ -303,16 +323,23 @@ public final class EmitMirrorVisitor {
                     final var classSymbol = symbol.owner;
 
                     if (classSymbol.hasOuterInstance()) {
-                        final var outerThisType = types.erasure(classSymbol.type.getEnclosingType());
+                        final var outerThisType = classSymbol.type.getEnclosingType();
                         decl.setType(name(outerThisType, true));
                     }
                 } else {
                     Symbol.VarSymbol jParamSymbol = symbol.params().get(i);
-                    var erasureType = types.erasure(jParamSymbol.type);
                     final var hasNotNullAttribute = considerNotNullAnnotations
                             && (hasNotNullAnnotation(jParamSymbol)
                             || hasNotNullSigParamAnnotation(symbol, TargetType.METHOD_FORMAL_PARAMETER, i));
-                    decl.setType(name(erasureType, hasNotNullAttribute));
+                    final var paramType = jParamSymbol.type;
+                    if (paramType.tsym instanceof Symbol.TypeVariableSymbol typeVariableSymbol) {
+                        final var freeTypeVar = new CJTree.Expression.Name.SimpleName.FreeTypeVariableName(
+                                nameTypeVar(typeVariableSymbol), name(types.erasure(paramType))
+                        );
+                        decl.setType(freeTypeVar);
+                    } else {
+                        decl.setType(name(paramType, hasNotNullAttribute));
+                    }
                     i++;
                 }
                 methodDecl.valueParameters.add(decl);
@@ -362,11 +389,18 @@ public final class EmitMirrorVisitor {
                 }
             }
 
-            var erasureType = types.erasure(symbol.getReturnType());
+            final var returnType = symbol.getReturnType();
             final var hasNotNullAttribute = considerNotNullAnnotations
                     && (hasNotNullAnnotation(symbol)
                     || hasNotNullTypeAnnotation(symbol, TargetType.METHOD_RETURN));
-            methodDecl.setReturnType(name(erasureType, hasNotNullAttribute));
+            if (returnType.tsym instanceof Symbol.TypeVariableSymbol typeVariableSymbol) {
+                final var freeTypeVar = new CJTree.Expression.Name.SimpleName.FreeTypeVariableName(
+                        nameTypeVar(typeVariableSymbol), name(types.erasure(returnType))
+                );
+                methodDecl.setReturnType(freeTypeVar);
+            } else {
+                methodDecl.setReturnType(name(returnType, hasNotNullAttribute));
+            }
 
             final var isToString = Utils.isToString(symbol);
             if (isToString
@@ -422,13 +456,21 @@ public final class EmitMirrorVisitor {
         decl.modifiers.addAll(modifiers);
 
         decl.setLet(isVarFinal(varSymbol));
-        var erasureType = types.erasure(varSymbol.type);
+        final var type = varSymbol.type;
         final var hasNotNullAttribute = !generateDefinition
                 && (hasNotNullAnnotation(varSymbol)
                     || hasNotNullTypeAnnotation(varSymbol, TargetType.FIELD));
-        decl.setType(name(erasureType, hasNotNullAttribute));
+        if (type.tsym instanceof Symbol.TypeVariableSymbol typeVariableSymbol) {
+            final var freeTypeVar = new CJTree.Expression.Name.SimpleName.FreeTypeVariableName(
+                    nameTypeVar(typeVariableSymbol), name(types.erasure(type))
+            );
+            decl.setType(freeTypeVar);
+        } else {
+            decl.setType(name(type, hasNotNullAttribute));
+        }
+        decl.setType(name(type, hasNotNullAttribute));
         if (generateDefinition) {
-            decl.setInitializer(defaultValueForType(erasureType));
+            decl.setInitializer(defaultValueForType(type));
         }
         return decl;
     }
@@ -630,6 +672,7 @@ public final class EmitMirrorVisitor {
 
         CJTree.Declaration.TypeDeclaration translateClass() {
             setType();
+            translateTypeParameters(classSymbol.getTypeParameters(), classDecl);
             addSuperTypes();
             if (generateAnnotationMode) {
                 addJavaMirrorAnnotation();
