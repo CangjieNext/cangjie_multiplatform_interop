@@ -55,6 +55,15 @@ public interface Visitor {
         visitDefault(tree);
     }
 
+    /**
+     * Base visitor method for {@link CJTree.TypeArguments}
+     *
+     * @param tree tree instance to be visited
+     */
+    default void visit(CJTree.TypeArguments tree) {
+        visitDefault(tree);
+    }
+
     default void visit(CJTree.Expression.Literal.Numeric tree) {
         visitDefault(tree);
     }
@@ -79,11 +88,29 @@ public interface Visitor {
         visitDefault(tree);
     }
 
+    default void visit(CJTree.Expression.Name.SimpleName.OptionName tree) {
+        visitDefault(tree);
+    }
+
     default void visit(CJTree.Expression.Name.SimpleName.GenericName tree) {
         visitDefault(tree);
     }
 
-    default void visit(CJTree.Expression.Name.SimpleName.OptionName tree) {
+    /**
+     * Base visitor method for {@link CJTree.Expression.Name.SimpleName.FreeTypeVariableName}
+     *
+     * @param tree tree instance to be visited
+     */
+    default void visit(CJTree.Expression.Name.SimpleName.FreeTypeVariableName tree) {
+        visitDefault(tree);
+    }
+
+    /**
+     * Base visitor method for {@link CJTree.Expression.Name.VariancedTypeName}
+     *
+     * @param tree tree instance to be visited
+     */
+    default void visit(CJTree.Expression.Name.VariancedTypeName tree) {
         visitDefault(tree);
     }
 

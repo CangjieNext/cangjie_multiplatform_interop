@@ -94,6 +94,11 @@ public abstract class Scanner implements Visitor {
     }
 
     @Override
+    public void visit(CJTree.TypeArguments tree) {
+        scan(tree.arguments);
+    }
+
+    @Override
     public void visit(CJTree.Expression.Literal.Numeric tree) {
     }
 
@@ -119,13 +124,22 @@ public abstract class Scanner implements Visitor {
     }
 
     @Override
+    public void visit(CJTree.Expression.Name.SimpleName.OptionName tree) {
+        scan(tree.getName());
+    }
+
+    @Override
     public void visit(CJTree.Expression.Name.SimpleName.GenericName tree) {
         scan(tree.arguments);
     }
 
     @Override
-    public void visit(CJTree.Expression.Name.SimpleName.OptionName tree) {
-        scan(tree.getName());
+    public void visit(CJTree.Expression.Name.SimpleName.FreeTypeVariableName tree) {
+    }
+
+    @Override
+    public void visit(CJTree.Expression.Name.VariancedTypeName tree) {
+        scan(tree.typeName);
     }
 
     @Override
