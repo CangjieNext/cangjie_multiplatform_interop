@@ -132,8 +132,12 @@ public final class IndentedString {
         if (!sb.isEmpty() && sb.charAt(sb.length() - 1) == '\n') {
             sb.append("    ".repeat(indent));
         }
-
-        sb.append(str);
+        if (sb.length() > 2 && sb.substring(sb.length() - 2).equals("*/") && str.startsWith("/*")) {
+            sb.delete(sb.length() - 2, sb.length());
+            sb.append(str.substring(2));
+        } else {
+            sb.append(str);
+        }
     }
 
     @Override

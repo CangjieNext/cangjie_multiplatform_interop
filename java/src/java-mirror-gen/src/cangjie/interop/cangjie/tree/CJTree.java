@@ -37,10 +37,26 @@ import java.util.Set;
 
 public abstract sealed class CJTree {
     private static final CangjieEmitVisitor CANGJIE_EMIT_VISITOR = new CangjieEmitVisitor();
+    private static final Scanner COMMENT_OUT_GENERICS_VISITOR = new Scanner() {
+        @Override
+        public void visit(TypeArguments tree) {
+            tree.hideGenerics();
+        }
+
+        @Override
+        public void visit(Expression.Name.SimpleName.FreeTypeVariableName tree) {
+            tree.hideGenerics();
+        }
+
+        @Override
+        public void visit(GenericConstraint tree) {
+        }
+    };
 
     public abstract void accept(Visitor visitor);
 
     public final IndentedString produce() {
+        COMMENT_OUT_GENERICS_VISITOR.scan(this);
         return CANGJIE_EMIT_VISITOR.emit(this);
     }
 
@@ -128,16 +144,16 @@ public abstract sealed class CJTree {
         }
 
         public abstract static sealed class TypeParameterOwnerDeclaration extends Declaration {
-            private List<Expression.Name.SimpleName.IdentifierName> typeParameters;
+            private TypeArguments typeParameters;
             private List<GenericConstraint> constraints;
 
-            public final List<Expression.Name.SimpleName.IdentifierName> typeParameters() {
+            public final TypeArguments typeParameters() {
                 return typeParameters;
             }
 
             public final void addTypeParameter(Expression.Name.SimpleName.IdentifierName param) {
                 if (typeParameters == null) {
-                    typeParameters = new ArrayList<>(4);
+                    typeParameters = new TypeArguments();
                 }
                 typeParameters.add(param);
             }
@@ -299,6 +315,32 @@ public abstract sealed class CJTree {
         }
     }
 
+    public static final class TypeArguments extends CJTree {
+        public final List<Expression.Name> arguments = new ArrayList<>();
+        private boolean hideGenerics = false;
+
+        public boolean hidesGenerics() {
+            return hideGenerics;
+        }
+
+        public void hideGenerics() {
+            hideGenerics = true;
+        }
+
+        public void add(Expression.Name argument) {
+            arguments.add(argument);
+        }
+
+        public void addAll(Collection<? extends Expression.Name> arguments) {
+            this.arguments.addAll(arguments);
+        }
+
+        @Override
+        public void accept(Visitor visitor) {
+            visitor.visit(this);
+        }
+    }
+
     public static final class GenericConstraint extends CJTree {
         public final Expression.Name.SimpleName variable;
         public final List<Expression.Name> bounds = new ArrayList<>();
@@ -444,19 +486,6 @@ public abstract sealed class CJTree {
                         visitor.visit(this);
                     }
                 }
-                public static final class GenericName extends SimpleName {
-                    public final String identifier;
-                    public final List<Name> arguments = new ArrayList<>();
-
-                    public GenericName(String name) {
-                        this.identifier = name;
-                    }
-
-                    @Override
-                    public void accept(Visitor visitor) {
-                        visitor.visit(this);
-                    }
-                }
                 public static final class OptionName extends SimpleName {
                     private Name name;
 
@@ -476,6 +505,67 @@ public abstract sealed class CJTree {
                     public void accept(Visitor visitor) {
                         visitor.visit(this);
                     }
+                }
+                public static final class GenericName extends SimpleName {
+                    public final String identifier;
+                    public final TypeArguments arguments = new TypeArguments();
+
+                    public GenericName(String name) {
+                        this.identifier = name;
+                    }
+
+                    @Override
+                    public void accept(Visitor visitor) {
+                        visitor.visit(this);
+                    }
+                }
+                public static final class FreeTypeVariableName extends SimpleName {
+                    public final IdentifierName identifier;
+                    public final Name erasedTypeName;
+                    private boolean hideGenerics = false;
+
+                    public FreeTypeVariableName(IdentifierName identifier, Name erasedTypeName) {
+                        this.identifier = identifier;
+                        this.erasedTypeName = erasedTypeName;
+                    }
+
+                    public boolean hidesGenerics() {
+                        return hideGenerics;
+                    }
+
+                    public void hideGenerics() {
+                        hideGenerics = true;
+                    }
+
+                    @Override
+                    public void accept(Visitor visitor) {
+                        visitor.visit(this);
+                    }
+                }
+            }
+
+            public static final class VariancedTypeName extends Name {
+                public enum Variance {
+                    IN("in "),
+                    OUT("out ");
+
+                    public final String qualifier;
+
+                    Variance(String qualifier) {
+                        this.qualifier = qualifier;
+                    }
+                }
+                public final Name typeName;
+                public final Variance variance;
+
+                public VariancedTypeName(Name typeName, Variance variance) {
+                    this.typeName = typeName;
+                    this.variance = variance;
+                }
+
+                @Override
+                public void accept(Visitor visitor) {
+                    visitor.visit(this);
                 }
             }
 

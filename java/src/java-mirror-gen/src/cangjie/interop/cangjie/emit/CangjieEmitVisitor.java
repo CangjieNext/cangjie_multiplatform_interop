@@ -212,7 +212,13 @@ public final class CangjieEmitVisitor extends Translator<IndentedString> {
     }
 
     private IndentedString produceConstraints(CJTree.Declaration.TypeParameterOwnerDeclaration tree) {
-        return tree.constraints() == null ? span() : template(" where $0:, $", tree.constraints());
+        final var constraints = tree.constraints();
+        if (constraints == null || constraints.isEmpty()) {
+            return span();
+        }
+        final var template = " where $0:, $";
+        final var hideGenerics = tree.typeParameters() != null && tree.typeParameters().hidesGenerics();
+        return template(hideGenerics ? "/*" + template + "*/" : template, tree.constraints());
     }
 
     @Override
@@ -246,7 +252,7 @@ public final class CangjieEmitVisitor extends Translator<IndentedString> {
     }
 
     private IndentedString produceTypeParams(CJTree.Declaration.TypeParameterOwnerDeclaration tree) {
-        return tree.typeParameters() != null ? template("<$0:, $>", tree.typeParameters()) : span();
+        return tree.typeParameters() != null ? template("$0$", tree.typeParameters()) : span();
     }
 
     @Override
@@ -325,6 +331,14 @@ public final class CangjieEmitVisitor extends Translator<IndentedString> {
         return template("$0$ <: $1: & $", tree.variable, tree.bounds);
     }
 
+    @Override
+    public IndentedString translate(CJTree.TypeArguments tree) {
+        if (tree.hidesGenerics()) {
+            return template("/*<$0:, $>*/", tree.arguments);
+        }
+        return template("<$0:, $>", tree.arguments);
+    }
+
     private static String quote(int codePoint) {
         return switch (codePoint) {
             case '\b' -> "\\b";
@@ -395,13 +409,26 @@ public final class CangjieEmitVisitor extends Translator<IndentedString> {
     }
 
     @Override
-    public IndentedString translate(CJTree.Expression.Name.SimpleName.GenericName tree) {
-        return template("$0$<$1:, $>", tree.identifier, tree.arguments);
+    public IndentedString translate(CJTree.Expression.Name.SimpleName.OptionName tree) {
+        return template("?$0$", tree.getName());
     }
 
     @Override
-    public IndentedString translate(CJTree.Expression.Name.SimpleName.OptionName tree) {
-        return template("?$0$", tree.getName());
+    public IndentedString translate(CJTree.Expression.Name.SimpleName.GenericName tree) {
+        return template("$0$$1$", tree.identifier, tree.arguments);
+    }
+
+    @Override
+    public IndentedString translate(CJTree.Expression.Name.SimpleName.FreeTypeVariableName tree) {
+        if (tree.hidesGenerics()) {
+            return template("$0$ /*$1$*/", tree.erasedTypeName, tree.identifier);
+        }
+        return span(tree.identifier);
+    }
+
+    @Override
+    public IndentedString translate(CJTree.Expression.Name.VariancedTypeName tree) {
+        return template("$0$$1$", tree.variance.qualifier, tree.typeName);
     }
 
     @Override
