@@ -529,18 +529,14 @@ static void print_objc_optional(std::ostream& output, const NonTypeSymbol& membe
 static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol& prop)
 {
     assert(prop.is_property());
-    const auto& objc_name = prop.selector();
-    if (!prop.selector_attribute().empty()) {
-        write_foreign_name(output, foreign_name_attribute, objc_name);
-    }
-
+    const auto& name = prop.name();
     const auto& getter_name = prop.getter();
-    if (getter_name != objc_name) {
+    if (getter_name != name) {
         write_foreign_name(output, "@ForeignGetterName", getter_name);
     }
     if (!prop.is_readonly()) {
         const auto& setter_name = prop.setter();
-        if (!is_standard_setter_name(objc_name, setter_name)) {
+        if (!is_standard_setter_name(name, setter_name)) {
             write_foreign_name(output, "@ForeignSetterName", setter_name);
         }
     }
