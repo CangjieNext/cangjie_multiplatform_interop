@@ -148,8 +148,9 @@ static void transform_type(TypeDeclarationSymbol& decl)
             // configuration.
             auto& universe = Universe::get();
             std::string_view name = decl.name();
-            if (!universe.type(TypeNamespace::Primary, name) && !universe.type(TypeNamespace::Protocols, name) &&
-                !universe.global_non_type_symbol(name)) {
+            if (!clashes_by_name(decl, universe.type(TypeNamespace::Primary, name)) &&
+                !clashes_by_name(decl, universe.type(TypeNamespace::Protocols, name)) &&
+                !clashes_by_name(decl, universe.global_non_type_symbol(name))) {
                 break;
             }
             auto new_name = std::string(name);
