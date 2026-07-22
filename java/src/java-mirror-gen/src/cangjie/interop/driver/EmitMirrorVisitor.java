@@ -321,11 +321,10 @@ public final class EmitMirrorVisitor {
 
                 if (i == 0 && param.isNameSynthetic() && symbol.isConstructor()) {
                     final var classSymbol = symbol.owner;
-
-                    if (classSymbol.hasOuterInstance()) {
-                        final var outerThisType = classSymbol.type.getEnclosingType();
-                        decl.setType(name(outerThisType, true));
-                    }
+                    final var outerThisType = classSymbol.type.getEnclosingType();
+                    // outerThisType can be parameterized using type variables from outer class
+                    // As long as generic info is preserved in comments, we do not erase the type
+                    decl.setType(name(outerThisType, true));
                 } else {
                     Symbol.VarSymbol jParamSymbol = symbol.params().get(i);
                     final var hasNotNullAttribute = considerNotNullAnnotations
