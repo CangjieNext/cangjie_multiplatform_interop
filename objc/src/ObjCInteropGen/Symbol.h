@@ -1017,14 +1017,14 @@ public:
         return setter_;
     }
 
-    [[nodiscard]] const NonTypeSymbol* find_getter(const TypeDeclarationSymbol& decl) const noexcept;
+    [[nodiscard]] NonTypeSymbol* find_getter(TypeDeclarationSymbol& decl) const noexcept;
 
     [[nodiscard]] bool is_bit_field() const noexcept
     {
         return modifiers_ & ModifierBitField;
     }
 
-    [[nodiscard]] ClosureDepthType calculate_reference_level(const TypeDeclarationSymbol& decl) const noexcept;
+    [[nodiscard]] ClosureDepthType calculate_reference_level(TypeDeclarationSymbol& decl) const noexcept;
 
 private:
     Kind kind_;

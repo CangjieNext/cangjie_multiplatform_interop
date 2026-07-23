@@ -1088,12 +1088,12 @@ void NonTypeSymbol::add_parameter(std::string name, Type type)
     parameters_.emplace_back(std::move(name), std::move(type));
 }
 
-const NonTypeSymbol* NonTypeSymbol::find_getter(const TypeDeclarationSymbol& decl) const noexcept
+NonTypeSymbol* NonTypeSymbol::find_getter(TypeDeclarationSymbol& decl) const noexcept
 {
     assert(is_property());
     bool is_static = this->is_static();
     const auto& getter_name = getter();
-    for (const auto& member : decl.members()) {
+    for (auto& member : decl.members()) {
         if (member.is_member_method() && member.is_static() == is_static && member.selector() == getter_name) {
             return &member;
         }
@@ -1101,7 +1101,7 @@ const NonTypeSymbol* NonTypeSymbol::find_getter(const TypeDeclarationSymbol& dec
     return nullptr;
 }
 
-ClosureDepthType NonTypeSymbol::calculate_reference_level(const TypeDeclarationSymbol& decl) const noexcept
+ClosureDepthType NonTypeSymbol::calculate_reference_level(TypeDeclarationSymbol& decl) const noexcept
 {
     switch (kind_) {
         case Kind::Field:
