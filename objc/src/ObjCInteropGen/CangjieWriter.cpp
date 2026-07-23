@@ -452,10 +452,15 @@ static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method
     return false;
 }
 
-[[nodiscard]] static const Type& get_property_type(TypeDeclarationSymbol& decl, const NonTypeSymbol& property) noexcept
+[[nodiscard]] static NonTypeSymbol* get_method_by_selector(
+    TypeDeclarationSymbol& decl, const std::string& selector, bool is_static)
 {
-    assert(property.is_property());
-    return decl.get_getter(property).return_type();
+    for (auto& member : decl.members()) {
+        if (member.is_member_method() && member.is_static() == is_static && member.selector() == selector) {
+            return &member;
+        }
+    }
+    return nullptr;
 }
 
 static void print_objc_optional(std::ostream& output, const NonTypeSymbol& member)
@@ -509,16 +514,27 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
     }
 }
 
+// The current FE issues a compiler error on functions, properties, as well as
+// fields in @ObjCMirror classes, if their definitions reference a type which
+// name coincides with the name of the function/property/field itself.  As a
+// workaround, comment out such objects.
+[[nodiscard]] static bool has_name_clash_with_referenced_types(NonTypeSymbol& symbol, const std::string& name)
+{
+    return static_cast<FileLevelSymbol&>(symbol).visit_referenced_types(
+        [&name](const FileLevelSymbol& s) { return name == s.name(); });
+}
+
 enum class FuncKind { TopLevelFunc, InterfaceMethod, ClassMethod };
 
-static void write_function(
-    IndentingStringStream& output, FuncKind kind, const NonTypeSymbol& function, PrintFormat format)
+static void write_function(IndentingStringStream& output, FuncKind kind, NonTypeSymbol& function, PrintFormat format)
 {
     if (function.is_hidden()) {
         return;
     }
     const auto& return_type = function.return_type();
-    auto supported = !normal_mode() || (is_objc_compatible(return_type) && is_objc_compatible_parameters(function));
+    const auto& name = function.name();
+    auto supported = (!normal_mode() || (is_objc_compatible(return_type) && is_objc_compatible_parameters(function))) &&
+        !has_name_clash_with_referenced_types(function, name);
     if (!supported) {
         output.set_comment();
     }
@@ -577,7 +593,7 @@ static void write_function(
             }
         }
     }
-    output << "func " << escape_keyword(function.name());
+    output << "func " << escape_keyword(name);
     write_method_parameters(output, function, format);
     write_type(output, return_type, format);
     if (generate_definitions_mode() && !is_ctype) {
@@ -595,31 +611,14 @@ static void write_function(
     output << '\n';
 }
 
-enum class DeclKind { CStruct, ObjCStruct, Interface, Class };
-
-// Whether a property or field with the specified type and name is currently
-// supported by FE in declarations of the specified kind.  If not, then in the
-// NORMAL mode it will be commented out. In the EXPERIMENTAL and
-// GENERATE_DEFINITIONS modes, any property/field is supported.
-[[nodiscard]] static bool is_field_type_supported(DeclKind decl_kind, const Type& type, const std::string& name)
+// Whether a property or ivar with the specified type and name is currently
+// supported by FE.  If not, then in the NORMAL mode it will be commented out.
+// In the EXPERIMENTAL and GENERATE_DEFINITIONS modes, any property/ivar is
+// supported.
+[[nodiscard]] static bool is_property_or_ivar_type_supported(
+    NonTypeSymbol& member, const Type& type, const std::string& name)
 {
-    if (!normal_mode()) {
-        return true;
-    }
-    switch (decl_kind) {
-        case DeclKind::CStruct:
-            assert(type.is_ctype());
-            return true;
-        case DeclKind::ObjCStruct:
-            return true;
-        default:
-            assert(decl_kind == DeclKind::Class || decl_kind == DeclKind::Interface);
-
-            // Current FE fails to process a field or property of an @ObjCMirror class if
-            // the field and its type have the same name (no such problem in non-@ObjCMirror
-            // declarations).  As a workaround, comment out such fields.
-            return name != type.name() && is_objc_compatible(type);
-    }
+    return !normal_mode() || (is_objc_compatible(type) && !has_name_clash_with_referenced_types(member, name));
 }
 
 static void print_objcmirror_attribute(std::ostream& output, const NamedTypeSymbol& decl, bool supported)
@@ -648,12 +647,11 @@ public:
 private:
     void write_property(const NonTypeSymbol& prop);
     void write_constructor(NonTypeSymbol& constructor);
-    void write_instance_variable(const NonTypeSymbol& ivar);
+    void write_instance_variable(NonTypeSymbol& ivar);
     void write_field(const NonTypeSymbol& field);
 
     IndentingStringStream& output_;
     TypeDeclarationSymbol& decl_;
-    DeclKind decl_kind_;
     PrintFormat format_;
     bool any_constructor_exists_ = false;
     bool default_constructor_exists_ = false;
@@ -667,27 +665,37 @@ TypeDeclarationWriter::TypeDeclarationWriter(IndentingStringStream& output, Type
 void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
 {
     assert(prop.is_property());
-    const auto& return_type = get_property_type(decl_, prop);
+    auto is_static = prop.is_static();
+    const auto& getter_name = prop.getter();
+
+    // For properties, not the property itself but its getter is passed to
+    // 'is_property_or_ivar_type_supported'.  That is because
+    // NonTypeSymbol::visit_referenced_types still cannot properly visit all types.
+    // Should be fixed later.
+    auto* getter = get_method_by_selector(decl_, getter_name, is_static);
+    assert(getter);
+    const auto& return_type = getter->return_type();
     assert(!return_type.is_unit());
     const auto& name = prop.name();
-    auto supported = is_field_type_supported(decl_kind_, return_type, name);
+    auto supported = is_property_or_ivar_type_supported(*getter, return_type, name);
     if (!supported) {
         output_.set_comment();
     }
 
     // Only interfaces can have @ObjCOptional members, not classes
-    assert(!prop.is_objc_optional() || decl_kind_ == DeclKind::Interface);
-    if (decl_kind_ == DeclKind::Interface) {
+    auto is_protocol = decl_.is(NamedTypeSymbol::Kind::Protocol);
+    assert(!prop.is_objc_optional() || is_protocol);
+    if (is_protocol) {
         print_objc_optional(output_, prop);
     }
 
     print_getter_setter_names(output_, prop);
-    if (decl_kind_ != DeclKind::Interface) {
+    if (!is_protocol) {
         output_ << "public ";
     }
-    if (prop.is_static()) {
+    if (is_static) {
         output_ << "static ";
-    } else if (decl_kind_ != DeclKind::Interface) {
+    } else if (!is_protocol) {
         output_ << "open ";
     }
     if (!prop.is_readonly()) {
@@ -716,8 +724,8 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
 void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
 {
     assert(constructor.is_constructor());
-    auto supported =
-        decl_kind_ != DeclKind::Interface && (!normal_mode() || is_objc_compatible_parameters(constructor));
+    auto is_protocol = decl_.is(NamedTypeSymbol::Kind::Protocol);
+    auto supported = !is_protocol && (!normal_mode() || is_objc_compatible_parameters(constructor));
     if (supported) {
         any_constructor_exists_ = true;
         if (!default_constructor_exists_) {
@@ -734,7 +742,7 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
         // The constructor will be written as a static method with its original name.
         write_foreign_name(output_, constructor);
 
-        if (decl_kind_ != DeclKind::Interface) {
+        if (!is_protocol) {
             output_ << "public ";
         }
         output_ << "static func " << escape_keyword(constructor.name());
@@ -742,7 +750,7 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
 
         const auto& return_type = constructor.return_type();
         write_type(output_, return_type, format_);
-        if (generate_definitions_mode() && decl_kind_ != DeclKind::Interface) {
+        if (generate_definitions_mode() && !is_protocol) {
             output_ << " { " << default_value(return_type, format_) << " }";
         }
         if (supported) {
@@ -757,12 +765,12 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
             write_foreign_name(output_, foreign_name_attribute, selector);
         }
 
-        if (decl_kind_ != DeclKind::Interface) {
+        if (!is_protocol) {
             output_ << "public ";
         }
         output_ << default_constructor_name;
         write_method_parameters(output_, constructor, format_);
-        if (generate_definitions_mode() && decl_kind_ != DeclKind::Interface) {
+        if (generate_definitions_mode() && !is_protocol) {
             output_ << " { }";
         }
     }
@@ -772,7 +780,7 @@ void TypeDeclarationWriter::write_constructor(NonTypeSymbol& constructor)
     output_ << '\n';
 }
 
-void TypeDeclarationWriter::write_instance_variable(const NonTypeSymbol& ivar)
+void TypeDeclarationWriter::write_instance_variable(NonTypeSymbol& ivar)
 {
     assert(ivar.is_instance_variable());
     assert(ivar.is_instance());
@@ -780,7 +788,7 @@ void TypeDeclarationWriter::write_instance_variable(const NonTypeSymbol& ivar)
     assert(!return_type.is_unit());
     assert(ivar.is_public() || ivar.is_protected());
     const auto& name = ivar.name();
-    auto supported = is_field_type_supported(decl_kind_, return_type, name);
+    auto supported = is_property_or_ivar_type_supported(ivar, return_type, name);
     if (!supported) {
         output_.set_comment();
     }
@@ -810,21 +818,12 @@ void TypeDeclarationWriter::write_field(const NonTypeSymbol& field)
     }
     const auto& return_type = field.return_type();
     assert(!return_type.is_unit());
-    const auto& name = field.name();
-    auto supported = is_field_type_supported(decl_kind_, return_type, name);
-    if (!supported) {
-        output_.set_comment();
-    }
-    output_ << "public var " << escape_keyword(name);
+    output_ << "public var " << escape_keyword(field.name());
     write_type(output_, return_type, format_);
     if (mode != Mode::EXPERIMENTAL) {
         output_ << " = " << default_value(return_type, format_);
     }
-    if (supported) {
-        collect_import(return_type);
-    } else {
-        output_.reset_comment();
-    }
+    collect_import(return_type);
     output_ << '\n';
 }
 
@@ -841,41 +840,25 @@ void TypeDeclarationWriter::write()
     // classes/interfaces and structures.
     switch (decl_.kind()) {
         case NamedTypeSymbol::Kind::Protocol:
-            decl_kind_ = DeclKind::Interface;
             format_ = PrintFormat::EmitCangjieStrict;
             print_objcmirror_attribute(output_, decl_, !generate_definitions_mode());
+            output_ << "public interface";
             break;
         case NamedTypeSymbol::Kind::Struct:
         case NamedTypeSymbol::Kind::Union:
+            format_ = PrintFormat::EmitCangjie;
             if (decl_.is_ctype()) {
-                decl_kind_ = DeclKind::CStruct;
-                format_ = PrintFormat::EmitCangjie;
                 output_ << "@C\n";
             } else {
-                decl_kind_ = DeclKind::ObjCStruct;
-                format_ = PrintFormat::EmitCangjie;
                 print_objcmirror_attribute(output_, decl_, mode == Mode::EXPERIMENTAL);
             }
+            output_ << "public struct";
             break;
         default:
             assert(decl_.kind() == NamedTypeSymbol::Kind::Interface);
-            decl_kind_ = DeclKind::Class;
             format_ = PrintFormat::EmitCangjieStrict;
             print_objcmirror_attribute(output_, decl_, !generate_definitions_mode());
-            break;
-    }
-    output_ << "public ";
-    switch (decl_kind_) {
-        case DeclKind::Interface:
-            output_ << "interface";
-            break;
-        case DeclKind::CStruct:
-        case DeclKind::ObjCStruct:
-            output_ << "struct";
-            break;
-        default:
-            assert(decl_kind_ == DeclKind::Class);
-            output_ << "open class";
+            output_ << "public open class";
             break;
     }
     output_ << ' ' << escape_keyword(decl_.name());
@@ -906,19 +889,25 @@ void TypeDeclarationWriter::write()
         if (closure_depth < UNLIMITED_CLOSURE_DEPTH && member.calculate_reference_level(decl_) > closure_depth) {
             continue;
         }
-        if (member.is_property()) {
-            write_property(member);
-        } else if (member.is_constructor()) {
-            write_constructor(member);
-        } else if (member.is_member_method()) {
-            write_function(output_,
-                decl_kind_ == DeclKind::Interface ? FuncKind::InterfaceMethod : FuncKind::ClassMethod, member, format_);
-        } else if (member.is_instance_variable()) {
-            write_instance_variable(member);
-        } else if (member.is_field()) {
-            write_field(member);
-        } else {
-            assert(false);
+        switch (member.kind()) {
+            case NonTypeSymbol::Kind::Property:
+                write_property(member);
+                break;
+            case NonTypeSymbol::Kind::Constructor:
+                write_constructor(member);
+                break;
+            case NonTypeSymbol::Kind::MemberMethod:
+                write_function(output_,
+                    decl_.is(NamedTypeSymbol::Kind::Protocol) ? FuncKind::InterfaceMethod : FuncKind::ClassMethod,
+                    member, format_);
+                break;
+            case NonTypeSymbol::Kind::InstanceVariable:
+                write_instance_variable(member);
+                break;
+            default:
+                assert(member.is_field());
+                write_field(member);
+                break;
         }
     }
 
