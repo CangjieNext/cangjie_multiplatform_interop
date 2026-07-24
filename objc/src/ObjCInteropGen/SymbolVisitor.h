@@ -36,7 +36,7 @@ public:
      * - Element type of VArray
      * - Underlying type of an unexposed type
      */
-    void visit_type_argument(const TypeLikeSymbol& owner, const Type& value);
+    void visit_type_argument(const Type& value);
 
     /** Member (that is, non-type) of a type declaration */
     void visit_member(const NonTypeSymbol& value);
@@ -61,7 +61,7 @@ private:
 
     virtual void visit_type_impl(const NamedTypeSymbol& value) = 0;
 
-    virtual void visit_type_argument_impl(const TypeLikeSymbol& owner, const Type& value) = 0;
+    virtual void visit_type_argument_impl(const Type& value) = 0;
 
     virtual void visit_member_impl(const NonTypeSymbol& value) = 0;
 
