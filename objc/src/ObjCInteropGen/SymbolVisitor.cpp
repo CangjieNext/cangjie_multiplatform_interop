@@ -35,9 +35,9 @@ void SymbolVisitor::visit_type(const NamedTypeSymbol& value)
     do_visit_type(value);
 }
 
-void SymbolVisitor::visit_type_argument(const TypeLikeSymbol& owner, const Type& value)
+void SymbolVisitor::visit_type_argument(const Type& value)
 {
-    visit_type_argument_impl(owner, value);
+    visit_type_argument_impl(value);
     if (allow_recurse_ && initial_allow_recurse_) {
         // These go to a separate declaration, collect them, but not their contents.
         allow_recurse_ = false;
