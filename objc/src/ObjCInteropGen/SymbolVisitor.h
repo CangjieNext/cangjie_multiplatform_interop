@@ -20,11 +20,16 @@ public:
      * - Target type of a type alias declaration
      * - Parameter or return type of a method or global function
      * - Type of a field or instance variable
+     * - Type argument of a type declaration
+     * - Pointee of a pointer type
+     * - Parameter or return type of a function-like type
+     * - Element type of VArray
+     * - Underlying type of an unexposed type
      */
-    void visit_type(const Type& type)
+    void visit_type(const Type& type, bool recurse)
     {
         visit_type_impl(type);
-        type.visit_impl(*this, !initial_allow_recurse_);
+        type.visit_impl(*this, !initial_allow_recurse_ && recurse);
     }
 
     /** One of the following:
@@ -35,19 +40,6 @@ public:
     {
         visit_type_impl(type_symbol);
         type_symbol.visit_impl(*this, !initial_allow_recurse_);
-    }
-
-    /** One of the following:
-     * - Type argument of a type declaration
-     * - Pointee of a pointer type
-     * - Parameter or return type of a function-like type
-     * - Element type of VArray
-     * - Underlying type of an unexposed type
-     */
-    void visit_type_argument(const Type& type, bool recurse)
-    {
-        visit_type_impl(type);
-        type.visit_impl(*this, !initial_allow_recurse_ && recurse);
     }
 
     /** Member (that is, non-type) of a type declaration */

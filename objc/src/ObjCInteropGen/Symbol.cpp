@@ -279,7 +279,7 @@ const Type& Type::varray_element_type() const noexcept
 void Type::visit_impl(SymbolVisitor& visitor, bool recurse) const
 {
     for (const auto& param : parameters_) {
-        visitor.visit_type_argument(param, recurse);
+        visitor.visit_type(param, recurse);
     }
 }
 
@@ -1019,7 +1019,7 @@ void TypeAliasSymbol::visit_impl(SymbolVisitor& visitor, bool recurse) const
     if (recurse) {
         const auto& target = this->target();
         if (target.has_symbol_assigned()) {
-            visitor.visit_type(target);
+            visitor.visit_type(target, true);
         }
     }
 }
@@ -1043,11 +1043,11 @@ void NonTypeSymbol::visit_impl(SymbolVisitor& visitor, bool recurse) const
 {
     if (recurse) {
         for (auto& parameter : this->parameters()) {
-            visitor.visit_type(parameter.type());
+            visitor.visit_type(parameter.type(), true);
         }
 
         if (kind_ != Kind::Property) {
-            visitor.visit_type(return_type());
+            visitor.visit_type(return_type(), true);
         }
     }
 }
