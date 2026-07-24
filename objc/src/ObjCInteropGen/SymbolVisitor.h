@@ -46,7 +46,7 @@ public:
      */
     void visit_type_argument(const Type& type, bool recurse)
     {
-        visit_type_argument_impl(type);
+        visit_type_impl(type);
         type.visit_impl(*this, !initial_allow_recurse_ && recurse);
     }
 
@@ -84,8 +84,6 @@ private:
     virtual void visit_type_impl(const Type& type) = 0;
 
     virtual void visit_type_impl(const NamedTypeSymbol& type_symbol) = 0;
-
-    virtual void visit_type_argument_impl(const Type& type) = 0;
 
     virtual void visit_member_impl(const NonTypeSymbol& type_symbol) = 0;
 
