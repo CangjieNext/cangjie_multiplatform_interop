@@ -127,8 +127,6 @@ void FileLevelSymbol::set_definition_location(const Location& location)
 bool FileLevelSymbol::add_reference(FileLevelSymbol& symbol)
 {
     assert(&symbol != this);
-    assert(symbol.is_file_level());
-    assert(is_file_level());
     return references_symbols_.insert(&symbol).second;
 }
 
@@ -136,7 +134,7 @@ void FileLevelSymbol::set_package_file(PackageFile& package_file) noexcept
 {
     assert(cangjie_package_name_.empty());
     assert(!output_file_);
-    assert(this->is_file_level());
+    assert(defining_file());
     output_file_ = &package_file;
 }
 

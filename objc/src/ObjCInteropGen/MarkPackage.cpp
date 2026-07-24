@@ -16,26 +16,21 @@
 
 namespace objcgen {
 
-static PackageFile& input_to_output(Package& package, const InputFile& input)
+[[nodiscard]] static PackageFile& input_to_output(Package& package, const InputFile& input)
 {
     const auto file_name = input.path().stem().u8string();
     auto* file = package[file_name];
     return *(file ? file : new PackageFile(file_name, package));
 }
 
-static PackageFile& input_to_output(Package& package, const FileLevelSymbol& symbol)
+[[nodiscard]] static PackageFile& input_to_output(Package& package, const FileLevelSymbol& symbol)
 {
     auto* input_file = symbol.defining_file();
     assert(input_file);
     return input_to_output(package, *input_file);
 }
 
-static bool check_symbol(FileLevelSymbol& symbol) noexcept
-{
-    return !symbol.is<PrimitiveTypeSymbol>() && symbol.is_file_level();
-}
-
-static bool set_package(FileLevelSymbol& symbol)
+[[nodiscard]] static bool set_package(FileLevelSymbol& symbol)
 {
     bool success = true;
 
@@ -66,7 +61,7 @@ static bool set_package(FileLevelSymbol& symbol)
     return success;
 }
 
-static bool mark_roots()
+[[nodiscard]] static bool mark_roots()
 {
     auto success = true;
 
@@ -139,7 +134,7 @@ private:
 void SymbolReferenceCollector::do_visit_impl(const FileLevelSymbol& value)
 {
     if (&value != &symbol_ // Self-reference
-        && value.is_file_level() && value.defining_file()) {
+        && value.defining_file()) {
         if (symbol_.add_reference(const_cast<FileLevelSymbol&>(value)) && verbosity >= LogLevel::TRACE) {
             std::cerr << "Entity `" << symbol_.name() << "` references `" << value.name() << "`\n";
         }
@@ -181,7 +176,7 @@ static void add_all_symbol_references()
 {
     for (const auto& input_file : inputs) {
         for (auto& symbol : input_file) {
-            assert(check_symbol(symbol));
+            assert(symbol.defining_file());
             SymbolReferenceCollector(symbol).visit();
         }
     }
@@ -189,7 +184,7 @@ static void add_all_symbol_references()
 
 static void symbol_references_to_packages_pass(ScopeBuilderStatus& status, FileLevelSymbol& symbol, bool roots_only)
 {
-    assert(check_symbol(symbol));
+    assert(symbol.defining_file());
 
     if (symbol.output_status() != (roots_only ? OutputStatus::Root : OutputStatus::Referenced)) {
         return;
@@ -236,7 +231,7 @@ static void symbol_references_to_packages_pass(ScopeBuilderStatus& status, FileL
     }
 }
 
-static ScopeBuilderStatus symbol_references_to_packages_pass(bool roots_only)
+[[nodiscard]] static ScopeBuilderStatus symbol_references_to_packages_pass(bool roots_only)
 {
     ScopeBuilderStatus status;
 
@@ -249,7 +244,7 @@ static ScopeBuilderStatus symbol_references_to_packages_pass(bool roots_only)
     return status;
 }
 
-static bool symbol_references_to_packages()
+[[nodiscard]] static bool symbol_references_to_packages()
 {
     auto status = symbol_references_to_packages_pass(true);
     auto error = status.error();
@@ -298,7 +293,7 @@ static void register_symbols_in_declaration_order()
 {
     for (const auto& input_file : inputs) {
         for (auto& symbol : input_file) {
-            assert(check_symbol(symbol));
+            assert(symbol.defining_file());
 
             if (auto* package_file = symbol.package_file()) {
                 package_file->add_symbol(symbol);
