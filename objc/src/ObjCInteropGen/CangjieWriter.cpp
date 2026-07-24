@@ -151,35 +151,35 @@ public:
     }
 
 private:
-    void visit_impl(const Type& value)
+    void visit_impl(const Type& type)
     {
-        visit_impl(value.symbol());
+        visit_impl(type.symbol());
     }
 
-    void visit_type_impl(const Type& value) override
+    void visit_type_impl(const Type& type) override
     {
-        visit_impl(value);
+        visit_impl(type);
     }
 
-    void visit_type_impl(const NamedTypeSymbol& value) override
+    void visit_type_impl(const NamedTypeSymbol& type_symbol) override
     {
-        visit_impl(value);
+        visit_impl(type_symbol);
     }
 
-    void visit_type_argument_impl(const Type& value) override
+    void visit_type_argument_impl(const Type& type) override
     {
         // If this is a type argument of an Objective-C generic type, ignore it.  Type
         // arguments are erased and may be printed inside comments only.
-        if (value.kind() == Type::Kind::TypeParam) {
+        if (type.kind() == Type::Kind::TypeParam) {
             return;
         }
 
-        visit_impl(value);
+        visit_impl(type);
     }
 
-    void visit_member_impl(const NonTypeSymbol& value) override
+    void visit_member_impl(const NonTypeSymbol& type_symbol) override
     {
-        visit_impl(value);
+        visit_impl(type_symbol);
     }
 
     void visit_impl(const FileLevelSymbol& symbol) override;

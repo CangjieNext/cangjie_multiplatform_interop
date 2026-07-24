@@ -276,10 +276,10 @@ const Type& Type::varray_element_type() const noexcept
     return parameters_.front();
 }
 
-void Type::visit_impl(SymbolVisitor& visitor) const
+void Type::visit_impl(SymbolVisitor& visitor, bool recurse) const
 {
     for (const auto& param : parameters_) {
-        visitor.visit_type_argument(param);
+        visitor.visit_type_argument(param, recurse);
     }
 }
 
@@ -719,9 +719,9 @@ bool EnumDeclarationSymbol::set_reference_level(unsigned new_reference_level) no
     return set;
 }
 
-void EnumDeclarationSymbol::visit_impl(SymbolVisitor& visitor) const
+void EnumDeclarationSymbol::visit_impl(SymbolVisitor& visitor, bool recurse) const
 {
-    if (underlying_type_) {
+    if (recurse && underlying_type_) {
         visitor.visit_type(*underlying_type_);
     }
 }
@@ -901,15 +901,17 @@ void TypeDeclarationSymbol::mark_static_instance_clashes_resolved() noexcept
     static_instance_clashes_resolved_ = true;
 }
 
-void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor) const
+void TypeDeclarationSymbol::visit_impl(SymbolVisitor& visitor, bool recurse) const
 {
-    // It could make sense to analyze if infinite recursion is possible her.  With
-    // CRTP for example.
-    for (auto& base : this->bases()) {
-        visitor.visit_type(base);
-    }
-    for (auto& member : this->members()) {
-        visitor.visit_member(member);
+    if (recurse) {
+        // It could make sense to analyze if infinite recursion is possible here.  With
+        // CRTP for example.
+        for (auto& base : this->bases()) {
+            visitor.visit_type(base);
+        }
+        for (auto& member : this->members()) {
+            visitor.visit_member(member);
+        }
     }
 }
 
@@ -1012,11 +1014,13 @@ bool TypeAliasSymbol::set_reference_level(unsigned new_reference_level) noexcept
     return set;
 }
 
-void TypeAliasSymbol::visit_impl(SymbolVisitor& visitor) const
+void TypeAliasSymbol::visit_impl(SymbolVisitor& visitor, bool recurse) const
 {
-    const auto& target = this->target();
-    if (target.has_symbol_assigned()) {
-        visitor.visit_type(target);
+    if (recurse) {
+        const auto& target = this->target();
+        if (target.has_symbol_assigned()) {
+            visitor.visit_type(target);
+        }
     }
 }
 
@@ -1035,14 +1039,16 @@ bool NonTypeSymbol::is_ctype() const noexcept
         return_type_.is_ctype();
 }
 
-void NonTypeSymbol::visit_impl(SymbolVisitor& visitor) const
+void NonTypeSymbol::visit_impl(SymbolVisitor& visitor, bool recurse) const
 {
-    for (auto& parameter : this->parameters()) {
-        visitor.visit_type(parameter.type());
-    }
+    if (recurse) {
+        for (auto& parameter : this->parameters()) {
+            visitor.visit_type(parameter.type());
+        }
 
-    if (kind_ != Kind::Property) {
-        visitor.visit_type(return_type());
+        if (kind_ != Kind::Property) {
+            visitor.visit_type(return_type());
+        }
     }
 }
 

@@ -90,26 +90,26 @@ public:
 private:
     FileLevelSymbol& symbol_;
 
-    void do_visit_impl(const FileLevelSymbol& value);
+    void do_visit_impl(const FileLevelSymbol& symbol);
 
-    void visit_type_impl(const Type& value) override
+    void visit_type_impl(const Type& type) override
     {
-        do_visit_impl(value.symbol());
+        do_visit_impl(type.symbol());
     }
 
-    void visit_type_impl(const NamedTypeSymbol& value) override
+    void visit_type_impl(const NamedTypeSymbol& type_symbol) override
     {
-        do_visit_impl(value);
+        do_visit_impl(type_symbol);
     }
 
-    void visit_type_argument_impl(const Type& value) override
+    void visit_type_argument_impl(const Type& type) override
     {
-        do_visit_impl(value.symbol());
+        do_visit_impl(type.symbol());
     }
 
-    void visit_member_impl(const NonTypeSymbol& value) override
+    void visit_member_impl(const NonTypeSymbol& type_symbol) override
     {
-        do_visit_impl(value);
+        do_visit_impl(type_symbol);
     }
 
     void visit_impl(const FileLevelSymbol&) override
@@ -118,12 +118,12 @@ private:
     }
 };
 
-void SymbolReferenceCollector::do_visit_impl(const FileLevelSymbol& value)
+void SymbolReferenceCollector::do_visit_impl(const FileLevelSymbol& symbol)
 {
-    if (&value != &symbol_ // Self-reference
-        && value.defining_file()) {
-        if (symbol_.add_reference(const_cast<FileLevelSymbol&>(value)) && verbosity >= LogLevel::TRACE) {
-            std::cerr << "Entity `" << symbol_.name() << "` references `" << value.name() << "`\n";
+    if (&symbol != &symbol_ // Self-reference
+        && symbol.defining_file()) {
+        if (symbol_.add_reference(const_cast<FileLevelSymbol&>(symbol)) && verbosity >= LogLevel::TRACE) {
+            std::cerr << "Entity `" << symbol_.name() << "` references `" << symbol.name() << "`\n";
         }
     }
 }

@@ -21,18 +21,20 @@ public:
      * - Parameter or return type of a method or global function
      * - Type of a field or instance variable
      */
-    void visit_type(const Type& value)
+    void visit_type(const Type& type)
     {
-        do_visit_type(value);
+        visit_type_impl(type);
+        type.visit_impl(*this, !initial_allow_recurse_);
     }
 
     /** One of the following:
      * - Base type of a type declaration
      * - Underlying type of an enumeration declaration
      */
-    void visit_type(const NamedTypeSymbol& value)
+    void visit_type(const NamedTypeSymbol& type_symbol)
     {
-        do_visit_type(value);
+        visit_type_impl(type_symbol);
+        type_symbol.visit_impl(*this, !initial_allow_recurse_);
     }
 
     /** One of the following:
@@ -42,82 +44,50 @@ public:
      * - Element type of VArray
      * - Underlying type of an unexposed type
      */
-    void visit_type_argument(const Type& value)
+    void visit_type_argument(const Type& type, bool recurse)
     {
-        visit_type_argument_impl(value);
-        if (allow_recurse_ && initial_allow_recurse_) {
-            // These go to a separate declaration, collect them, but not their contents.
-            allow_recurse_ = false;
-            // We still recurse, because we need to collect type arguments and the like.
-            value.visit_impl(*this);
-            allow_recurse_ = true;
-        } else {
-            // Everything that is present in Cangjie type reference in the source code
-            // should be always collected
-            value.visit_impl(*this);
-        }
+        visit_type_argument_impl(type);
+        type.visit_impl(*this, !initial_allow_recurse_ && recurse);
     }
 
     /** Member (that is, non-type) of a type declaration */
-    void visit_member(const NonTypeSymbol& value)
+    void visit_member(const NonTypeSymbol& member)
     {
-        // If recursion is not allowed, skip this property (don't collect and don't recurse into it).
-        if (allow_recurse_) {
-            visit_member_impl(value);
+        visit_member_impl(member);
 
-            // Members should be walked fully if we still walk them.
-            value.visit_impl(*this);
-        }
+        // Members should be walked fully if we still walk them.
+        member.visit_impl(*this, true);
     }
 
     void visit(const FileLevelSymbol& symbol)
     {
         // We just started the walk, don't bail out immediately.
-        assert(allow_recurse_ || symbol.is<TypeLikeSymbol>());
+        assert(initial_allow_recurse_ || symbol.is<TypeLikeSymbol>());
         visit_impl(symbol);
-        symbol.visit_impl(*this);
+        symbol.visit_impl(*this, initial_allow_recurse_);
     }
 
     void visit(const Type& type)
     {
         visit(type.symbol());
-        type.visit_impl(*this);
+        type.visit_impl(*this, initial_allow_recurse_);
     }
 
 protected:
-    explicit SymbolVisitor(bool initial_allow_recurse) noexcept
-        : initial_allow_recurse_(initial_allow_recurse), allow_recurse_(initial_allow_recurse)
+    explicit SymbolVisitor(bool initial_allow_recurse) noexcept : initial_allow_recurse_(initial_allow_recurse)
     {
     }
 
 private:
     const bool initial_allow_recurse_;
-    bool allow_recurse_;
 
-    template <class Value> void do_visit_type(const Value& value)
-    {
-        // If recursion is not allowed, skip this property (don't collect and don't recurse into it).
-        if (allow_recurse_) {
-            visit_type_impl(value);
-            if (initial_allow_recurse_) {
-                // These go to a separate declaration, collect them, but not their contents.
-                allow_recurse_ = false;
-                // We still recurse, because we need to collect type arguments and the like.
-                value.visit_impl(*this);
-                allow_recurse_ = true;
-            } else {
-                value.visit_impl(*this);
-            }
-        }
-    }
+    virtual void visit_type_impl(const Type& type) = 0;
 
-    virtual void visit_type_impl(const Type& value) = 0;
+    virtual void visit_type_impl(const NamedTypeSymbol& type_symbol) = 0;
 
-    virtual void visit_type_impl(const NamedTypeSymbol& value) = 0;
+    virtual void visit_type_argument_impl(const Type& type) = 0;
 
-    virtual void visit_type_argument_impl(const Type& value) = 0;
-
-    virtual void visit_member_impl(const NonTypeSymbol& value) = 0;
+    virtual void visit_member_impl(const NonTypeSymbol& type_symbol) = 0;
 
     virtual void visit_impl(const FileLevelSymbol& symbol) = 0;
 };
