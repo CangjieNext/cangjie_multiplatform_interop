@@ -156,7 +156,9 @@ protected:
 private:
     friend class SymbolVisitor;
 
-    virtual void visit_impl(SymbolVisitor& visitor) const = 0;
+    virtual void visit_impl([[maybe_unused]] SymbolVisitor& visitor, [[maybe_unused]] bool recurse) const
+    {
+    }
 
     // Applicable only for symbols with the same defining file
     friend bool operator<(const FileLevelSymbol& symbol1, const FileLevelSymbol& symbol2) noexcept;
@@ -274,7 +276,7 @@ public:
         return varray_size_;
     }
 
-    void visit_impl(SymbolVisitor& visitor) const;
+    void visit_impl(SymbolVisitor& visitor, bool recurse) const;
 
     [[nodiscard]] bool is_ctype() const noexcept;
 
@@ -399,10 +401,6 @@ public:
     }
 
 private:
-    void visit_impl(SymbolVisitor&) const override
-    {
-    }
-
     [[nodiscard]] TypeLikeSymbol& map() override
     {
         return *this;
@@ -437,10 +435,6 @@ private:
         return true;
     }
 
-    void visit_impl(SymbolVisitor&) const override
-    {
-    }
-
     // In clang, the enum underlying type can also be a 128bit integral
     uint64_t value_[2];
 };
@@ -470,7 +464,7 @@ private:
         return true;
     }
 
-    void visit_impl(SymbolVisitor& visitor) const override;
+    void visit_impl(SymbolVisitor& visitor, bool recurse) const override;
 
     [[nodiscard]] bool empty() const noexcept
     {
@@ -519,10 +513,6 @@ private:
         return true;
     }
 
-    void visit_impl(SymbolVisitor&) const override
-    {
-    }
-
     [[nodiscard]] bool is_unit() const noexcept override
     {
         return category_ == PrimitiveTypeCategory::Unit;
@@ -557,10 +547,6 @@ public:
 
 private:
     void print(std::ostream& stream, PrintFormat format) const override;
-
-    void visit_impl(SymbolVisitor&) const override
-    {
-    }
 
     [[nodiscard]] bool is_ctype() const noexcept override
     {
@@ -600,10 +586,6 @@ public:
     }
 
 private:
-    void visit_impl(SymbolVisitor&) const override
-    {
-    }
-
     [[nodiscard]] TypeParameterSymbol& map() override
     {
         return *this;
@@ -710,7 +692,7 @@ public:
     void mark_static_instance_clashes_resolved() noexcept;
 
 private:
-    void visit_impl(SymbolVisitor& visitor) const override;
+    void visit_impl(SymbolVisitor& visitor, bool recurse) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -787,7 +769,7 @@ private:
         return target_.has_symbol_assigned() && target_.is_ctype();
     }
 
-    void visit_impl(SymbolVisitor& visitor) const override;
+    void visit_impl(SymbolVisitor& visitor, bool recurse) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -851,7 +833,7 @@ public:
 
     [[nodiscard]] bool is_ctype() const noexcept override;
 
-    void visit_impl(SymbolVisitor& visitor) const override;
+    void visit_impl(SymbolVisitor& visitor, bool recurse) const override;
 
     [[nodiscard]] Kind kind() const noexcept
     {
