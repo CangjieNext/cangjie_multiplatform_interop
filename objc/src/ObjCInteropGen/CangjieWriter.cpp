@@ -166,11 +166,11 @@ private:
         visit_impl(value);
     }
 
-    void visit_type_argument_impl(const TypeLikeSymbol& owner, const Type& value) override
+    void visit_type_argument_impl(const Type& value) override
     {
         // If this is a type argument of an Objective-C generic type, ignore it.  Type
         // arguments are erased and may be printed inside comments only.
-        if (owner.is<TypeDeclarationSymbol>()) {
+        if (value.kind() == Type::Kind::TypeParam) {
             return;
         }
 

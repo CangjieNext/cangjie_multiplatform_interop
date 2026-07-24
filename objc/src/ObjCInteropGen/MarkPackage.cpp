@@ -102,7 +102,7 @@ private:
         do_visit_impl(value);
     }
 
-    void visit_type_argument_impl(const TypeLikeSymbol&, const Type& value) override
+    void visit_type_argument_impl(const Type& value) override
     {
         do_visit_impl(value.symbol());
     }

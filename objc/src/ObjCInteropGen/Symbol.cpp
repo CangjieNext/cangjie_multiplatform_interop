@@ -278,25 +278,8 @@ const Type& Type::varray_element_type() const noexcept
 
 void Type::visit_impl(SymbolVisitor& visitor) const
 {
-    switch (kind_) {
-        case Kind::Unit:
-            break;
-        case Kind::Named:
-        case Kind::Function:
-        case Kind::Block:
-            assert(symbol_);
-            for (const auto& param : parameters_) {
-                visitor.visit_type_argument(*symbol_, param);
-            }
-            break;
-        case Kind::Pointer:
-        case Kind::VArray:
-            assert(symbol_);
-            assert(parameters_.size() == 1);
-            visitor.visit_type_argument(*symbol_, parameters_.front());
-            break;
-        default:
-            break;
+    for (const auto& param : parameters_) {
+        visitor.visit_type_argument(param);
     }
 }
 
