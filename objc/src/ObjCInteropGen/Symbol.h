@@ -161,7 +161,7 @@ protected:
 private:
     friend class SymbolVisitor;
 
-    virtual void visit_impl([[maybe_unused]] SymbolVisitor& visitor, [[maybe_unused]] bool recurse) const
+    virtual void iterate([[maybe_unused]] SymbolVisitor& visitor) const
     {
     }
 
@@ -279,7 +279,7 @@ public:
         return varray_size_;
     }
 
-    void visit_impl(SymbolVisitor& visitor, bool recurse) const;
+    void iterate(SymbolVisitor& visitor, bool recurse) const;
 
     [[nodiscard]] bool is_ctype() const noexcept;
 
@@ -471,7 +471,7 @@ private:
 
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    void visit_impl(SymbolVisitor& visitor, bool recurse) const override;
+    void iterate(SymbolVisitor& visitor) const override;
 
     [[nodiscard]] bool empty() const noexcept
     {
@@ -700,7 +700,7 @@ public:
     void mark_static_instance_clashes_resolved() noexcept;
 
 private:
-    void visit_impl(SymbolVisitor& visitor, bool recurse) const override;
+    void iterate(SymbolVisitor& visitor) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -781,7 +781,7 @@ private:
 
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    void visit_impl(SymbolVisitor& visitor, bool recurse) const override;
+    void iterate(SymbolVisitor& visitor) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -845,7 +845,7 @@ public:
 
     [[nodiscard]] bool is_ctype() const noexcept override;
 
-    void visit_impl(SymbolVisitor& visitor, bool recurse) const override;
+    void iterate(SymbolVisitor& visitor) const override;
 
     [[nodiscard]] Kind kind() const noexcept
     {
