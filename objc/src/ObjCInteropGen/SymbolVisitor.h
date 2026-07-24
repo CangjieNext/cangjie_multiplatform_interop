@@ -29,7 +29,7 @@ public:
     void visit_type(const Type& type, bool recurse)
     {
         visit_impl(type.symbol());
-        type.visit_impl(*this, !initial_allow_recurse_ && recurse);
+        type.iterate(*this, !initial_allow_recurse_ && recurse);
     }
 
     /** One of the following:
@@ -39,7 +39,9 @@ public:
     void visit_type(const NamedTypeSymbol& type_symbol)
     {
         visit_impl(type_symbol);
-        type_symbol.visit_impl(*this, !initial_allow_recurse_);
+        if (!initial_allow_recurse_) {
+            type_symbol.iterate(*this);
+        }
     }
 
     /** Member (that is, non-type) of a type declaration */
@@ -48,7 +50,7 @@ public:
         visit_impl(member);
 
         // Members should be walked fully if we still walk them.
-        member.visit_impl(*this, true);
+        member.iterate(*this);
     }
 
     void visit(const FileLevelSymbol& symbol)
@@ -56,13 +58,15 @@ public:
         // We just started the walk, don't bail out immediately.
         assert(initial_allow_recurse_ || symbol.is<TypeLikeSymbol>());
         visit_impl(symbol);
-        symbol.visit_impl(*this, initial_allow_recurse_);
+        if (initial_allow_recurse_) {
+            symbol.iterate(*this);
+        }
     }
 
     void visit(const Type& type)
     {
         visit(type.symbol());
-        type.visit_impl(*this, initial_allow_recurse_);
+        type.iterate(*this, initial_allow_recurse_);
     }
 
 protected:
