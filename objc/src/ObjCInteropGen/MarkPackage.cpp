@@ -102,11 +102,6 @@ private:
         do_visit_impl(type_symbol);
     }
 
-    void visit_type_argument_impl(const Type& type) override
-    {
-        do_visit_impl(type.symbol());
-    }
-
     void visit_member_impl(const NonTypeSymbol& type_symbol) override
     {
         do_visit_impl(type_symbol);

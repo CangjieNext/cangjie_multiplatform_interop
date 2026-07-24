@@ -166,17 +166,6 @@ private:
         visit_impl(type_symbol);
     }
 
-    void visit_type_argument_impl(const Type& type) override
-    {
-        // If this is a type argument of an Objective-C generic type, ignore it.  Type
-        // arguments are erased and may be printed inside comments only.
-        if (type.kind() == Type::Kind::TypeParam) {
-            return;
-        }
-
-        visit_impl(type);
-    }
-
     void visit_member_impl(const NonTypeSymbol& type_symbol) override
     {
         visit_impl(type_symbol);
