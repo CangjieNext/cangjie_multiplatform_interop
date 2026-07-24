@@ -28,7 +28,7 @@ public:
      */
     void visit_type(const Type& type, bool recurse)
     {
-        visit_type_impl(type);
+        visit_impl(type.symbol());
         type.visit_impl(*this, !initial_allow_recurse_ && recurse);
     }
 
@@ -38,14 +38,14 @@ public:
      */
     void visit_type(const NamedTypeSymbol& type_symbol)
     {
-        visit_type_impl(type_symbol);
+        visit_impl(type_symbol);
         type_symbol.visit_impl(*this, !initial_allow_recurse_);
     }
 
     /** Member (that is, non-type) of a type declaration */
     void visit_member(const NonTypeSymbol& member)
     {
-        visit_member_impl(member);
+        visit_impl(member);
 
         // Members should be walked fully if we still walk them.
         member.visit_impl(*this, true);
@@ -72,12 +72,6 @@ protected:
 
 private:
     const bool initial_allow_recurse_;
-
-    virtual void visit_type_impl(const Type& type) = 0;
-
-    virtual void visit_type_impl(const NamedTypeSymbol& type_symbol) = 0;
-
-    virtual void visit_member_impl(const NonTypeSymbol& type_symbol) = 0;
 
     virtual void visit_impl(const FileLevelSymbol& symbol) = 0;
 };
