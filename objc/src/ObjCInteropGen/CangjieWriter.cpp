@@ -151,26 +151,6 @@ public:
     }
 
 private:
-    void visit_impl(const Type& type)
-    {
-        visit_impl(type.symbol());
-    }
-
-    void visit_type_impl(const Type& type) override
-    {
-        visit_impl(type);
-    }
-
-    void visit_type_impl(const NamedTypeSymbol& type_symbol) override
-    {
-        visit_impl(type_symbol);
-    }
-
-    void visit_member_impl(const NonTypeSymbol& type_symbol) override
-    {
-        visit_impl(type_symbol);
-    }
-
     void visit_impl(const FileLevelSymbol& symbol) override;
 };
 

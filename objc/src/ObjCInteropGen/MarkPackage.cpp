@@ -90,30 +90,10 @@ public:
 private:
     FileLevelSymbol& symbol_;
 
-    void do_visit_impl(const FileLevelSymbol& symbol);
-
-    void visit_type_impl(const Type& type) override
-    {
-        do_visit_impl(type.symbol());
-    }
-
-    void visit_type_impl(const NamedTypeSymbol& type_symbol) override
-    {
-        do_visit_impl(type_symbol);
-    }
-
-    void visit_member_impl(const NonTypeSymbol& type_symbol) override
-    {
-        do_visit_impl(type_symbol);
-    }
-
-    void visit_impl(const FileLevelSymbol&) override
-    {
-        // Skip the root type of this visit session to avoid self-referencing of each type.
-    }
+    void visit_impl(const FileLevelSymbol& symbol) override;
 };
 
-void SymbolReferenceCollector::do_visit_impl(const FileLevelSymbol& symbol)
+void SymbolReferenceCollector::visit_impl(const FileLevelSymbol& symbol)
 {
     if (&symbol != &symbol_ // Self-reference
         && symbol.defining_file()) {
