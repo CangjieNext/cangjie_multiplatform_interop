@@ -85,8 +85,6 @@ enum class OutputStatus { Undefined, Root, Referenced, ReferencedMarked, MultiRe
 
 class FileLevelSymbol : public Symbol {
 public:
-    [[nodiscard]] virtual bool is_file_level() const noexcept = 0;
-
     [[nodiscard]] virtual bool is_ctype() const noexcept
     {
         return false;
@@ -401,11 +399,6 @@ public:
     }
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return true;
-    }
-
     void visit_impl(SymbolVisitor&) const override
     {
     }
@@ -439,11 +432,6 @@ public:
     }
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return false;
-    }
-
     [[nodiscard]] bool is_ctype() const noexcept override
     {
         return true;
@@ -477,11 +465,6 @@ public:
     }
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return true;
-    }
-
     [[nodiscard]] bool is_ctype() const noexcept override
     {
         return true;
@@ -531,11 +514,6 @@ private:
         stream << name();
     }
 
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return false;
-    }
-
     [[nodiscard]] bool is_ctype() const noexcept override
     {
         return true;
@@ -580,11 +558,6 @@ public:
 private:
     void print(std::ostream& stream, PrintFormat format) const override;
 
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return false;
-    }
-
     void visit_impl(SymbolVisitor&) const override
     {
     }
@@ -627,11 +600,6 @@ public:
     }
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return false;
-    }
-
     void visit_impl(SymbolVisitor&) const override
     {
     }
@@ -742,11 +710,6 @@ public:
     void mark_static_instance_clashes_resolved() noexcept;
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return true;
-    }
-
     void visit_impl(SymbolVisitor& visitor) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
@@ -819,11 +782,6 @@ public:
     }
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return true;
-    }
-
     [[nodiscard]] bool is_ctype() const noexcept override
     {
         return target_.has_symbol_assigned() && target_.is_ctype();
@@ -1039,11 +997,6 @@ public:
     }
 
 private:
-    [[nodiscard]] bool is_file_level() const noexcept override
-    {
-        return is_global_function();
-    }
-
     Kind kind_;
     Modifiers modifiers_;
 

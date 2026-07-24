@@ -69,7 +69,7 @@ public:
 
     void add_symbol(FileLevelSymbol& symbol)
     {
-        assert(symbol.is_file_level());
+        assert(symbol.defining_file());
         symbols_.push_back(&symbol);
     }
 
