@@ -321,7 +321,7 @@ bool Type::is_ctype() const noexcept
         case Kind::TypeParam:
             return false;
         default:
-            assert(kind_ == Kind::Unit || kind_ == Kind::Unexposed);
+            assert(kind_ == Kind::Unit);
             return true;
     }
 }
@@ -341,7 +341,7 @@ bool Type::contains_pointer_or_func() const noexcept
             return std::any_of(parameters_.begin(), parameters_.end(),
                 [](const auto& parameter) { return parameter.contains_pointer_or_func(); });
         default:
-            assert(kind_ == Kind::Unit || kind_ == Kind::TypeParam || kind_ == Kind::Unexposed);
+            assert(kind_ == Kind::Unit || kind_ == Kind::TypeParam);
             return false;
     }
 }

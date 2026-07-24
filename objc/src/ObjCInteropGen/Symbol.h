@@ -221,7 +221,7 @@ enum class Nullability { Unspecified, Nullable, Nonnull };
 
 class Type {
 public:
-    enum class Kind { Unit, Named, TypeParam, VArray, Pointer, Function, Block, Unexposed };
+    enum class Kind { Unit, Named, TypeParam, VArray, Pointer, Function, Block };
 
     Type() = default;
 
