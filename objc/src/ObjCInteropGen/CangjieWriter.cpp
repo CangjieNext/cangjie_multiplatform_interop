@@ -17,7 +17,6 @@
 #include "PrintUtils.h"
 #include "Strings.h"
 #include "Symbol.h"
-#include "SymbolVisitor.h"
 #include "Universe.h"
 
 namespace objcgen {

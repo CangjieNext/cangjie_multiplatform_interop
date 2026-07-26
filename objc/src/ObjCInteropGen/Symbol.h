@@ -10,6 +10,7 @@
 
 #include <array>
 #include <cassert>
+#include <functional>
 #include <unordered_set>
 
 #include "Collection.h"
@@ -20,7 +21,6 @@ namespace objcgen {
 class NonTypeSymbol;
 class Package;
 class PackageFile;
-class SymbolVisitor;
 class TypeDeclarationSymbol;
 class TypeMapping;
 
@@ -97,7 +97,7 @@ public:
         return references_symbols_;
     }
 
-    [[nodiscard]] bool add_reference(FileLevelSymbol& symbol);
+    void collect_referenced_symbols();
 
     [[nodiscard]] InputFile* defining_file() const noexcept
     {
@@ -148,15 +148,19 @@ public:
         return static_cast<To&>(*this);
     }
 
+    template <class Func> void visit(Func func)
+    {
+        func(*this);
+        iterate(func);
+    }
+
 protected:
     explicit FileLevelSymbol(std::string name) noexcept : Symbol(std::move(name))
     {
     }
 
 private:
-    friend class SymbolVisitor;
-
-    virtual void iterate([[maybe_unused]] SymbolVisitor& visitor) const
+    virtual void iterate([[maybe_unused]] std::function<void(FileLevelSymbol&)> func)
     {
     }
 
@@ -276,7 +280,12 @@ public:
         return varray_size_;
     }
 
-    void iterate(SymbolVisitor& visitor) const;
+    template <class Func> void iterate(Func func)
+    {
+        for (auto& param : parameters_) {
+            param.visit(func);
+        }
+    }
 
     [[nodiscard]] bool is_ctype() const noexcept;
 
@@ -323,6 +332,13 @@ public:
     void print(std::ostream& stream, PrintFormat format) const;
 
     void print_default_value(std::ostream& stream, PrintFormat format) const;
+
+    template <class Func> void visit(Func func)
+    {
+        assert(symbol_);
+        func(*symbol_);
+        iterate(func);
+    }
 
 private:
     [[nodiscard]] Nullability init_nullability(Nullability nullability) noexcept;
@@ -464,7 +480,7 @@ private:
         return true;
     }
 
-    void iterate(SymbolVisitor& visitor) const override;
+    void iterate(std::function<void(FileLevelSymbol&)> func) override;
 
     [[nodiscard]] bool empty() const noexcept
     {
@@ -692,7 +708,7 @@ public:
     void mark_static_instance_clashes_resolved() noexcept;
 
 private:
-    void iterate(SymbolVisitor& visitor) const override;
+    void iterate(std::function<void(FileLevelSymbol&)> func) override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -769,7 +785,7 @@ private:
         return target_.has_symbol_assigned() && target_.is_ctype();
     }
 
-    void iterate(SymbolVisitor& visitor) const override;
+    void iterate(std::function<void(FileLevelSymbol&)> func) override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -833,7 +849,7 @@ public:
 
     [[nodiscard]] bool is_ctype() const noexcept override;
 
-    void iterate(SymbolVisitor& visitor) const override;
+    void iterate(std::function<void(FileLevelSymbol&)> func) override;
 
     [[nodiscard]] Kind kind() const noexcept
     {
