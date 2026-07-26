@@ -13,7 +13,6 @@
 #include "Mode.h"
 #include "Package.h"
 #include "PrintUtils.h"
-#include "SymbolVisitor.h"
 #include "Universe.h"
 
 namespace objcgen {
@@ -138,10 +137,14 @@ void FileLevelSymbol::set_definition_location(const Location& location)
     input_file_->add_symbol(*this);
 }
 
-bool FileLevelSymbol::add_reference(FileLevelSymbol& symbol)
+void FileLevelSymbol::collect_referenced_symbols()
 {
-    assert(&symbol != this);
-    return references_symbols_.insert(&symbol).second;
+    visit([this](FileLevelSymbol& s) {
+        if (&s != this // Self-reference
+            && s.defining_file() && references_symbols_.insert(&s).second && verbosity >= LogLevel::TRACE) {
+            std::cerr << "Entity `" << name() << "` references `" << s.name() << "`\n";
+        }
+    });
 }
 
 void FileLevelSymbol::register_for_package(Package& package)
@@ -274,13 +277,6 @@ const Type& Type::varray_element_type() const noexcept
     assert(kind_ == Kind::VArray);
     assert(parameters_.size() == 1);
     return parameters_.front();
-}
-
-void Type::iterate(SymbolVisitor& visitor) const
-{
-    for (const auto& param : parameters_) {
-        visitor.visit(param);
-    }
 }
 
 bool Type::is_ctype() const noexcept
@@ -719,10 +715,10 @@ bool EnumDeclarationSymbol::set_reference_level(unsigned new_reference_level) no
     return set;
 }
 
-void EnumDeclarationSymbol::iterate(SymbolVisitor& visitor) const
+void EnumDeclarationSymbol::iterate(std::function<void(FileLevelSymbol&)> func)
 {
     if (underlying_type_) {
-        visitor.visit(*underlying_type_);
+        underlying_type_->visit(func);
     }
 }
 
@@ -901,15 +897,15 @@ void TypeDeclarationSymbol::mark_static_instance_clashes_resolved() noexcept
     static_instance_clashes_resolved_ = true;
 }
 
-void TypeDeclarationSymbol::iterate(SymbolVisitor& visitor) const
+void TypeDeclarationSymbol::iterate(std::function<void(FileLevelSymbol&)> func)
 {
     // It could make sense to analyze if infinite recursion is possible here.  With
     // CRTP for example.
     for (auto& base : this->bases()) {
-        visitor.visit(base);
+        base.visit(func);
     }
     for (auto& member : this->members()) {
-        visitor.visit_member(member);
+        member.visit(func);
     }
 }
 
@@ -1012,11 +1008,11 @@ bool TypeAliasSymbol::set_reference_level(unsigned new_reference_level) noexcept
     return set;
 }
 
-void TypeAliasSymbol::iterate(SymbolVisitor& visitor) const
+void TypeAliasSymbol::iterate(std::function<void(FileLevelSymbol&)> func)
 {
-    const auto& target = this->target();
+    auto& target = this->target();
     if (target.has_symbol_assigned()) {
-        visitor.visit(target);
+        target.visit(func);
     }
 }
 
@@ -1035,14 +1031,14 @@ bool NonTypeSymbol::is_ctype() const noexcept
         return_type_.is_ctype();
 }
 
-void NonTypeSymbol::iterate(SymbolVisitor& visitor) const
+void NonTypeSymbol::iterate(std::function<void(FileLevelSymbol&)> func)
 {
     for (auto& parameter : this->parameters()) {
-        visitor.visit(parameter.type());
+        parameter.type().visit(func);
     }
 
     if (kind_ != Kind::Property) {
-        visitor.visit(return_type());
+        return_type().visit(func);
     }
 }
 
