@@ -278,10 +278,10 @@ const Type& Type::varray_element_type() const noexcept
     return parameters_.front();
 }
 
-void Type::iterate(SymbolVisitor& visitor, bool recurse) const
+void Type::iterate(SymbolVisitor& visitor) const
 {
     for (const auto& param : parameters_) {
-        visitor.visit_type(param, recurse);
+        visitor.visit(param);
     }
 }
 
@@ -726,7 +726,7 @@ bool EnumDeclarationSymbol::set_reference_level(unsigned new_reference_level) no
 void EnumDeclarationSymbol::iterate(SymbolVisitor& visitor) const
 {
     if (underlying_type_) {
-        visitor.visit_type(*underlying_type_);
+        visitor.visit(*underlying_type_);
     }
 }
 
@@ -926,7 +926,7 @@ void TypeDeclarationSymbol::iterate(SymbolVisitor& visitor) const
     // It could make sense to analyze if infinite recursion is possible here.  With
     // CRTP for example.
     for (auto& base : this->bases()) {
-        visitor.visit_type(base);
+        visitor.visit(base);
     }
     for (auto& member : this->members()) {
         visitor.visit_member(member);
@@ -1032,7 +1032,7 @@ void TypeAliasSymbol::iterate(SymbolVisitor& visitor) const
 {
     const auto& target = this->target();
     if (target.has_symbol_assigned()) {
-        visitor.visit_type(target, true);
+        visitor.visit(target);
     }
 }
 
@@ -1105,11 +1105,11 @@ bool NonTypeSymbol::is_ctype() const noexcept
 void NonTypeSymbol::iterate(SymbolVisitor& visitor) const
 {
     for (auto& parameter : this->parameters()) {
-        visitor.visit_type(parameter.type(), true);
+        visitor.visit(parameter.type());
     }
 
     if (kind_ != Kind::Property) {
-        visitor.visit_type(return_type(), true);
+        visitor.visit(return_type());
     }
 }
 

@@ -279,7 +279,7 @@ public:
         return varray_size_;
     }
 
-    void iterate(SymbolVisitor& visitor, bool recurse) const;
+    void iterate(SymbolVisitor& visitor) const;
 
     [[nodiscard]] bool is_ctype() const noexcept;
 
