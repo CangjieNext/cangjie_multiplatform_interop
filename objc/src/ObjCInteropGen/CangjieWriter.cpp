@@ -144,17 +144,7 @@ public:
     }
 };
 
-class ImportCollectVisitor final : public SymbolVisitor {
-public:
-    ImportCollectVisitor() noexcept : SymbolVisitor(false)
-    {
-    }
-
-private:
-    void visit_impl(const FileLevelSymbol& symbol) override;
-};
-
-void ImportCollectVisitor::visit_impl(const FileLevelSymbol& symbol)
+static void collect_import(const FileLevelSymbol& symbol)
 {
     assert(current_package);
     const auto* symbol_package = symbol.package();
@@ -163,14 +153,12 @@ void ImportCollectVisitor::visit_impl(const FileLevelSymbol& symbol)
     }
 }
 
-static void collect_import(const TypeLikeSymbol& symbol)
-{
-    ImportCollectVisitor().visit(symbol);
-}
-
 static void collect_import(const Type& type)
 {
-    ImportCollectVisitor().visit(type);
+    collect_import(type.symbol());
+    for (const auto& param : type.parameters()) {
+        collect_import(param);
+    }
 }
 
 // Currently in the NORMAL mode, Objective-C compatible types are primitives,
