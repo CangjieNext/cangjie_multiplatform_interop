@@ -11,7 +11,6 @@
 #include "InputFile.h"
 #include "Logging.h"
 #include "Package.h"
-#include "SymbolVisitor.h"
 #include "Universe.h"
 
 namespace objcgen {
@@ -74,34 +73,6 @@ namespace objcgen {
     return success;
 }
 
-class SymbolReferenceCollector final : public SymbolVisitor {
-
-public:
-    [[nodiscard]] explicit SymbolReferenceCollector(FileLevelSymbol& symbol) noexcept : symbol_(symbol)
-    {
-    }
-
-    void visit()
-    {
-        SymbolVisitor::visit(symbol_);
-    }
-
-private:
-    FileLevelSymbol& symbol_;
-
-    void visit_impl(const FileLevelSymbol& symbol) override;
-};
-
-void SymbolReferenceCollector::visit_impl(const FileLevelSymbol& symbol)
-{
-    if (&symbol != &symbol_ // Self-reference
-        && symbol.defining_file()) {
-        if (symbol_.add_reference(const_cast<FileLevelSymbol&>(symbol)) && verbosity >= LogLevel::TRACE) {
-            std::cerr << "Entity `" << symbol_.name() << "` references `" << symbol.name() << "`\n";
-        }
-    }
-}
-
 class ScopeBuilderStatus final {
     bool success_ = true;
     bool changed_ = false;
@@ -138,7 +109,7 @@ static void add_all_symbol_references()
     for (const auto& input_file : inputs) {
         for (auto& symbol : input_file) {
             assert(symbol.defining_file());
-            SymbolReferenceCollector(symbol).visit();
+            symbol.collect_referenced_symbols();
         }
     }
 }

@@ -41,7 +41,6 @@ add_executable(ObjCInteropGen
         Strings.h
         Symbol.cpp
         Symbol.h
-        SymbolVisitor.h
         Transform.cpp
         Transform.h
         Universe.cpp
