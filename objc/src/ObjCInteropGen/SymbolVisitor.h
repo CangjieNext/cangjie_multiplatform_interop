@@ -26,10 +26,10 @@ public:
      * - Element type of VArray
      * - Underlying type of an unexposed type
      */
-    void visit_type(const Type& type, bool recurse)
+    void visit_type(const Type& type, bool)
     {
         visit_impl(type.symbol());
-        type.iterate(*this, !initial_allow_recurse_ && recurse);
+        type.iterate(*this, false);
     }
 
     /** One of the following:
@@ -39,44 +39,28 @@ public:
     void visit_type(const NamedTypeSymbol& type_symbol)
     {
         visit_impl(type_symbol);
-        if (!initial_allow_recurse_) {
-            type_symbol.iterate(*this);
-        }
     }
 
     /** Member (that is, non-type) of a type declaration */
     void visit_member(const NonTypeSymbol& member)
     {
         visit_impl(member);
-
-        // Members should be walked fully if we still walk them.
         member.iterate(*this);
     }
 
     void visit(const FileLevelSymbol& symbol)
     {
-        // We just started the walk, don't bail out immediately.
-        assert(initial_allow_recurse_ || symbol.is<TypeLikeSymbol>());
         visit_impl(symbol);
-        if (initial_allow_recurse_) {
-            symbol.iterate(*this);
-        }
+        symbol.iterate(*this);
     }
 
     void visit(const Type& type)
     {
         visit(type.symbol());
-        type.iterate(*this, initial_allow_recurse_);
-    }
-
-protected:
-    explicit SymbolVisitor(bool initial_allow_recurse) noexcept : initial_allow_recurse_(initial_allow_recurse)
-    {
+        type.iterate(*this, true);
     }
 
 private:
-    const bool initial_allow_recurse_;
-
     virtual void visit_impl(const FileLevelSymbol& symbol) = 0;
 };
 
