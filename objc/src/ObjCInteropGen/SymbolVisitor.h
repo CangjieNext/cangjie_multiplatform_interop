@@ -26,10 +26,10 @@ public:
      * - Element type of VArray
      * - Underlying type of an unexposed type
      */
-    void visit_type(const Type& type, bool)
+    void visit(const Type& type)
     {
         visit_impl(type.symbol());
-        type.iterate(*this, false);
+        type.iterate(*this);
     }
 
     /** One of the following:
@@ -39,6 +39,7 @@ public:
     void visit_type(const NamedTypeSymbol& type_symbol)
     {
         visit_impl(type_symbol);
+        type_symbol.iterate(*this);
     }
 
     /** Member (that is, non-type) of a type declaration */
@@ -53,13 +54,6 @@ public:
         visit_impl(symbol);
         symbol.iterate(*this);
     }
-
-    void visit(const Type& type)
-    {
-        visit(type.symbol());
-        type.iterate(*this, true);
-    }
-
 private:
     virtual void visit_impl(const FileLevelSymbol& symbol) = 0;
 };
