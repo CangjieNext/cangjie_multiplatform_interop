@@ -9,6 +9,7 @@
 #define SYMBOL_H
 
 #include <array>
+#include <functional>
 
 #include "Config.h"
 #include "InputFile.h"
@@ -18,7 +19,6 @@ namespace objcgen {
 class NonTypeSymbol;
 class Package;
 class PackageFile;
-class SymbolVisitor;
 class TypeDeclarationSymbol;
 class TypeMapping;
 
@@ -97,7 +97,7 @@ public:
         return references_symbols_;
     }
 
-    [[nodiscard]] bool add_reference(FileLevelSymbol& symbol);
+    void collect_referenced_symbols();
 
     [[nodiscard]] InputFile* defining_file() const noexcept
     {
@@ -151,6 +151,12 @@ public:
         return static_cast<To&>(*this);
     }
 
+    template <class Func> void visit(Func func)
+    {
+        func(*this);
+        iterate(func);
+    }
+
 protected:
     explicit FileLevelSymbol(std::string name) noexcept : Symbol(std::move(name))
     {
@@ -159,9 +165,7 @@ protected:
     ClosureDepthType reference_level_ = UNLIMITED_CLOSURE_DEPTH;
 
 private:
-    friend class SymbolVisitor;
-
-    virtual void iterate([[maybe_unused]] SymbolVisitor& visitor) const
+    virtual void iterate([[maybe_unused]] std::function<void(FileLevelSymbol&)> func)
     {
     }
 
@@ -279,7 +283,12 @@ public:
         return varray_size_;
     }
 
-    void iterate(SymbolVisitor& visitor) const;
+    template <class Func> void iterate(Func func)
+    {
+        for (auto& param : parameters_) {
+            param.visit(func);
+        }
+    }
 
     [[nodiscard]] bool is_ctype() const noexcept;
 
@@ -328,6 +337,13 @@ public:
     void print_default_value(std::ostream& stream, PrintFormat format) const;
 
     [[nodiscard]] ClosureDepthType reference_level() const noexcept;
+
+    template <class Func> void visit(Func func)
+    {
+        assert(symbol_);
+        func(*symbol_);
+        iterate(func);
+    }
 
 private:
     [[nodiscard]] Nullability init_nullability(Nullability nullability) noexcept;
@@ -488,7 +504,7 @@ private:
 
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    void iterate(SymbolVisitor& visitor) const override;
+    void iterate(std::function<void(FileLevelSymbol&)> func) override;
 
     [[nodiscard]] bool empty() const noexcept
     {
@@ -748,7 +764,7 @@ public:
     void mark_transformed() noexcept;
 
 private:
-    void iterate(SymbolVisitor& visitor) const override;
+    void iterate(std::function<void(FileLevelSymbol&)> func) override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -822,7 +838,7 @@ private:
 
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    void iterate(SymbolVisitor& visitor) const override;
+    void iterate(std::function<void(FileLevelSymbol&)> func) override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -854,7 +870,7 @@ public:
 
     [[nodiscard]] bool is_ctype() const noexcept override;
 
-    void iterate(SymbolVisitor& visitor) const override;
+    void iterate(std::function<void(FileLevelSymbol&)> func) override;
 
     [[nodiscard]] Kind kind() const noexcept
     {
