@@ -77,8 +77,7 @@ namespace objcgen {
 class SymbolReferenceCollector final : public SymbolVisitor {
 
 public:
-    [[nodiscard]] explicit SymbolReferenceCollector(FileLevelSymbol& symbol) noexcept
-        : SymbolVisitor(true), symbol_(symbol)
+    [[nodiscard]] explicit SymbolReferenceCollector(FileLevelSymbol& symbol) noexcept : symbol_(symbol)
     {
     }
 
