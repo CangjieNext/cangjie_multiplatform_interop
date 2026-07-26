@@ -145,42 +145,21 @@ public:
     }
 };
 
-[[nodiscard]] static std::string symbol_to_import_name(const FileLevelSymbol& symbol)
+static void collect_import(const FileLevelSymbol& symbol)
 {
     assert(!current_package_name.empty());
     const auto& symbol_package_name = symbol.cangjie_package_name();
-    if (symbol_package_name.empty() || symbol_package_name == current_package_name) {
-        return {};
+    if (!symbol_package_name.empty() && symbol_package_name != current_package_name) {
+        imports.emplace(symbol_package_name + '.' + symbol.name());
     }
-    return symbol_package_name + '.' + symbol.name();
-}
-
-class ImportCollectVisitor final : public SymbolVisitor {
-public:
-    ImportCollectVisitor() noexcept : SymbolVisitor(false)
-    {
-    }
-
-private:
-    void visit_impl(const FileLevelSymbol& symbol) override;
-};
-
-void ImportCollectVisitor::visit_impl(const FileLevelSymbol& symbol)
-{
-    auto import_name = symbol_to_import_name(symbol);
-    if (!import_name.empty()) {
-        imports.emplace(std::move(import_name));
-    }
-}
-
-static void collect_import(const TypeLikeSymbol& symbol)
-{
-    ImportCollectVisitor().visit(symbol);
 }
 
 static void collect_import(const Type& type)
 {
-    ImportCollectVisitor().visit(type);
+    collect_import(type.symbol());
+    for (const auto& param : type.parameters()) {
+        collect_import(param);
+    }
 }
 
 // Currently in the NORMAL mode, Objective-C compatible types are primitives,
