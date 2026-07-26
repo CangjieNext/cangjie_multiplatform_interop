@@ -81,6 +81,35 @@ private:
 
 enum class OutputStatus { Undefined, Root, Referenced, ReferencedMarked, MultiReferenced };
 
+template <class Func> class FileLevelSymbolVisitorImpl;
+
+class FileLevelSymbolVisitor {
+public:
+    template <class Func> static FileLevelSymbolVisitorImpl<Func> create(Func func);
+
+    virtual void operator()(FileLevelSymbol& symbol) const = 0;
+};
+
+template <class Func> class FileLevelSymbolVisitorImpl : public FileLevelSymbolVisitor {
+public:
+    FileLevelSymbolVisitorImpl(Func func) : func(func)
+    {
+    }
+
+    void operator()(FileLevelSymbol& symbol) const override
+    {
+        func(symbol);
+    }
+
+private:
+    Func func;
+};
+
+template <class Func> FileLevelSymbolVisitorImpl<Func> FileLevelSymbolVisitor::create(Func func)
+{
+    return FileLevelSymbolVisitorImpl<Func>(func);
+}
+
 class FileLevelSymbol : public Symbol {
 public:
     [[nodiscard]] virtual bool is_ctype() const noexcept
@@ -151,10 +180,11 @@ public:
         return static_cast<To&>(*this);
     }
 
+    void visit(const FileLevelSymbolVisitor& visitor);
+
     template <class Func> void visit(Func func)
     {
-        func(*this);
-        iterate(func);
+        visit(static_cast<const FileLevelSymbolVisitor&>(FileLevelSymbolVisitor::create(func)));
     }
 
 protected:
@@ -165,7 +195,7 @@ protected:
     ClosureDepthType reference_level_ = UNLIMITED_CLOSURE_DEPTH;
 
 private:
-    virtual void iterate([[maybe_unused]] std::function<void(FileLevelSymbol&)> func)
+    virtual void iterate([[maybe_unused]] const FileLevelSymbolVisitor& visitor)
     {
     }
 
@@ -283,12 +313,7 @@ public:
         return varray_size_;
     }
 
-    template <class Func> void iterate(Func func)
-    {
-        for (auto& param : parameters_) {
-            param.visit(func);
-        }
-    }
+    void iterate(const FileLevelSymbolVisitor& visitor);
 
     [[nodiscard]] bool is_ctype() const noexcept;
 
@@ -338,11 +363,11 @@ public:
 
     [[nodiscard]] ClosureDepthType reference_level() const noexcept;
 
+    void visit(const FileLevelSymbolVisitor& visitor);
+
     template <class Func> void visit(Func func)
     {
-        assert(symbol_);
-        func(*symbol_);
-        iterate(func);
+        visit(static_cast<const FileLevelSymbolVisitor&>(FileLevelSymbolVisitor::create(func)));
     }
 
 private:
@@ -504,7 +529,7 @@ private:
 
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    void iterate(std::function<void(FileLevelSymbol&)> func) override;
+    void iterate(const FileLevelSymbolVisitor& visitor) override;
 
     [[nodiscard]] bool empty() const noexcept
     {
@@ -764,7 +789,7 @@ public:
     void mark_transformed() noexcept;
 
 private:
-    void iterate(std::function<void(FileLevelSymbol&)> func) override;
+    void iterate(const FileLevelSymbolVisitor& visitor) override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -838,7 +863,7 @@ private:
 
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    void iterate(std::function<void(FileLevelSymbol&)> func) override;
+    void iterate(const FileLevelSymbolVisitor& visitor) override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -870,7 +895,7 @@ public:
 
     [[nodiscard]] bool is_ctype() const noexcept override;
 
-    void iterate(std::function<void(FileLevelSymbol&)> func) override;
+    void iterate(const FileLevelSymbolVisitor& visitor) override;
 
     [[nodiscard]] Kind kind() const noexcept
     {

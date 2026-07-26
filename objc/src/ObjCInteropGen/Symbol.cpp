@@ -195,6 +195,12 @@ void FileLevelSymbol::print_referencing_packages_info() const
     }
 }
 
+void FileLevelSymbol::visit(const FileLevelSymbolVisitor& visitor)
+{
+    visitor(*this);
+    iterate(visitor);
+}
+
 // Applicable only for symbols with the same defining file
 [[nodiscard]] bool operator<(const FileLevelSymbol& symbol1, const FileLevelSymbol& symbol2) noexcept
 {
@@ -279,6 +285,13 @@ const Type& Type::varray_element_type() const noexcept
     assert(kind_ == Kind::VArray);
     assert(parameters_.size() == 1);
     return parameters_.front();
+}
+
+void Type::iterate(const FileLevelSymbolVisitor& visitor)
+{
+    for (auto& param : parameters_) {
+        param.visit(visitor);
+    }
 }
 
 bool Type::is_ctype() const noexcept
@@ -618,6 +631,13 @@ ClosureDepthType Type::reference_level() const noexcept
     }
 }
 
+void Type::visit(const FileLevelSymbolVisitor& visitor)
+{
+    assert(symbol_);
+    visitor(*symbol_);
+    iterate(visitor);
+}
+
 Nullability Type::init_nullability(Nullability nullability) noexcept
 {
     switch (kind_) {
@@ -719,10 +739,10 @@ bool EnumDeclarationSymbol::set_reference_level(unsigned new_reference_level) no
     return set;
 }
 
-void EnumDeclarationSymbol::iterate(std::function<void(FileLevelSymbol&)> func)
+void EnumDeclarationSymbol::iterate(const FileLevelSymbolVisitor& visitor)
 {
     if (underlying_type_) {
-        underlying_type_->visit(func);
+        underlying_type_->visit(visitor);
     }
 }
 
@@ -917,15 +937,15 @@ void TypeDeclarationSymbol::mark_transformed() noexcept
     transformed_ = true;
 }
 
-void TypeDeclarationSymbol::iterate(std::function<void(FileLevelSymbol&)> func)
+void TypeDeclarationSymbol::iterate(const FileLevelSymbolVisitor& visitor)
 {
     // It could make sense to analyze if infinite recursion is possible here.  With
     // CRTP for example.
     for (auto& base : this->bases()) {
-        base.visit(func);
+        base.visit(visitor);
     }
     for (auto& member : this->members()) {
-        member.visit(func);
+        member.visit(visitor);
     }
 }
 
@@ -1024,11 +1044,11 @@ bool TypeAliasSymbol::set_reference_level(unsigned new_reference_level) noexcept
     return set;
 }
 
-void TypeAliasSymbol::iterate(std::function<void(FileLevelSymbol&)> func)
+void TypeAliasSymbol::iterate(const FileLevelSymbolVisitor& visitor)
 {
     auto& target = this->target();
     if (target.has_symbol_assigned()) {
-        target.visit(func);
+        target.visit(visitor);
     }
 }
 
@@ -1098,14 +1118,14 @@ bool NonTypeSymbol::is_ctype() const noexcept
         return_type_.is_ctype();
 }
 
-void NonTypeSymbol::iterate(std::function<void(FileLevelSymbol&)> func)
+void NonTypeSymbol::iterate(const FileLevelSymbolVisitor& visitor)
 {
     for (auto& parameter : this->parameters()) {
-        parameter.type().visit(func);
+        parameter.type().visit(visitor);
     }
 
     if (kind_ != Kind::Property) {
-        return_type().visit(func);
+        return_type().visit(visitor);
     }
 }
 
