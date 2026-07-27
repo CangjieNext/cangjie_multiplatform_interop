@@ -143,7 +143,7 @@ void FileLevelSymbol::collect_referenced_symbols()
 {
     visit([this](FileLevelSymbol& s) {
         if (&s != this // Self-reference
-            && s.defining_file() && references_symbols_.insert(&s).second && verbosity >= LogLevel::TRACE) {
+            && s.input_file_ && references_symbols_.insert(&s).second && verbosity >= LogLevel::TRACE) {
             std::cerr << "Entity `" << name() << "` references `" << s.name() << "`\n";
         }
     });
