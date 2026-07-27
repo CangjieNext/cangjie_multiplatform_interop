@@ -125,11 +125,12 @@ void FileLevelSymbol::set_definition_location(const Location& location)
 
 void FileLevelSymbol::collect_referenced_symbols()
 {
-    visit([this](FileLevelSymbol& s) {
-        if (&s != this // Self-reference
-            && s.input_file_ && references_symbols_.insert(&s).second && verbosity >= LogLevel::TRACE) {
-            std::cerr << "Entity `" << name() << "` references `" << s.name() << "`\n";
+    visit_referenced_types([this](TypeLikeSymbol& type_symbol) {
+        if (type_symbol.input_file_ && references_symbols_.insert(&type_symbol).second &&
+            verbosity >= LogLevel::TRACE) {
+            std::cerr << "Entity `" << name() << "` references `" << type_symbol.name() << "`\n";
         }
+        return false;
     });
 }
 
@@ -184,12 +185,6 @@ void FileLevelSymbol::print_referencing_packages_info() const
     } else {
         std::cerr << ". Specify -v for more detailed information" << std::endl;
     }
-}
-
-void FileLevelSymbol::visit(const FileLevelSymbolVisitor& visitor)
-{
-    visitor(*this);
-    iterate(visitor);
 }
 
 // Applicable only for symbols with the same defining file
@@ -286,11 +281,18 @@ const Type& Type::varray_element_type() const noexcept
     return parameters_.front();
 }
 
-void Type::iterate(const FileLevelSymbolVisitor& visitor)
+bool Type::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
-    for (auto& param : parameters_) {
-        param.visit(visitor);
+    assert(symbol_);
+    if (visitor(*symbol_)) {
+        return true;
     }
+    for (auto& param : parameters_) {
+        if (param.visit_referenced_types(visitor)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool Type::is_ctype() const noexcept
@@ -602,13 +604,6 @@ void Type::print_default_value(std::ostream& stream, PrintFormat format) const
     stream << emit_cangjie(*this) << "()";
 }
 
-void Type::visit(const FileLevelSymbolVisitor& visitor)
-{
-    assert(symbol_);
-    visitor(*symbol_);
-    iterate(visitor);
-}
-
 Nullability Type::init_nullability(Nullability nullability) noexcept
 {
     switch (kind_) {
@@ -696,11 +691,9 @@ EnumConstantSymbol& EnumDeclarationSymbol::add_constant(std::string name, const 
     return constants_.emplace_back(std::move(name), value);
 }
 
-void EnumDeclarationSymbol::iterate(const FileLevelSymbolVisitor& visitor)
+bool EnumDeclarationSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
-    if (underlying_type_) {
-        underlying_type_->visit(visitor);
-    }
+    return underlying_type_ && visitor(*underlying_type_);
 }
 
 [[nodiscard]] static Type underlying_unexposed_type(size_t size)
@@ -878,16 +871,21 @@ void TypeDeclarationSymbol::mark_static_instance_clashes_resolved() noexcept
     static_instance_clashes_resolved_ = true;
 }
 
-void TypeDeclarationSymbol::iterate(const FileLevelSymbolVisitor& visitor)
+bool TypeDeclarationSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
     // It could make sense to analyze if infinite recursion is possible here.  With
     // CRTP for example.
     for (auto& base : this->bases()) {
-        base.visit(visitor);
+        if (visitor(base)) {
+            return true;
+        }
     }
     for (auto& member : this->members()) {
-        member.visit(visitor);
+        if (member.visit_referenced_types(visitor)) {
+            return true;
+        }
     }
+    return false;
 }
 
 template <class Pred>
@@ -953,12 +951,10 @@ void TypeAliasSymbol::print(std::ostream& stream, PrintFormat format) const
     }
 }
 
-void TypeAliasSymbol::iterate(const FileLevelSymbolVisitor& visitor)
+bool TypeAliasSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
     auto& target = this->target();
-    if (target.has_symbol_assigned()) {
-        target.visit(visitor);
-    }
+    return target.has_symbol_assigned() && target.visit_referenced_types(visitor);
 }
 
 void NonTypeSymbol::rename(std::string_view new_name)
@@ -976,15 +972,15 @@ bool NonTypeSymbol::is_ctype() const noexcept
         return_type_.is_ctype();
 }
 
-void NonTypeSymbol::iterate(const FileLevelSymbolVisitor& visitor)
+bool NonTypeSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
     for (auto& parameter : this->parameters()) {
-        parameter.type().visit(visitor);
+        if (parameter.type().visit_referenced_types(visitor)) {
+            return true;
+        }
     }
 
-    if (kind_ != Kind::Property) {
-        return_type().visit(visitor);
-    }
+    return kind_ != Kind::Property && return_type().visit_referenced_types(visitor);
 }
 
 const Type& NonTypeSymbol::return_type() const noexcept
