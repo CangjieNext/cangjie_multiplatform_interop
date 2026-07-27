@@ -20,6 +20,7 @@ class NonTypeSymbol;
 class Package;
 class PackageFile;
 class TypeDeclarationSymbol;
+class TypeLikeSymbol;
 class TypeMapping;
 
 enum class PrintFormat {
@@ -83,7 +84,8 @@ enum class OutputStatus { Undefined, Root, Referenced, ReferencedMarked, MultiRe
 
 class FileLevelSymbolVisitor {
 public:
-    virtual void operator()(FileLevelSymbol& symbol) const = 0;
+    /** Return true if visiting should be stopped */
+    virtual bool operator()(TypeLikeSymbol& type_symbol) const = 0;
 };
 
 class FileLevelSymbol : public Symbol {
@@ -156,10 +158,13 @@ public:
         return static_cast<To&>(*this);
     }
 
-    void visit(const FileLevelSymbolVisitor& visitor);
-
+    /**
+     * Call 'func' for each named type explicitly referenced in this symbol
+     * definition.  'func' should be a callable that accepts one argument (a
+     * reference to TypeLikeSymbol) and returns true if visiting should be stopped.
+     */
     template <class Func, class = std::enable_if_t<!std::is_base_of_v<FileLevelSymbolVisitor, Func>>>
-    void visit(Func func)
+    bool visit_referenced_types(Func func)
     {
         class FileLevelSymbolVisitorImpl : public FileLevelSymbolVisitor {
         public:
@@ -168,15 +173,15 @@ public:
             }
 
         private:
-            void operator()(FileLevelSymbol& symbol) const override
+            bool operator()(TypeLikeSymbol& type_symbol) const override
             {
-                func(symbol);
+                return func(type_symbol);
             }
 
             Func func;
         };
 
-        visit(FileLevelSymbolVisitorImpl(func));
+        return visit_referenced_types(FileLevelSymbolVisitorImpl(func));
     }
 
 protected:
@@ -184,13 +189,14 @@ protected:
     {
     }
 
+    virtual bool visit_referenced_types([[maybe_unused]] const FileLevelSymbolVisitor& visitor)
+    {
+        return false;
+    }
+
     ClosureDepthType reference_level_ = UNLIMITED_CLOSURE_DEPTH;
 
 private:
-    virtual void iterate([[maybe_unused]] const FileLevelSymbolVisitor& visitor)
-    {
-    }
-
     // Applicable only for symbols with the same defining file
     friend bool operator<(const FileLevelSymbol& symbol1, const FileLevelSymbol& symbol2) noexcept;
 
@@ -305,8 +311,6 @@ public:
         return varray_size_;
     }
 
-    void iterate(const FileLevelSymbolVisitor& visitor);
-
     [[nodiscard]] bool is_ctype() const noexcept;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept;
@@ -355,7 +359,7 @@ public:
 
     [[nodiscard]] ClosureDepthType reference_level() const noexcept;
 
-    void visit(const FileLevelSymbolVisitor& visitor);
+    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor);
 
 private:
     [[nodiscard]] Nullability init_nullability(Nullability nullability) noexcept;
@@ -516,7 +520,7 @@ private:
 
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    void iterate(const FileLevelSymbolVisitor& visitor) override;
+    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
 
     [[nodiscard]] bool empty() const noexcept
     {
@@ -776,7 +780,7 @@ public:
     void mark_transformed() noexcept;
 
 private:
-    void iterate(const FileLevelSymbolVisitor& visitor) override;
+    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -850,7 +854,7 @@ private:
 
     bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    void iterate(const FileLevelSymbolVisitor& visitor) override;
+    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -882,7 +886,7 @@ public:
 
     [[nodiscard]] bool is_ctype() const noexcept override;
 
-    void iterate(const FileLevelSymbolVisitor& visitor) override;
+    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
 
     [[nodiscard]] Kind kind() const noexcept
     {
