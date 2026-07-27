@@ -81,34 +81,10 @@ private:
 
 enum class OutputStatus { Undefined, Root, Referenced, ReferencedMarked, MultiReferenced };
 
-template <class Func> class FileLevelSymbolVisitorImpl;
-
 class FileLevelSymbolVisitor {
 public:
-    template <class Func> static FileLevelSymbolVisitorImpl<Func> create(Func func);
-
     virtual void operator()(FileLevelSymbol& symbol) const = 0;
 };
-
-template <class Func> class FileLevelSymbolVisitorImpl : public FileLevelSymbolVisitor {
-public:
-    FileLevelSymbolVisitorImpl(Func func) : func(func)
-    {
-    }
-
-    void operator()(FileLevelSymbol& symbol) const override
-    {
-        func(symbol);
-    }
-
-private:
-    Func func;
-};
-
-template <class Func> FileLevelSymbolVisitorImpl<Func> FileLevelSymbolVisitor::create(Func func)
-{
-    return FileLevelSymbolVisitorImpl<Func>(func);
-}
 
 class FileLevelSymbol : public Symbol {
 public:
@@ -182,9 +158,25 @@ public:
 
     void visit(const FileLevelSymbolVisitor& visitor);
 
-    template <class Func> void visit(Func func)
+    template <class Func, class = std::enable_if_t<!std::is_base_of_v<FileLevelSymbolVisitor, Func>>>
+    void visit(Func func)
     {
-        visit(static_cast<const FileLevelSymbolVisitor&>(FileLevelSymbolVisitor::create(func)));
+        class FileLevelSymbolVisitorImpl : public FileLevelSymbolVisitor {
+        public:
+            FileLevelSymbolVisitorImpl(Func func) : func(func)
+            {
+            }
+
+        private:
+            void operator()(FileLevelSymbol& symbol) const override
+            {
+                func(symbol);
+            }
+
+            Func func;
+        };
+
+        visit(FileLevelSymbolVisitorImpl(func));
     }
 
 protected:
@@ -364,11 +356,6 @@ public:
     [[nodiscard]] ClosureDepthType reference_level() const noexcept;
 
     void visit(const FileLevelSymbolVisitor& visitor);
-
-    template <class Func> void visit(Func func)
-    {
-        visit(static_cast<const FileLevelSymbolVisitor&>(FileLevelSymbolVisitor::create(func)));
-    }
 
 private:
     [[nodiscard]] Nullability init_nullability(Nullability nullability) noexcept;
