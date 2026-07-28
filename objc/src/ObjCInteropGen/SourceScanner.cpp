@@ -1216,18 +1216,29 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             // which means it is a base type of the definition.
             const auto is_interface = parent.kind == CXCursor_ObjCInterfaceDecl;
             const auto is_protocol = parent.kind == CXCursor_ObjCProtocolDecl;
-            if (is_interface || is_protocol) {
+            const auto is_category = parent.kind == CXCursor_ObjCCategoryDecl;
+            if (is_interface || is_protocol || is_category) {
                 using Kind = NamedTypeSymbol::Kind;
                 assert(current_top_is_type());
                 assert(level() == 1);
-                auto& type_decl = current_type_declaration();
+                auto& type_decl = is_category ? get_target_type_declaration() : current_type_declaration();
                 assert((is_interface && type_decl.kind() == Kind::Interface) ||
-                    (is_protocol && type_decl.kind() == Kind::Protocol));
+                    (is_protocol && type_decl.kind() == Kind::Protocol) ||
+                    (is_category && type_decl.kind() == Kind::Interface));
                 const auto referenced = clang_getCursorReferenced(cursor);
                 assert(is_valid(referenced));
-                type_decl.add_base(Universe::get()
+
+                auto &base_to_add = Universe::get()
                         .type(Kind::Protocol, as_string(clang_getCursorSpelling(referenced)))
-                        ->as<TypeDeclarationSymbol>());
+                        ->as<TypeDeclarationSymbol>();
+                const auto bases = type_decl.bases();
+                const bool already_has_base = std::any_of(
+                    bases.begin(), bases.end(),
+                    [&base_to_add](const auto& base) { return &base == &base_to_add; });
+
+                if (!already_has_base) {
+                    type_decl.add_base(base_to_add);
+                }
             }
 
             break;
