@@ -558,6 +558,8 @@ public abstract sealed class CJTree {
             }
 
             public static final class VariancedTypeName extends Name {
+                public final Name typeName;
+
                 public enum Variance {
                     IN("in "),
 
@@ -570,7 +572,6 @@ public abstract sealed class CJTree {
                     }
                 }
 
-                public final Name typeName;
                 public final Variance variance;
 
                 public VariancedTypeName(Name typeName, Variance variance) {
