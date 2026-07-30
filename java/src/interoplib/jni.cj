@@ -54,7 +54,7 @@ protected class JNIException <: Exception {
  * Version value should be the same as for cjc for the same SDK.
  * Version value must be bumped up on: API changes in interop library that require compatibility with cjc.
  */
-protected const INTEROPLIB_VERSION: Int64 = 10
+protected const INTEROPLIB_VERSION: Int64 = 11
 
 var jvm = CPointer<JavaVM>()
 var classLoading = AtomicOptionReference<ClassLoading>()
@@ -788,6 +788,14 @@ protected func Java_CFFI_parseMethodSignature(signature: String): Java_CFFI_Meth
     Java_CFFI_MethodSignature(args, ret)
 }
 
+private func normalizeClassName(name: String): String {
+    let size = name.size
+    if (size > 2 && name[0] == b'L' && name[size - 1] == b';') {
+        return name[1..(size - 1)]
+    }
+    return name
+}
+
 protected class Java_CFFI_Class <: ToString {
     var obj = jclass()
     public let name: String
@@ -804,14 +812,8 @@ protected class Java_CFFI_Class <: ToString {
 
     public init(env: JNIEnv_ptr, name: String) {
         let size = name.size
-        this.name = if (size > 2 && name[0] == b'L' && name[size-1] == b';') {
-            name[1..(size - 1)]
-        } else {
-            name
-        }
-
+        this.name = normalizeClassName(name)
         obj = classLoading.load().getOrThrow().loadClass(env, this.name)
-
         if (obj.isNull()) {
             throw InteropLibException("Cannot find class ${name}")
         }
@@ -2512,7 +2514,7 @@ protected func handlePendingException(env: JNIEnv_ptr) {
         if (!pendingException.isNull()) {
             envCJ.ExceptionClear(env)
 
-            let clazz = Java_CFFI_getClassID(env, "java/lang/Throwable")
+            let clazz = Java_CFFI_getClass(env, "java/lang/Throwable")
             let id = Java_CFFI_getMethodID(env, clazz, "toString", "()Ljava/lang/String;", false)
             let obj = Java_CFFI_JavaEntity(JOBJECT, pendingException)
             let res = unsafe {
@@ -2590,13 +2592,9 @@ protected func Java_CFFI_ClassInit(env: JNIEnv_ptr, name: String) : Java_CFFI_Cl
     Java_CFFI_Class(env, name)
 }
 
-protected func  Java_CFFI_getClassID(env: JNIEnv_ptr, name: String) : jclass {
+protected func Java_CFFI_getClass(env: JNIEnv_ptr, name: String) : jclass {
     let size = name.size
-    let classname = if (size > 2 && name[0] == b'L' && name[size-1] == b';') {
-        name[1..(size - 1)]
-    } else {
-        name
-    }
+    let classname = normalizeClassName(name)
     let obj = classLoading.load().getOrThrow().loadClass(env, classname)
     if (obj.isNull()) {
         throw InteropLibException("Cannot find class ${name}")
