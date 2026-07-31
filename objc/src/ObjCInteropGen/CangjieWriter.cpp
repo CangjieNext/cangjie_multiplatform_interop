@@ -531,12 +531,23 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
     assert(prop.is_property());
     const auto& name = prop.name();
     const auto& getter_name = prop.getter();
-    if (getter_name != name) {
-        write_foreign_name(output, "@ForeignGetterName", getter_name);
-    }
-    if (!prop.is_readonly()) {
+    bool standard_getter = getter_name == name;
+    if (prop.is_readonly()) {
+        if (!standard_getter) {
+            write_foreign_name(output, "@ForeignGetterName", getter_name);
+        }
+    } else {
         const auto& setter_name = prop.setter();
-        if (!is_standard_setter_name(name, setter_name)) {
+        if (is_standard_setter_name(name, setter_name)) {
+            if (!standard_getter) {
+                write_foreign_name(output, "@ForeignGetterName", getter_name);
+            }
+        } else if (standard_getter) {
+            write_foreign_name(output, "@ForeignSetterName", setter_name);
+        } else if (is_standard_setter_name(getter_name, setter_name)) {
+            write_foreign_name(output, foreign_name_attribute, getter_name);
+        } else {
+            write_foreign_name(output, "@ForeignGetterName", getter_name);
             write_foreign_name(output, "@ForeignSetterName", setter_name);
         }
     }
