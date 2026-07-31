@@ -1,4 +1,4 @@
-// Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+// Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
 // This source file is part of the Cangjie project, licensed under Apache-2.0
 // with Runtime Library Exception.
 //
@@ -111,9 +111,18 @@ protected unsafe func removeFromRegistry(registryId: RegistryId): Unit {
  * Effectively a wrapper around [cls alloc], but with Cangjie String as a parameter for convenience.
  * Note: MUST be called in a transaction with corresponding init* method of the class and the pointer, returned by this function, MUST NOT be stored anywhere.
  */
-protected unsafe func alloc(className: String): NativeObjCId {
-    const ALLOC_SEL = "alloc"
-    CFunc<(NativeObjCId, NativeObjCSel) -> NativeObjCId>(objCMsgSend())(getClass(className), registerName(ALLOC_SEL))
+protected unsafe func alloc(cls: String): NativeObjCId {
+    objc_alloc(getClass(cls))
+}
+
+@Frozen
+/**
+ * Allocates a pointer to the class by class object.
+ * Effectively a wrapper around [cls alloc].
+ * Note: MUST be called in a transaction with corresponding init* method of the class and the pointer, returned by this function, MUST NOT be stored anywhere.
+ */
+protected unsafe func objCAlloc(cls: NativeObjCClass): NativeObjCId {
+    objc_alloc(cls)
 }
 
 /**
@@ -180,6 +189,7 @@ protected unsafe func withAutoreleasePoolObj(action: () -> NativeObjCId): Native
     withAutoreleasePool<NativeObjCId>( {=> objc_retainAutoreleasedReturnValue(action())} )
 }
 
+@Frozen
 /**
  * Registers a selector in the Objective-C runtime by its name.
  * Effectively a wrapper around sel_registerName(sel), but with Cangjie String as a parameter for convenience.
@@ -236,7 +246,7 @@ protected unsafe func setInstanceVariable<T>(id: NativeObjCId, name: String, val
     let fieldPtr = getFieldPtr<T>(id, name)
     fieldPtr.write(value)
 }
-
+@Frozen
 /**
  * Gets a class NativeObjCId by it's name.
  * Effectively a wrapper around objc_getClass(classname), but with Cangjie String as a parameter for convenience.
@@ -262,7 +272,7 @@ protected unsafe func getProtocol(protoName: String): NativeObjCProtocol {
 
     proto
 }
-
+@Frozen
 /**
  * Returns a pointer to objc_msgSend implementation.
  * The result should be cast to proper CFunc<(NativeObjCId, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
@@ -272,6 +282,7 @@ protected func objCMsgSend(): CPointer<Unit> {
 }
 
 @When[os == "macOS" || os == "iOS"]
+@Frozen
 /**
  * Returns a pointer to objc_msgSendSuper implementation.
  * The result should be cast to proper CFunc<(NativeObjCSuperPtr, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
@@ -299,8 +310,9 @@ protected func convertToNSString(str: String): NativeObjCId {
     unsafe {
         let cstr = LibC.mallocCString(str)
         let ptr = CPointer<Unit>(cstr.getChars())
+        let nsString = getClass("NSString")
         let result = CFunc<(NativeObjCId, NativeObjCSel, CPointer<Unit>) -> NativeObjCId>(objCMsgSend())(
-            alloc("NSString"), registerName("initWithUTF8String:"), ptr
+            objc_alloc(nsString), registerName("initWithUTF8String:"), ptr
         )
         LibC.free(cstr)
         return result
@@ -320,42 +332,42 @@ protected func descriptionAsString(id: NativeObjCId): String {
         return str.toString()
     }
 }
-
+@Frozen
 /**
  * Autoreleases the argument. Equivalent to [id autorelease].
  */
 protected unsafe func objCAutorelease(id: NativeObjCId): NativeObjCId {
     objc_autorelease(id)
 }
-
+@Frozen
 /**
  * Autoreleases the argument by objc_autoreleaseReturnValue call.
  */
 protected unsafe func objCAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId {
     objc_autoreleaseReturnValue(id)
 }
-
+@Frozen
 /**
  * Decreases the reference counter by one.
  */
 protected unsafe func objCRelease(id: NativeObjCId): Unit {
     objc_release(id)
 }
-
+@Frozen
 /**
  * Increases the reference counter by one.
  */
 protected unsafe func objCRetain(id: NativeObjCId): NativeObjCId {
     objc_retain(id)
 }
-
+@Frozen
 /**
  * Autoreleases and retains the argument by objc_retainAutoreleaseReturnValue call.
  */
 protected unsafe func objCRetainAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId {
     objc_retainAutoreleaseReturnValue(id)
 }
-
+@Frozen
 protected unsafe func objCRetainAutoreleasedReturnValue(id: NativeObjCId): NativeObjCId {
     objc_retainAutoreleasedReturnValue(id)
 }
@@ -447,11 +459,14 @@ private unsafe func getObjCSuper(id: NativeObjCId, objCClassName: String): Nativ
 @FastNative
 /**
  * id: NativeObjCId, sel: NativeObjCSel, ...
+ * NOTE: technically, msgSend is not applicable for @FastNative because it can call
+ * arbitrary code. However, it is called through a pointer that need to point exactly
+ * at the original function from objc runtime. Calling through pointer always produces
+ * non-fastnative call, so the contract is not violated.
  */
 foreign func objc_msgSend(): Unit
 
 @When[os == "macOS" || os == "iOS"]
-@FastNative
 /**
  * super: NativeObjCSuperPtr, sel: NativeObjCSel, ...
  */
@@ -615,3 +630,11 @@ foreign func sel_registerName(selName: CString): NativeObjCSel
  * Note: nonportable
  */
 foreign func objc_msg_lookup_super(objCSuper: NativeObjCSuperPtr, sel: NativeObjCSel): NativeObjCImp
+
+@FastNative
+/**
+ * Objective-C runtime function that allocates an object of a given class
+ * Effectively objc_alloc(ClassObject) is the same as [ClassObject alloc]
+ * but works directly in runtime without expensive method dispatching
+ */
+foreign func objc_alloc(clazz: NativeObjCClass): NativeObjCId

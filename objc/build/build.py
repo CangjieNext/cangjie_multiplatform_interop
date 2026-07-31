@@ -124,12 +124,13 @@ def command(*args, cwd=None, env=None):
     if output.returncode:
         fatal('"' + ' '.join(args) + '" returned ' + output.returncode)
 
+target_mapping = { "ios-aarch64": "arm64-apple-ios11",
+    "ios-simulator-aarch64": "arm64-apple-ios11-simulator",
+    "ios-simulator-x86_64": "x86_64-apple-ios11-simulator"
+}
+
 def adjust_target(target):
-    match target:
-        case "ios-aarch64": return "arm64-apple-ios11"
-        case "ios-simulator-aarch64": return "arm64-apple-ios11-simulator"
-        case "ios-simulator-x86_64": return "x86_64-apple-ios11-simulator"
-        case _: return target
+    return target_mapping.get(target, target)
 
 def runtime_name(target):
     return target+"_cjnative"
