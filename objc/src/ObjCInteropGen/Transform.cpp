@@ -68,9 +68,9 @@ struct StaticInstancePair {
 public:
     void add(NonTypeSymbol& type) noexcept;
 
-    [[nodiscard]] bool both() const noexcept
+    [[nodiscard]] bool clashes() const noexcept
     {
-        return static_ && instance_;
+        return static_ && instance_ && static_->name() == instance_->name();
     }
 
     [[nodiscard]] NonTypeSymbol* get_static() const noexcept
@@ -88,14 +88,14 @@ private:
     const NonTypeSymbol* instance_;
 };
 
-void StaticInstancePair::add(NonTypeSymbol& type) noexcept
+void StaticInstancePair::add(NonTypeSymbol& member) noexcept
 {
-    if (type.is_static()) {
-        assert(!static_ && "Cannot be multiple static methods with the same name");
-        static_ = &type;
+    if (member.is_static()) {
+        assert(!static_ && "Cannot be multiple static members with the same name");
+        static_ = &member;
     } else {
-        assert(!instance_ && "Cannot be multiple instance methods with the same name");
-        instance_ = &type;
+        assert(!instance_ && "Cannot be multiple instance members with the same name");
+        instance_ = &member;
     }
 }
 
@@ -213,18 +213,18 @@ static void transform_type(TypeDeclarationSymbol& decl)
             case NonTypeSymbol::Kind::Property:
             case NonTypeSymbol::Kind::MemberMethod:
                 if (!member.is_hidden()) {
-                    map[member.name()].add(member);
+                    map[member.selector()].add(member);
                 }
                 break;
             default:
                 break;
         }
     }
-    for (const auto& [name, methods] : map) {
-        if (methods.both()) {
-            auto& static_method = *methods.get_static();
-            assert(static_method.name() == methods.get_instance()->name());
-            resolve_static_instance_clash(static_method);
+    for (const auto& [name, pair] : map) {
+        if (pair.clashes()) {
+            auto& static_member = *pair.get_static();
+            assert(static_member.name() == pair.get_instance()->name());
+            resolve_static_instance_clash(static_member);
         }
     }
 }
