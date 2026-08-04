@@ -1273,19 +1273,23 @@ CXChildVisitResult SourceScanner::visit_impl(const CXCursor& cursor, const CXCur
             break;
         }
         case CXCursor_ObjCPropertyDecl: {
-            Modifiers modifiers = 0;
-            auto attributes = clang_Cursor_getObjCPropertyAttributes(cursor, 0);
-            if (attributes & CXObjCPropertyAttr_class) {
-                modifiers |= ModifierStatic;
+            if (mark_symbol_used(cursor)) {
+                Modifiers modifiers = 0;
+                auto attributes = clang_Cursor_getObjCPropertyAttributes(cursor, 0);
+                if (attributes & CXObjCPropertyAttr_class) {
+                    modifiers |= ModifierStatic;
+                }
+                if (attributes & CXObjCPropertyAttr_readonly) {
+                    modifiers |= ModifierReadonly;
+                }
+                if (clang_Cursor_isObjCOptional(cursor)) {
+                    modifiers |= ModifierOptional;
+                }
+                pushed = &push_property(std::move(name), as_string(clang_Cursor_getObjCPropertyGetterName(cursor)),
+                    as_string(clang_Cursor_getObjCPropertySetterName(cursor)), modifiers);
+            } else {
+                recurse = false;
             }
-            if (attributes & CXObjCPropertyAttr_readonly) {
-                modifiers |= ModifierReadonly;
-            }
-            if (clang_Cursor_isObjCOptional(cursor)) {
-                modifiers |= ModifierOptional;
-            }
-            pushed = &push_property(std::move(name), as_string(clang_Cursor_getObjCPropertyGetterName(cursor)),
-                as_string(clang_Cursor_getObjCPropertySetterName(cursor)), modifiers);
             break;
         }
         case CXCursor_ObjCIvarDecl: {
