@@ -141,12 +141,11 @@ void FileLevelSymbol::set_definition_location(const Location& location)
 
 void FileLevelSymbol::collect_referenced_symbols()
 {
-    visit_referenced_types([this](TypeLikeSymbol& type_symbol) {
+    for_each_referenced_type([this](TypeLikeSymbol& type_symbol) {
         if (type_symbol.input_file_ && references_symbols_.insert(&type_symbol).second &&
             verbosity >= LogLevel::TRACE) {
             std::cerr << "Entity `" << name() << "` references `" << type_symbol.name() << "`\n";
         }
-        return false;
     });
 }
 
@@ -289,7 +288,7 @@ bool Type::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
         return true;
     }
     for (auto& param : parameters_) {
-        if (param.visit_referenced_types(visitor)) {
+        if (param.any_of_referenced_types(visitor)) {
             return true;
         }
     }
@@ -939,8 +938,8 @@ bool TypeDeclarationSymbol::visit_referenced_types(const FileLevelSymbolVisitor&
             return true;
         }
     }
-    for (auto& member : this->members()) {
-        if (member.visit_referenced_types(visitor)) {
+    for (FileLevelSymbol& member : this->members()) {
+        if (member.any_of_referenced_types(visitor)) {
             return true;
         }
     }
@@ -1045,7 +1044,7 @@ bool TypeAliasSymbol::set_reference_level(unsigned new_reference_level) noexcept
 bool TypeAliasSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
     auto& target = this->target();
-    return target.has_symbol_assigned() && target.visit_referenced_types(visitor);
+    return target.has_symbol_assigned() && target.any_of_referenced_types(visitor);
 }
 
 static void selector_to_cj_name(NonTypeSymbol& member)
@@ -1117,12 +1116,12 @@ bool NonTypeSymbol::is_ctype() const noexcept
 bool NonTypeSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
     for (auto& parameter : this->parameters()) {
-        if (parameter.type().visit_referenced_types(visitor)) {
+        if (parameter.type().any_of_referenced_types(visitor)) {
             return true;
         }
     }
 
-    return kind_ != Kind::Property && return_type().visit_referenced_types(visitor);
+    return kind_ != Kind::Property && return_type().any_of_referenced_types(visitor);
 }
 
 const Type& NonTypeSymbol::return_type() const noexcept

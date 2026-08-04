@@ -520,8 +520,7 @@ static void print_getter_setter_names(std::ostream& output, const NonTypeSymbol&
 // workaround, comment out such objects.
 [[nodiscard]] static bool has_name_clash_with_referenced_types(NonTypeSymbol& symbol, const std::string& name)
 {
-    return static_cast<FileLevelSymbol&>(symbol).visit_referenced_types(
-        [&name](const FileLevelSymbol& s) { return name == s.name(); });
+    return symbol.any_of_referenced_types([&name](const auto& s) { return name == s.name(); });
 }
 
 enum class FuncKind { TopLevelFunc, InterfaceMethod, ClassMethod };

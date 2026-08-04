@@ -84,8 +84,50 @@ enum class OutputStatus { Undefined, Root, Referenced, ReferencedMarked, MultiRe
 
 class FileLevelSymbolVisitor {
 public:
-    /** Return true if visiting should be stopped */
-    virtual bool operator()(TypeLikeSymbol& type_symbol) const = 0;
+    [[nodiscard]] virtual bool operator()(TypeLikeSymbol& type_symbol) const = 0;
+
+    virtual ~FileLevelSymbolVisitor() = default;
+
+    template <class Pred> static auto any_of(const Pred& pred)
+    {
+        class FileLevelSymbolVisitorImpl : public FileLevelSymbolVisitor {
+        public:
+            explicit FileLevelSymbolVisitorImpl(const Pred& pred) noexcept : pred(pred)
+            {
+            }
+
+        private:
+            bool operator()(TypeLikeSymbol& type_symbol) const override
+            {
+                return pred(type_symbol);
+            }
+
+            const Pred& pred;
+        };
+
+        return FileLevelSymbolVisitorImpl(pred);
+    }
+
+    template <class Func> static auto for_each(const Func& func)
+    {
+        class FileLevelSymbolVisitorImpl : public FileLevelSymbolVisitor {
+        public:
+            explicit FileLevelSymbolVisitorImpl(const Func& func) noexcept : func(func)
+            {
+            }
+
+        private:
+            bool operator()(TypeLikeSymbol& type_symbol) const override
+            {
+                func(type_symbol);
+                return false;
+            }
+
+            const Func& func;
+        };
+
+        return FileLevelSymbolVisitorImpl(func);
+    }
 };
 
 class FileLevelSymbol : public Symbol {
@@ -96,6 +138,27 @@ public:
     }
 
     virtual bool set_reference_level(unsigned new_reference_level) noexcept;
+
+    /**
+     * Searches for a named type explicitly referenced in this symbol for which the
+     * 'pred' call returns true.  Returns true if such a symbol is found.  'pred'
+     * should be a callable that accepts one argument (a reference to
+     * TypeLikeSymbol) and returns a value implicitly convertible to boolean.
+     */
+    template <class Pred> [[nodiscard]] bool any_of_referenced_types(const Pred& pred)
+    {
+        if constexpr (std::is_base_of_v<FileLevelSymbolVisitor, Pred>) {
+            return visit_referenced_types(pred);
+        } else {
+            return visit_referenced_types(FileLevelSymbolVisitor::any_of(pred));
+        }
+    }
+
+    /** Calls 'func' for each named type explicitly referenced in this symbol. */
+    template <class Func> void for_each_referenced_type(const Func& func)
+    {
+        visit_referenced_types(FileLevelSymbolVisitor::for_each(func));
+    }
 
     void set_definition_location(const Location& location);
 
@@ -158,45 +221,19 @@ public:
         return static_cast<To&>(*this);
     }
 
-    /**
-     * Call 'func' for each named type explicitly referenced in this symbol
-     * definition.  'func' should be a callable that accepts one argument (a
-     * reference to TypeLikeSymbol) and returns true if visiting should be stopped.
-     */
-    template <class Func, class = std::enable_if_t<!std::is_base_of_v<FileLevelSymbolVisitor, Func>>>
-    bool visit_referenced_types(Func func)
-    {
-        class FileLevelSymbolVisitorImpl : public FileLevelSymbolVisitor {
-        public:
-            FileLevelSymbolVisitorImpl(Func func) : func(func)
-            {
-            }
-
-        private:
-            bool operator()(TypeLikeSymbol& type_symbol) const override
-            {
-                return func(type_symbol);
-            }
-
-            Func func;
-        };
-
-        return visit_referenced_types(FileLevelSymbolVisitorImpl(func));
-    }
-
 protected:
     explicit FileLevelSymbol(std::string name) noexcept : Symbol(std::move(name))
     {
     }
 
+    ClosureDepthType reference_level_ = UNLIMITED_CLOSURE_DEPTH;
+
+private:
     virtual bool visit_referenced_types([[maybe_unused]] const FileLevelSymbolVisitor& visitor)
     {
         return false;
     }
 
-    ClosureDepthType reference_level_ = UNLIMITED_CLOSURE_DEPTH;
-
-private:
     // Applicable only for symbols with the same defining file
     friend bool operator<(const FileLevelSymbol& symbol1, const FileLevelSymbol& symbol2) noexcept;
 
@@ -359,9 +396,23 @@ public:
 
     [[nodiscard]] ClosureDepthType reference_level() const noexcept;
 
-    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor);
+    template <class Pred> [[nodiscard]] bool any_of_referenced_types(const Pred& pred)
+    {
+        if constexpr (std::is_base_of_v<FileLevelSymbolVisitor, Pred>) {
+            return visit_referenced_types(pred);
+        } else {
+            return visit_referenced_types(FileLevelSymbolVisitor::any_of(pred));
+        }
+    }
+
+    template <class Func> void for_each_referenced_type(const Func& func)
+    {
+        visit_referenced_types(FileLevelSymbolVisitor::for_each(func));
+    }
 
 private:
+    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor);
+
     [[nodiscard]] Nullability init_nullability(Nullability nullability) noexcept;
 
     void print_func_like(std::ostream& stream, std::string_view name, PrintFormat format) const;
@@ -886,8 +937,6 @@ public:
 
     [[nodiscard]] bool is_ctype() const noexcept override;
 
-    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
-
     [[nodiscard]] Kind kind() const noexcept
     {
         return kind_;
@@ -1052,6 +1101,8 @@ public:
     [[nodiscard]] ClosureDepthType calculate_reference_level(const TypeDeclarationSymbol& decl) const noexcept;
 
 private:
+    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
+
     Kind kind_;
     Modifiers modifiers_;
 
