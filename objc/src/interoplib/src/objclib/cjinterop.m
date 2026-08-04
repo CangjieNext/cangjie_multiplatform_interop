@@ -17,12 +17,6 @@
 volatile bool runtime_inited = false;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-// ObjC runtime functions used to calculate override-mask
-typedef struct objc_method* Method;
-extern IMP method_getImplementation(Method m);
-extern Method class_getInstanceMethod(Class cls, SEL name);
-extern id objc_getClass(const char * name);
-
 static struct RuntimeParam defaultCJRuntimeParams = {0};
 
 bool initCJRuntime(const char* cj_gluecode_lib_name) {
@@ -49,22 +43,4 @@ bool initCJRuntime(const char* cj_gluecode_lib_name) {
     }
 
     return true;
-}
-
-uint64_t calcOverrideMask(Class baseCls, Class selfCls, SEL* methods, int len) {
-    int max = len;
-    if (max > 64) {
-        max = 64;
-    }
-
-    uint64_t mask = 0;
-    for (int i = 0; i < max; i++) {
-        SEL m = methods[i];
-        bool override = method_getImplementation(class_getInstanceMethod(baseCls, m)) != method_getImplementation(class_getInstanceMethod(selfCls, m));
-        if (override) {
-            mask |= (UINT64_C(1) << i);
-        }
-    }
-
-    return mask;
 }

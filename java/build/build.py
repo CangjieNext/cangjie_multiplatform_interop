@@ -427,12 +427,12 @@ def build(args):
         command(*(cjc_SO.copy() + javalib_args.copy() + ["-L" + DIST_DIR, "-ljava.internal"]), cwd=INTEROPLIB_DIR)
 
         command(
-            "javac", "-d", DIST_DIR, "-source", "8", "-target", "8", "-Xlint:all", "LibraryLoader.java", "$$NativeConstructorMarker.java", "ClassAnalyser.java", "MethodDef.java",
+            "javac", "-d", DIST_DIR, "-source", "8", "-target", "8", "-Xlint:all", "LibraryLoader.java", "$$NativeConstructorMarker.java",
             cwd=INTEROPLIB_DIR,
         )
 
         command(
-            "jar", "cf",  LIBRARY_LOADER_JAR, "cangjie/lang/LibraryLoader.class", "cangjie/lang/internal/$$NativeConstructorMarker.class", "cangjie/interop/java/ClassAnalyser.class", "cangjie/interop/java/MethodDef.class",
+            "jar", "cf",  LIBRARY_LOADER_JAR, "cangjie/lang/LibraryLoader.class", "cangjie/lang/internal/$$NativeConstructorMarker.class",
             cwd=DIST_DIR,
         )
 

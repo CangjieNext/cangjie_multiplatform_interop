@@ -2128,26 +2128,6 @@ protected func Java_CFFI_newJavaObject(env: JNIEnv_ptr, clazz: Java_CFFI_Class, 
     res
 }
 
-// The constructor of the proxy class for structTy contains a special parameter, whereas EnumTy
-// does not require it. 
-protected func Java_CFFI_newJavaProxyObjectForCJMapping(env: JNIEnv_ptr, entity: Object, name: String,
-    withMarkerParam: Bool): jobject {
-    let id = Java_CFFI_put_to_registry_1(entity)
-    let clazz = Java_CFFI_Class(env, name)
-    let args = ArrayQueue<Java_CFFI_JavaEntity>()
-    var signStr: String = "(J"
-    args.add((Java_CFFI_JavaEntity(JLONG, id)))
-    if (withMarkerParam) {
-        signStr += "Lcangjie/lang/internal/$$NativeConstructorMarker;"
-        args.add(Java_CFFI_JavaEntityJobjectNull())
-    }
-    signStr += ")V"
-    let signature = Java_CFFI_parseMethodSignature(signStr)
-    let methodId = Java_CFFI_MethodID.constr(env, clazz, "<init>", signature)
-    let result = Java_CFFI_newJavaObject(env, clazz, methodId, args.toArray(), Java_CFFI_JavaCallNest(args.size))
-    unsafe { result.asJObject() }
-}
-
 protected func Java_CFFI_newGlobalReference(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, weak: Bool): Java_CFFI_JavaEntity {
     unsafe {
         let envCJ = env.read().read()
@@ -2250,7 +2230,7 @@ protected func Java_CFFI_arrayGet(env: JNIEnv_ptr, elementType: Java_CFFI_JavaEn
     }
 }
 
-private let cstrSelf = unsafe { LibC.mallocCString("self") }
+private let cstrRegId = unsafe { LibC.mallocCString("$rid") }
 private let cstrJ = unsafe { LibC.mallocCString("J") }
 
 protected func Java_CFFI_putToRegistry(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, a: Any): Unit {
@@ -2258,7 +2238,7 @@ protected func Java_CFFI_putToRegistry(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntit
     unsafe {
         let envCJ : JNINativeInterface_ = env.read().read()
         let objClass = envCJ.GetObjectClass(env, obj.asJObject())
-        let fieldId = envCJ.GetFieldID(env, objClass, cstrSelf, cstrJ)
+        let fieldId = envCJ.GetFieldID(env, objClass, cstrRegId, cstrJ)
         envCJ.SetLongField(env, obj.asJObject(), fieldId, id)
     }
 }
@@ -2357,7 +2337,7 @@ protected func Java_CFFI_getFromRegistryByObjOption<T>(env: JNIEnv_ptr, obj: Jav
         }
  
         let objClass = envCJ.GetObjectClass(env, jobj)
-        let fieldId = envCJ.GetFieldID(env, objClass, cstrSelf, cstrJ)
+        let fieldId = envCJ.GetFieldID(env, objClass, cstrRegId, cstrJ)
         if (fieldId.isNull()) {
             return None
         }
@@ -2371,11 +2351,11 @@ protected func Java_CFFI_getFromRegistryByObj<T>(env: JNIEnv_ptr, obj: Java_CFFI
     return Java_CFFI_getFromRegistryByObjOption<T>(env, obj) ?? throw InteropLibException("CJ object does not exist")
 }
 
-protected func Java_CFFI_getFromRegistry<T>(env: JNIEnv_ptr, self: jlong): T {
-    if (let Some(v) <- registry.get<T>(self)) {
+protected func Java_CFFI_getFromRegistry<T>(env: JNIEnv_ptr, regId: jlong): T {
+    if (let Some(v) <- registry.get<T>(regId)) {
         v
     } else {
-        throw InteropLibException("CJ object ${self} does not exist")
+        throw InteropLibException("CJ object ${regId} does not exist")
     }
 }
 
@@ -2388,7 +2368,7 @@ protected func Java_CFFI_getRegistryIdOrNone(env: JNIEnv_ptr, obj: Java_CFFI_Jav
         }
 
         let objClass = envCJ.GetObjectClass(env, jobj)
-        let fieldId = envCJ.GetFieldID(env, objClass, cstrSelf, cstrJ)
+        let fieldId = envCJ.GetFieldID(env, objClass, cstrRegId, cstrJ)
         if (fieldId.isNull()) {
             throw InteropLibException("Error: Class is not registrable")
         }
@@ -2403,17 +2383,17 @@ protected func Java_CFFI_getRegistryId(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntit
         "Error: Object was not registered properly")
 }
 
-protected func Java_CFFI_getFromRegistryOption<T>(self: jlong): Option<T> {
-    registry.get<T>(self)
+protected func Java_CFFI_getFromRegistryOption<T>(regId: jlong): Option<T> {
+    registry.get<T>(regId)
 }
 
-protected func Java_CFFI_removeFromRegistry(self: jlong): Unit {
-    registry.remove(self)
+protected func Java_CFFI_removeFromRegistry(regId: jlong): Unit {
+    registry.remove(regId)
 }
 
-protected func Java_CFFI_deleteCJObjectOneWay<T>(env: JNIEnv_ptr, self: jlong): Unit {
-    let v = Java_CFFI_getFromRegistry<T>(env, self)
-    registry.remove(self)
+protected func Java_CFFI_deleteCJObjectOneWay<T>(env: JNIEnv_ptr, regId: jlong): Unit {
+    let v = Java_CFFI_getFromRegistry<T>(env, regId)
+    registry.remove(regId)
 }
 
 protected func Java_CFFI_unwrapJavaEntityAsValue<T>(entity: Java_CFFI_JavaEntity): T {
@@ -2557,28 +2537,6 @@ protected func Java_CFFI_JavaCallNestInit(n: Int64) : Java_CFFI_JavaCallNest {
     Java_CFFI_JavaCallNest(n)
 }
 
-protected func Java_CFFI_monitorEnter(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
-    unsafe {
-        let envCJ = env.read().read()
-        let jobj = obj.asJObject()
-        let result = envCJ.MonitorEnter(env, jobj)
-        if (result != 0) {
-            throw InteropLibException("Error entering monitor: ${result}")
-        }
-    }
-}
-
-protected func Java_CFFI_monitorExit(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
-    unsafe {
-        let envCJ = env.read().read()
-        let jobj = obj.asJObject()
-        let result = envCJ.MonitorExit(env, jobj)
-        if (result != 0) {
-            throw InteropLibException("Error entering monitor: ${result}")
-        }
-    }
-}
-
 protected func Java_CFFI_withLocalFrame(env: JNIEnv_ptr, capacity: jint, action: () -> Java_CFFI_JavaEntity): Java_CFFI_JavaEntity {
     unsafe {
         let envCJ = env.read().read()
@@ -2610,97 +2568,5 @@ protected func Java_CFFI_withLocalFrameUnit(env: JNIEnv_ptr, capacity: jint, act
         } finally {
             envCJ.PopLocalFrame(env, jobject())
         }
-    }
-}
-
-protected func getJavaLambdaObject(fun : Any, className: String) : jobject {
-    unsafe {
-        getJavaLambdaEntity(fun, className).asJObject()
-    }
-}
-
-protected func getJavaLambdaEntity(fun : Any, className: String) : Java_CFFI_JavaEntity {
-    let cjId = Java_CFFI_put_to_registry_1(fun)
-    let env = Java_CFFI_get_env()
-    let clazz = Java_CFFI_ClassInit(env, className)
-    let methodId = Java_CFFI_MethodIDConstr(env, clazz, "<init>", Java_CFFI_parseMethodSignature("(J)V"));
-    let obj = Java_CFFI_newJavaObject(env, clazz, methodId, [Java_CFFI_JavaEntity(cjId)], Java_CFFI_JavaCallNest(1))
-    obj
-}
-
-protected class JavaObjectController<T> {
-    var obj: Java_CFFI_JavaEntity
-    var cjObj: ?T = None
-    var detached = false
-    var skipDetach = false
-    var cjLock: ?Java_CFFI_JavaEntity = None
-    var waitId: ?Java_CFFI_MethodID = None
-    var attachCJObjectId: ?Java_CFFI_MethodID = None
-
-    public init(obj: Java_CFFI_JavaEntity, className: String) {
-        this.obj = obj
-        let env = Java_CFFI_get_env()
-        let clazz = Java_CFFI_Class(env, className)
-        let cjLockFieldId = Java_CFFI_FieldID.constrStatic(env, clazz, "cjLock", Java_CFFI_parseComponentSignature("Ljava/lang/Object;"))
-        let cjLockLocal = Java_CFFI_getStaticField(env, clazz, cjLockFieldId)
-        cjLock = Java_CFFI_newGlobalReference(env, cjLockLocal, false)
-        let objectClass = Java_CFFI_Class(env, "java/lang/Object")
-        waitId = Java_CFFI_MethodID.constr(env, objectClass, "wait", Java_CFFI_parseMethodSignature("()V"))
-        attachCJObjectId = Java_CFFI_MethodID.constr(env, clazz, "attachCJObject", Java_CFFI_parseMethodSignature("(J)V"))
-    }
-
-    private func waitAndGetJavaObject(env: JNIEnv_ptr): Java_CFFI_JavaEntity {
-        var ref = getLocalRef(env, obj)
-        while (ref.isNull) {
-            skipDetach = true
-            Java_CFFI_callVirtualMethod(env, cjLock.getOrThrow(), waitId.getOrThrow(), [], Java_CFFI_JavaCallNest(0))
-            ref = getLocalRef(env, obj)
-        }
-        ref
-    }
-
-    public func attachCJObject(env: JNIEnv_ptr): Java_CFFI_JavaEntity {
-        acquireCJLock(env)
-        try {
-            let localRef = waitAndGetJavaObject(env)
-            if (detached) {
-                println("Attaching CJ object")
-                let cjObjId = Java_CFFI_put_to_registry_1(cjObj.getOrThrow())
-                Java_CFFI_callMethod(env, localRef, attachCJObjectId.getOrThrow(), [Java_CFFI_JavaEntity(JLONG, cjObjId)], Java_CFFI_JavaCallNest(1))
-                Java_CFFI_deleteGlobalReference(env, this.obj)
-                this.obj = Java_CFFI_newGlobalReference(env, localRef, true)
-                detached = false
-            }
-            localRef
-        } finally {
-            releaseCJLock(env)
-        }
-    }
-
-    public func detachCJObject(env: JNIEnv_ptr, javaObj: Java_CFFI_JavaEntity, cjObjId: Int64): Bool {
-        Java_CFFI_deleteGlobalReference(env, this.obj)
-        if (skipDetach) {
-            this.obj = Java_CFFI_newGlobalReference(env, javaObj, true)
-            skipDetach = false
-        } else {
-            this.obj = Java_CFFI_newGlobalReference(env, javaObj, false)
-            cjObj = Java_CFFI_getFromRegistry<T>(env, cjObjId)
-            Java_CFFI_deleteCJObjectOneWay<T>(env, cjObjId)
-            detached = true
-        }
-        detached
-    }
-
-    private func acquireCJLock(env: JNIEnv_ptr) {
-        Java_CFFI_monitorEnter(env, cjLock.getOrThrow())
-    }
-
-    private func releaseCJLock(env: JNIEnv_ptr) {
-        Java_CFFI_monitorExit(env, cjLock.getOrThrow())
-    }
-
-    public func finalize(): Unit {
-        let env = Java_CFFI_get_env()
-        Java_CFFI_deleteGlobalReference(env, obj)
     }
 }
