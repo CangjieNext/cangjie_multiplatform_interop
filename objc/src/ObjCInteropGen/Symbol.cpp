@@ -117,6 +117,19 @@ std::string Symbol::rename(std::string new_name) noexcept
     return old_name;
 }
 
+bool FileLevelSymbolVisitor::operator()(Type& type) const
+{
+    if ((*this)(type.symbol())) {
+        return true;
+    }
+    for (auto& param : type.parameters()) {
+        if ((*this)(param)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool FileLevelSymbol::set_reference_level(unsigned new_reference_level) noexcept
 {
     if (!defining_file() || new_reference_level >= reference_level_) {
@@ -141,10 +154,9 @@ void FileLevelSymbol::set_definition_location(const Location& location)
 
 void FileLevelSymbol::collect_referenced_symbols()
 {
-    for_each_referenced_type([this](TypeLikeSymbol& type_symbol) {
-        if (type_symbol.input_file_ && references_symbols_.insert(&type_symbol).second &&
-            verbosity >= LogLevel::TRACE) {
-            std::cerr << "Entity `" << name() << "` references `" << type_symbol.name() << "`\n";
+    for_each_referenced_type([this](FileLevelSymbol& symbol) {
+        if (symbol.input_file_ && references_symbols_.insert(&symbol).second && verbosity >= LogLevel::TRACE) {
+            std::cerr << "Entity `" << name() << "` references `" << symbol.name() << "`\n";
         }
     });
 }
@@ -279,20 +291,6 @@ const Type& Type::varray_element_type() const noexcept
     assert(kind_ == Kind::VArray);
     assert(parameters_.size() == 1);
     return parameters_.front();
-}
-
-bool Type::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
-{
-    assert(symbol_);
-    if (visitor(*symbol_)) {
-        return true;
-    }
-    for (auto& param : parameters_) {
-        if (param.any_of_referenced_types(visitor)) {
-            return true;
-        }
-    }
-    return false;
 }
 
 bool Type::is_ctype() const noexcept
@@ -1044,7 +1042,7 @@ bool TypeAliasSymbol::set_reference_level(unsigned new_reference_level) noexcept
 bool TypeAliasSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
     auto& target = this->target();
-    return target.has_symbol_assigned() && target.any_of_referenced_types(visitor);
+    return target.has_symbol_assigned() && visitor(target);
 }
 
 static void selector_to_cj_name(NonTypeSymbol& member)
@@ -1116,12 +1114,12 @@ bool NonTypeSymbol::is_ctype() const noexcept
 bool NonTypeSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
     for (auto& parameter : this->parameters()) {
-        if (parameter.type().any_of_referenced_types(visitor)) {
+        if (visitor(parameter.type())) {
             return true;
         }
     }
 
-    return kind_ != Kind::Property && return_type().any_of_referenced_types(visitor);
+    return kind_ != Kind::Property && visitor(return_type());
 }
 
 const Type& NonTypeSymbol::return_type() const noexcept

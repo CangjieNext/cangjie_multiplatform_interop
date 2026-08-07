@@ -409,7 +409,7 @@ static void write_foreign_name(std::ostream& output, const NonTypeSymbol& method
             }
             assert(t1.parameters().size() == 1);
             assert(t2.parameters().size() == 1);
-            return same_types(t1.parameters().front(), t2.parameters().front());
+            return same_types(*t1.parameters().begin(), *t2.parameters().begin());
         case Type::Kind::Function: {
             if (t2.kind() != Type::Kind::Function) {
                 return false;
