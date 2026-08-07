@@ -2529,7 +2529,7 @@ protected func withExceptionHandling<R>(env: JNIEnv_ptr, action: () -> R): R whe
 
         let throwable = match (exceptionToThrow) {
             case jniEx: JNIException => jniEx.jException
-            case _ => Java_CFFI_wrap_cj_exception(env, ex).jException
+            case _ => Java_CFFI_wrap_cj_exception(env, exceptionToThrow).jException
         }
 
         Java_CFFI_throw_exception(env, throwable)
