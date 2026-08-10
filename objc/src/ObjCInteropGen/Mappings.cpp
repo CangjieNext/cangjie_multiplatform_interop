@@ -25,7 +25,15 @@ struct PrimitiveMapping final : TypeMapping {
     [[nodiscard]] bool can_map(const NamedTypeSymbol& type) const noexcept override
     {
         if (type.is(NamedTypeSymbol::Kind::TypeDef)) {
-            const auto canonical_type = type.as<TypeAliasSymbol>().canonical_type();
+            const auto& alias = type.as<TypeAliasSymbol>();
+
+            // Do not map user/source-defined typedefs.
+            // Generated/built-in typedefs have no definition location.
+            if (alias.defining_file()) {
+                return false;
+            }
+
+            const auto canonical_type = alias.canonical_type();
             if (canonical_type.kind() == Type::Kind::Named && canonical_type.symbol().is<PrimitiveTypeSymbol>()) {
                 const auto category = canonical_type.symbol().as<PrimitiveTypeSymbol>().category();
                 if (category == PrimitiveTypeCategory::Unit) {
