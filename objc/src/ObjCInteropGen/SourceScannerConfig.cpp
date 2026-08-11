@@ -65,9 +65,8 @@ static void toml_array_to_vector(const toml::Table& table, const std::string& so
     const std::string& source_name, const std::string& mixin_name, const toml::Array& mixin_sources_array)
 {
     if (verbosity >= LogLevel::DIAGNOSTIC) {
-        std::cerr << "`sources-mixins` " << mixin_name
-                  << " is being being checked for applicability to `sources` entry `" << source_name << '`'
-                  << std::endl;
+        std::cerr << "`sources-mixins` " << mixin_name << " is being checked for applicability to `sources` entry `"
+                  << source_name << '`' << std::endl;
     }
 
     std::size_t i = 0;
