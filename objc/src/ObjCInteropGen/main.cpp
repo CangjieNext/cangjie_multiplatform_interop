@@ -169,6 +169,7 @@ int main(int argc, char* argv[])
             return 1;
         }
         check_marked_symbols();
+        apply_mappings();
 
         stage = "Writing Cangjie outputs";
         write_cangjie();

@@ -334,6 +334,9 @@ std::string SourceScanner::new_anonymous_name(const CXCursor& decl)
     assert(clang_Cursor_isAnonymous(decl));
     auto file_name_original = declaring_file_name(decl);
     std::string file_name;
+    // id can start with a number
+    // 0sig_test.h
+    // add test with 0sig_test.h file name and with chinese characters as file name
     file_name.reserve(file_name_original.size());
     for (char c : file_name_original) {
         if (isalnum(c) || c == '_') {

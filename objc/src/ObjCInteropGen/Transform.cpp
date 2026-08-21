@@ -488,53 +488,6 @@ static void transform_visit()
     }
 }
 
-static void set_type_mappings() noexcept
-{
-    for (auto&& type : Universe::get().types()) {
-        for (const auto* mapping : mappings) {
-            if (mapping->can_map(type)) {
-                if (type.mapping()) {
-                    std::cerr << "Warning: multiple mappings can be applied to type `" << type.name()
-                              << "`.  Only the first one will be used." << std::endl;
-                    break;
-                }
-
-                type.set_mapping(mapping);
-            }
-        }
-    }
-}
-
-static void do_map(NonTypeSymbol& symbol)
-{
-    for (auto&& parameter : symbol.parameters()) {
-        parameter.type().map();
-    }
-    symbol.return_type().map();
-}
-
-static void do_map()
-{
-    auto& universe = Universe::get();
-    for (auto& top_level : universe.top_level()) {
-        do_map(top_level);
-    }
-    for (auto&& decl : universe.types()) {
-        if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(&decl)) {
-            for (auto&& member : type->members()) {
-                if (!member.is_property()) {
-                    do_map(member);
-                }
-            }
-        } else if (auto* alias = dynamic_cast<TypeAliasSymbol*>(&decl)) {
-            auto& target = alias->target();
-            if (target.has_symbol_assigned()) {
-                target.map();
-            }
-        }
-    }
-}
-
 /** Given the N-dimensional VArray, get the type of its element */
 [[nodiscard]] static const Type& get_element_type(const Type& varray) noexcept
 {
@@ -579,12 +532,8 @@ static void decay_parameter_types()
 
 void apply_transforms()
 {
-    transform_visit();
     decay_parameter_types();
-
-    // Apply mappings
-    set_type_mappings();
-    do_map();
+    transform_visit();
 }
 
 } // namespace objcgen
