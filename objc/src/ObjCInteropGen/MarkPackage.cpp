@@ -15,11 +15,28 @@
 
 namespace objcgen {
 
+[[nodiscard]] static const std::string& original_symbol_name(const FileLevelSymbol& symbol)
+{
+    if (const auto* non_type_symbol = dynamic_cast<const NonTypeSymbol*>(&symbol)) {
+        const auto& selector_attribute = non_type_symbol->selector_attribute();
+        if (!selector_attribute.empty()) {
+            return selector_attribute;
+        }
+    }
+    if (const auto* named_type_symbol = dynamic_cast<const NamedTypeSymbol*>(&symbol)) {
+        const auto& objc_name_attribute = named_type_symbol->objc_name_attribute();
+        if (!objc_name_attribute.empty()) {
+            return objc_name_attribute;
+        }
+    }
+    return symbol.name();
+}
+
 [[nodiscard]] static bool set_package(FileLevelSymbol& symbol)
 {
     bool success = true;
 
-    const auto& name = symbol.name();
+    const auto& name = original_symbol_name(symbol);
 
     bool package_found = false;
 

@@ -161,14 +161,14 @@ int main(int argc, char* argv[])
 
         stage = "Creating Cangjie packages";
         create_packages();
-        if (!mark_roots()) {
-            return 1;
-        }
 
         stage = "Transforming sources";
         apply_transforms();
         apply_mappings();
 
+        if (!mark_roots()) {
+            return 1;
+        }
         if (!process_symbol_references()) {
             return 1;
         }
