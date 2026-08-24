@@ -42,9 +42,7 @@ void StructuredString::append_text(const std::string_view text)
     while (!fragment.empty()) {
         const auto newline_pos = fragment.find('\n');
         if (newline_pos == std::string_view::npos) {
-            if (!fragment.empty()) {
-                push_string(std::string(fragment));
-            }
+            push_string(std::string(fragment));
             break;
         }
         if (newline_pos > 0) {
