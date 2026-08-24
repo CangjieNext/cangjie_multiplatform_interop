@@ -477,12 +477,13 @@ template <CXTypeKind type_kind> Type SourceScanner::get_named_type(const CXType&
                 // Do not create such typedef at all.  Use directly its target everywhere.
                 return target;
             }
+            if (name == "__builtin_va_list") {
+                return get_named_type<CXType_Unexposed>(type, nullability);
+            }
             symbol = new TypeAliasSymbol(std::move(name), std::move(target));
             auto loc = get_location(decl);
             if (!loc.is_null()) {
                 symbol->set_definition_location(loc);
-            } else if (name == "__builtin_va_list") {
-                return get_named_type<CXType_Unexposed>(type, nullability);
             }
         } else if constexpr (type_kind == CXType_Unexposed) {
             symbol = &create_unexposed_type_symbol(type, std::move(name));
