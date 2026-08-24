@@ -70,7 +70,7 @@ struct ImportEntry final {
     ImportEntry(std::string original_path, const std::filesystem::path& modified_path)
         : original_path(std::move(original_path))
     {
-        absolute_path = std::filesystem::absolute(modified_path);
+        absolute_path = std::filesystem::weakly_canonical(modified_path);
     }
 
     [[nodiscard]] std::string to_string() const
