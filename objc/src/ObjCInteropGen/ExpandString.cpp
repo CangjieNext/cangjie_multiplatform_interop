@@ -11,8 +11,8 @@
 
 namespace objcgen {
 
-std::regex variable_regex(R"(\$(\w+|\{\w+\}))");
-std::unordered_map<std::string, std::string> variable_map;
+static const std::regex variable_regex(R"(\$(\w+|\{\w+\}))");
+static std::unordered_map<std::string, std::string> variable_map;
 
 template <typename T> T advanced(T it, std::size_t offset)
 {
