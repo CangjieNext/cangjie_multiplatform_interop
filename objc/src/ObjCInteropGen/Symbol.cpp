@@ -920,7 +920,7 @@ void TypeDeclarationSymbol::add_member_method(
             break;
         default:
             assert(false);
-            break;
+            return;
     }
     members_.emplace_back(std::move(name), kind, std::move(return_type), std::move(parameters), modifiers);
 }
@@ -1269,7 +1269,7 @@ bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexc
         assert(!type.is_unit());
 
         if (type.kind() == Type::Kind::Named) {
-            if (type.name() == "IMP" || (type.has_symbol_assigned() && &type.symbol() == &Universe::get().sel())) {
+            if (type.has_symbol_assigned() && &type.symbol() == &Universe::get().sel()) {
                 return false;
             }
         }

@@ -632,6 +632,7 @@ void TypeDeclarationWriter::write()
     // classes/interfaces and structures.
     switch (decl_.kind()) {
         case NamedTypeSymbol::Kind::Protocol:
+        case NamedTypeSymbol::Kind::Interface:
             format_ = PrintFormat::EmitCangjieStrict;
             print_objcmirror_attribute(output_, decl_, !generate_definitions_mode());
             break;
@@ -643,10 +644,6 @@ void TypeDeclarationWriter::write()
             } else {
                 print_objcmirror_attribute(output_, decl_, mode == Mode::EXPERIMENTAL);
             }
-            break;
-        case NamedTypeSymbol::Kind::Interface:
-            format_ = PrintFormat::EmitCangjieStrict;
-            print_objcmirror_attribute(output_, decl_, !generate_definitions_mode());
             break;
         default:
             assert(false);
