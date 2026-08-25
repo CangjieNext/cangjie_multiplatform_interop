@@ -663,6 +663,7 @@ private func signatureBaseCheck(signature: String) {
     }
 }
 
+// @Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_parseComponentSignature(signature: String): Java_CFFI_ComponentSignature {
     signatureBaseCheck(signature)
     
@@ -758,6 +759,7 @@ private func restoreComponentSignatureSize(signature: Java_CFFI_ComponentSignatu
     }
 }
 
+// @Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_parseMethodSignature(signature: String): Java_CFFI_MethodSignature {
     signatureBaseCheck(signature)
     if (signature.size < 3) {
@@ -1835,6 +1837,7 @@ private unsafe func getFieldJavaEntity(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntit
     }
 }
 
+// @Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_getField(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, field: Java_CFFI_FieldID): Java_CFFI_JavaEntity {
     if (field.`static`) {
         throw InteropLibException("Cannot get static entity from non-static obj")
@@ -1848,6 +1851,7 @@ protected func Java_CFFI_getField(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, fi
     res
 }
 
+@Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_getStaticField(env: JNIEnv_ptr, clazz: Java_CFFI_Class, field: Java_CFFI_FieldID): Java_CFFI_JavaEntity {
     if (!field.`static`) {
         throw InteropLibException("Cannot get non-static entity from class")
@@ -1971,6 +1975,7 @@ private unsafe func setFieldJavaEntity(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntit
     }
 }
 
+// @Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_setField(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, field: Java_CFFI_FieldID, value: Java_CFFI_JavaEntity): Unit {
     if (field.`static`) {
         throw InteropLibException("Cannot set static entity to non-static obj")
@@ -1983,6 +1988,7 @@ protected func Java_CFFI_setField(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, fi
     handlePendingException(env)
 }
 
+@Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_setStaticField(env: JNIEnv_ptr, clazz: Java_CFFI_Class, field: Java_CFFI_FieldID, value: Java_CFFI_JavaEntity): Unit {
     if (!field.`static`) {
         throw InteropLibException("Cannot set non-static entity to class")
@@ -2539,22 +2545,27 @@ protected func Java_CFFI_getStaticMethodID(env: JNIEnv_ptr, jclazz: jclass, name
     id
 }
 
+// @Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_MethodIDConstr(env: JNIEnv_ptr, clazz: Java_CFFI_Class, methodName: String, signature: Java_CFFI_MethodSignature): Java_CFFI_MethodID {
     Java_CFFI_MethodID.constr(env, clazz, methodName, signature)
 }
 
+// @Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_MethodIDConstrStatic(env: JNIEnv_ptr, clazz: Java_CFFI_Class, methodName: String, signature: Java_CFFI_MethodSignature): Java_CFFI_MethodID {
     Java_CFFI_MethodID.constrStatic(env, clazz, methodName, signature)
 }
 
+// @Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_FieldIDConstr(env: JNIEnv_ptr, clazz: Java_CFFI_Class, fieldName: String, signature: Java_CFFI_ComponentSignature): Java_CFFI_FieldID {
     Java_CFFI_FieldID.constr(env, clazz, fieldName, signature)
 }
 
+// @Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_FieldIDConstrStatic(env: JNIEnv_ptr, clazz: Java_CFFI_Class, fieldName: String, signature: Java_CFFI_ComponentSignature): Java_CFFI_FieldID {
     Java_CFFI_FieldID.constrStatic(env, clazz, fieldName, signature)
 }
 
+// @Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_ClassInit(env: JNIEnv_ptr, name: String) : Java_CFFI_Class {
     Java_CFFI_Class(env, name)
 }
@@ -2568,6 +2579,37 @@ protected func Java_CFFI_getClass(env: JNIEnv_ptr, name: String) : jclass {
     obj
 }
 
+protected func Java_CFFI_getInstanceFieldId(env: JNIEnv_ptr, clazz: jclass, name: String, signature: String) : jfieldID {
+    unsafe {
+        let envCJ = env.read().read()
+        var id = jfieldID()
+        try (
+            cName = LibC.mallocCString(name).asResource(),
+            cSignature = LibC.mallocCString(signature).asResource()
+        ) {
+            let envCJ = env.read().read()
+            id = envCJ.GetFieldID(env, clazz, cName.value, cSignature.value)
+        }
+        return id
+    }
+}
+
+protected func Java_CFFI_getStaticFieldId(env: JNIEnv_ptr, clazz: jclass, name: String, signature: String) : jfieldID {
+    unsafe {
+        let envCJ = env.read().read()
+        var id = jfieldID()
+        try (
+            cName = LibC.mallocCString(name).asResource(),
+            cSignature = LibC.mallocCString(signature).asResource()
+        ) {
+            let envCJ = env.read().read()
+            id = envCJ.GetStaticFieldID(env, clazz, cName.value, cSignature.value)
+        }
+        return id
+    }
+}
+
+// @Deprecated["Not used by cjc for performance reasons"]
 protected func Java_CFFI_JavaCallNestInit(n: Int64) : Java_CFFI_JavaCallNest {
     Java_CFFI_JavaCallNest(n)
 }
