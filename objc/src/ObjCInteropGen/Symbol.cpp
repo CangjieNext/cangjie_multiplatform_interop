@@ -937,7 +937,7 @@ void TypeDeclarationSymbol::add_constructor(std::string name, Type return_type, 
             break;
         default:
             assert(false);
-            break;
+            return;
     }
     assert(is(Kind::Interface) || is(Kind::Protocol));
     members_.emplace_back(std::move(name), kind, std::move(return_type), std::move(parameters));
@@ -1300,6 +1300,7 @@ bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexc
     }
 
     assert(false);
+    return false;
 }
 
 bool NonTypeSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)

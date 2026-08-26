@@ -381,6 +381,7 @@ static void write_function(
         output << "public ";
     } else {
         assert(false);
+        return;
     }
     if (function.is_static()) {
         // In Objective-C, the overridden static method can have different parameter
@@ -699,6 +700,7 @@ void TypeDeclarationWriter::write()
                 write_field(member);
             } else {
                 assert(false);
+                return;
             }
         }
 

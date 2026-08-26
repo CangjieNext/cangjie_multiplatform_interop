@@ -92,7 +92,7 @@ void StructuredStringRenderer::render(std::ostream& out, const StructuredString&
                 break;
             default:
                 assert(false);
-                break;
+                return;
         }
     }
 
