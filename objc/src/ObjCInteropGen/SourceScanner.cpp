@@ -278,7 +278,7 @@ static std::ostream& operator<<(std::ostream& stream, const String& string)
     if (!file) {
         return {};
     }
-    location.file_ = as_string(clang_getFileName(file));
+    location.file_ = std::filesystem::u8path(String(clang_getFileName(file)).c_str());
     if (!location.file_.is_absolute()) {
         location.file_ = std::filesystem::absolute(location.file_);
     }
@@ -335,7 +335,7 @@ std::string SourceScanner::new_anonymous_name(const CXCursor& decl)
     auto file_name_original = declaring_file_name(decl);
     std::string file_name;
     file_name.reserve(file_name_original.size());
-    for (char c : file_name_original) {
+    for (unsigned char c : file_name_original) {
         if (isalnum(c) || c == '_') {
             file_name += c;
         } else {

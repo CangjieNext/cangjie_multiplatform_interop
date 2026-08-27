@@ -22,7 +22,7 @@ const std::string& PackageFilter::package_name() const noexcept
 }
 
 PackageFile::PackageFile(std::string file_name, Package& package)
-    : output_path_(package.output_path() + '/' + file_name + ".cj"), package_(&package)
+    : output_path_(std::filesystem::u8path(package.output_path() + '/' + file_name + ".cj")), package_(&package)
 {
     assert(!file_name.empty());
 }
