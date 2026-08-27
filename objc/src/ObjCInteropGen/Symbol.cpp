@@ -861,9 +861,15 @@ TypeDeclarationSymbol::TypeDeclarationSymbol(const Kind kind, std::string name) 
 {
 }
 
-void TypeDeclarationSymbol::add_base(TypeDeclarationSymbol& base)
+void TypeDeclarationSymbol::add_base_class(TypeDeclarationSymbol& base_class) noexcept
 {
-    bases_.push_back(&base);
+    assert(!base_class_);
+    base_class_ = &base_class;
+}
+
+void TypeDeclarationSymbol::add_base_protocol(TypeDeclarationSymbol& base_protocol)
+{
+    base_protocols_.emplace_back(base_protocol);
 }
 
 const TypeParameterSymbol& TypeDeclarationSymbol::parameter(size_t index) const noexcept
@@ -1018,8 +1024,12 @@ bool TypeDeclarationSymbol::visit_referenced_types(const FileLevelSymbolVisitor&
 {
     // It could make sense to analyze if infinite recursion is possible here.  With
     // CRTP for example.
-    for (auto& base : this->bases()) {
-        if (visitor(base)) {
+    auto* base_class = this->base_class();
+    if (base_class && visitor(*base_class)) {
+        return true;
+    }
+    for (auto& base_protocol : this->base_protocols()) {
+        if (visitor(base_protocol)) {
             return true;
         }
     }
@@ -1033,8 +1043,12 @@ bool TypeDeclarationSymbol::visit_referenced_types(const FileLevelSymbolVisitor&
 
 bool TypeDeclarationSymbol::visit_referenced_types(const FileLevelSymbolScanner& visitor) const
 {
-    for (const auto& base : this->bases()) {
-        if (visitor(base)) {
+    const auto* base_class = this->base_class();
+    if (base_class && visitor(*base_class)) {
+        return true;
+    }
+    for (const auto& base_protocol : this->base_protocols()) {
+        if (visitor(base_protocol)) {
             return true;
         }
     }
@@ -1050,8 +1064,8 @@ bool TypeDeclarationSymbol::set_reference_level(unsigned new_reference_level) no
 {
     auto set = FileLevelSymbol::set_reference_level(new_reference_level);
     if (set) {
-        // Set the same reference level for all filelds of the @C structure.  Binary
-        // compatibility will be broken if any @C field is ommitted at the Cangjie side.
+        // Set the same reference level for all fields of the @C structure.  Binary
+        // compatibility will be broken if any @C field is omitted at the Cangjie side.
         if (is_ctype_) {
             for (auto* reference : references_symbols()) {
                 assert(reference);
@@ -1060,8 +1074,11 @@ bool TypeDeclarationSymbol::set_reference_level(unsigned new_reference_level) no
         } else {
             // Set the same reference level for all base classes and protocols, because that
             // is required for compilability at the Cangjie side.
-            for (auto base : bases_) {
-                base->set_reference_level(new_reference_level);
+            if (base_class_) {
+                base_class_->set_reference_level(new_reference_level);
+            }
+            for (auto base_protocol : base_protocols_) {
+                base_protocol.get().set_reference_level(new_reference_level);
             }
         }
     }
@@ -1216,6 +1233,54 @@ void NonTypeSymbol::rename(std::string new_name) noexcept
     auto old_name = FileLevelSymbol::rename(std::move(new_name));
     if (selector_attribute_.empty()) {
         selector_attribute_ = std::move(old_name);
+    }
+}
+
+[[nodiscard]] static bool is_unique_name(const std::string& name, const TypeDeclarationSymbol& owner) noexcept;
+
+[[nodiscard]] static bool is_unique_name_against_bases(
+    const std::string& name, const TypeDeclarationSymbol& owner) noexcept
+{
+    const auto* base_class = owner.base_class();
+    if (base_class && !is_unique_name(name, *base_class)) {
+        return false;
+    }
+    auto base_protocols = owner.base_protocols();
+    return std::none_of(base_protocols.begin(), base_protocols.end(),
+        [&name](const auto& base_protocol) { return !is_unique_name(name, base_protocol); });
+}
+
+static bool is_unique_name(const std::string& name, const TypeDeclarationSymbol& owner) noexcept
+{
+    auto members = owner.members();
+    return std::none_of(
+               members.begin(), members.end(), [&name](const auto& member) { return member.name() == name; }) &&
+        is_unique_name_against_bases(name, owner);
+}
+
+[[nodiscard]] static bool has_unique_name(const NonTypeSymbol& member, const TypeDeclarationSymbol& owner) noexcept
+{
+    auto members = owner.members();
+    const auto& name = member.name();
+    return std::none_of(members.begin(), members.end(),
+               [&member, &name](const auto& m) { return &m != &member && m.name() == name; }) &&
+        is_unique_name_against_bases(name, owner);
+}
+
+void NonTypeSymbol::rename_uniquely(std::string new_base_name, const TypeDeclarationSymbol& owner)
+{
+    for (;; new_base_name = name() + '_') {
+        rename(std::move(new_base_name));
+        if (has_unique_name(*this, owner)) {
+            break;
+        }
+    }
+}
+
+void NonTypeSymbol::make_unique_name(const TypeDeclarationSymbol& owner)
+{
+    while (!has_unique_name(*this, owner)) {
+        rename_uniquely(name() + '_', owner);
     }
 }
 

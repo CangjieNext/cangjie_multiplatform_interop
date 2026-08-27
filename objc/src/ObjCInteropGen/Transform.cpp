@@ -54,15 +54,16 @@ static void replace_instancetype(TypeDeclarationSymbol& decl)
     }
 }
 
-static void resolve_static_instance_clash(NonTypeSymbol& method)
+static void resolve_static_instance_clash(NonTypeSymbol& method, const TypeDeclarationSymbol& owner)
 {
-    method.rename(method.name() + (method.is_static() ? "Static" : "Instance"));
+    method.rename_uniquely(method.name() + (method.is_static() ? "Static" : "Instance"), owner);
 }
 
-static void resolve_prop_ivar_clash(NonTypeSymbol& member)
+static void resolve_prop_ivar_clash(NonTypeSymbol& member, const TypeDeclarationSymbol& owner)
 {
     assert(member.kind() == NonTypeSymbol::Kind::Property || member.kind() == NonTypeSymbol::Kind::InstanceVariable);
-    member.rename(member.name() + (member.kind() == NonTypeSymbol::Kind::InstanceVariable ? "Var" : "Prop"));
+    member.rename_uniquely(
+        member.name() + (member.kind() == NonTypeSymbol::Kind::InstanceVariable ? "Var" : "Prop"), owner);
 }
 
 struct StaticInstancePair {
@@ -288,11 +289,159 @@ template <class Params> static void resolve_unnamed_parameters(Params params)
     }
 }
 
+static void print_horizontal_conflict_warning(const TypeDeclarationSymbol& clazz, const NonTypeSymbol& class_member,
+    const TypeDeclarationSymbol& protocol, const char* what)
+{
+    const auto* input_file = clazz.defining_file();
+    assert(input_file);
+    std::cerr << input_file->path().u8string() << ": " << (class_member.is_property() ? "property" : "method") << " `"
+              << class_member.name() << "` is hidden because it has conflicting " << what << " in `" << clazz.name()
+              << "` and `" << protocol.name() << "`\n";
+}
+
+[[nodiscard]] static bool fix_horizontal_mutability_clashes(
+    const TypeDeclarationSymbol& clazz, const TypeDeclarationSymbol& protocol)
+{
+    assert(clazz.is(NamedTypeSymbol::Kind::Interface));
+    assert(protocol.is(NamedTypeSymbol::Kind::Protocol));
+    auto clash = false;
+    for (const auto& c_m : clazz.members()) {
+        if (c_m.is_property()) {
+            const auto& name = c_m.name();
+            auto read_only = c_m.is_readonly();
+            for (const auto& p_m : protocol.members()) {
+                if (p_m.is_property() && p_m.name() == name && p_m.is_readonly() != read_only) {
+                    clash = true;
+                    print_horizontal_conflict_warning(clazz, c_m, protocol, "mutability");
+                }
+            }
+        }
+    }
+    return clash;
+}
+
+[[nodiscard]] static bool fix_horizontal_optionality_clashes(
+    const TypeDeclarationSymbol& decl, const TypeDeclarationSymbol& protocol)
+{
+    assert(decl.is(NamedTypeSymbol::Kind::Interface) || decl.is(NamedTypeSymbol::Kind::Protocol));
+    assert(protocol.is(NamedTypeSymbol::Kind::Protocol));
+    auto method_kind = decl.is(NamedTypeSymbol::Kind::Interface) ? NonTypeSymbol::Kind::InterfaceMethod
+                                                                 : NonTypeSymbol::Kind::ProtocolMethod;
+    auto clash = false;
+    for (const auto& c_m : decl.members()) {
+        if (c_m.kind() == method_kind || c_m.is_property()) {
+            const auto& name = c_m.name();
+            auto is_optional = c_m.is_objc_optional();
+            for (const auto& p_m : protocol.members()) {
+                if (p_m.name() == name && p_m.is_objc_optional() != is_optional) {
+                    clash = true;
+                    print_horizontal_conflict_warning(decl, c_m, protocol, "@optional annotation");
+                }
+            }
+        }
+    }
+    return clash;
+}
+
+[[nodiscard]] static bool fix_horizontal_foreign_name_clashes(
+    const TypeDeclarationSymbol& decl, const TypeDeclarationSymbol& protocol)
+{
+    assert(decl.is(NamedTypeSymbol::Kind::Interface) || decl.is(NamedTypeSymbol::Kind::Protocol));
+    assert(protocol.is(NamedTypeSymbol::Kind::Protocol));
+    auto method_kind = decl.is(NamedTypeSymbol::Kind::Interface) ? NonTypeSymbol::Kind::InterfaceMethod
+                                                                 : NonTypeSymbol::Kind::ProtocolMethod;
+    auto clash = false;
+    for (const auto& c_m : decl.members()) {
+        if (c_m.kind() == method_kind) {
+            const auto& name = c_m.name();
+            auto empty_foreign_name = c_m.selector_attribute().empty();
+            for (const auto& p_m : protocol.members()) {
+                if (p_m.is_protocol_method() && p_m.name() == name &&
+                    p_m.selector_attribute().empty() != empty_foreign_name) {
+                    clash = true;
+                    print_horizontal_conflict_warning(decl, c_m, protocol, "@ForeignName annotation");
+                }
+            }
+            break;
+        }
+    }
+    return clash;
+}
+
+[[nodiscard]] static bool fix_horizontal_clashes_shallow(
+    const TypeDeclarationSymbol& decl, const TypeDeclarationSymbol& protocol)
+{
+    auto clash = decl.is(NamedTypeSymbol::Kind::Interface) && fix_horizontal_mutability_clashes(decl, protocol);
+    if (fix_horizontal_optionality_clashes(decl, protocol)) {
+        clash = true;
+    }
+    if (fix_horizontal_foreign_name_clashes(decl, protocol)) {
+        clash = true;
+    }
+    return clash;
+}
+
+[[nodiscard]] static bool fix_horizontal_clashes(
+    const TypeDeclarationSymbol& decl, const TypeDeclarationSymbol& protocol)
+{
+    auto clash = false;
+    const auto* p_decl = &decl;
+    do {
+        if (fix_horizontal_clashes_shallow(*p_decl, protocol)) {
+            clash = true;
+        }
+        for (const auto& base_protocol : protocol.base_protocols()) {
+            if (fix_horizontal_clashes(*p_decl, base_protocol)) {
+                clash = true;
+            }
+        }
+        p_decl = p_decl->base_class();
+    } while (p_decl);
+    return clash;
+}
+
+static void fix_horizontal_clashes(TypeDeclarationSymbol& decl) noexcept
+{
+    // The following conflicts between base type members are resolved by hiding one
+    // of the items in decl's list of implemented interfaces.
+    //
+    // * Property mutability.  Only between the base class and a base
+    //   protocol/interface.
+    //   Objective-C: @readonly/not @readonly
+    //   Cangjie: not 'mut'/'mut'
+    // * Optionality. Between both base classes and protocols/interfaces.
+    //   Objective-C: @optional/not @optional
+    //   Cangjie: @ObjCOptional/not @ObjCOptional
+    // * Foreign name attribute.  When methods have different Objective-C selectors
+    //   (hence not overrides), but only one of them has @ForeignName.  The compiler
+    //   issues an error in this case (bug?).
+    auto base_protocols = decl.base_protocols();
+    const auto* base_class = decl.base_class();
+    if (base_class) {
+        for (auto& base_protocol : base_protocols) {
+            if (fix_horizontal_clashes(*base_class, base_protocol)) {
+                base_protocol.hidden = true;
+            }
+        }
+    }
+
+    auto e = base_protocols.end();
+    for (auto it1 = base_protocols.begin(); it1 != e; ++it1) {
+        const auto& base_protocol1 = *it1;
+        for (auto it2 = std::next(it1); it2 != e; ++it2) {
+            auto& base_protocol2 = *it2;
+            if (fix_horizontal_clashes(base_protocol1, base_protocol2)) {
+                base_protocol2.hidden = true;
+            }
+        }
+    }
+}
+
 static void transform_type(TypeDeclarationSymbol& decl)
 {
-    auto type_kind = decl.kind();
-    switch (type_kind) {
+    switch (decl.kind()) {
         case NamedTypeSymbol::Kind::Protocol: {
+            fix_horizontal_clashes(decl);
             replace_instancetype(decl);
 
             // If the protocol clashes by name with a non-protocol global symbol, rename the
@@ -320,6 +469,7 @@ static void transform_type(TypeDeclarationSymbol& decl)
             break;
         }
         case NamedTypeSymbol::Kind::Interface:
+            fix_horizontal_clashes(decl);
             replace_instancetype(decl);
             break;
         case NamedTypeSymbol::Kind::Struct:
@@ -359,7 +509,7 @@ static void transform_type(TypeDeclarationSymbol& decl)
         if (pair.clashes()) {
             auto& static_member = *pair.get_static();
             assert(static_member.name() == pair.get_instance()->name());
-            resolve_static_instance_clash(static_member);
+            resolve_static_instance_clash(static_member, decl);
         }
     }
 
@@ -379,7 +529,19 @@ static void transform_type(TypeDeclarationSymbol& decl)
     }
     for (const auto& [name, prop_ivar] : prop_ivar_map) {
         if (prop_ivar.both()) {
-            resolve_prop_ivar_clash(*prop_ivar.get_ivar());
+            resolve_prop_ivar_clash(*prop_ivar.get_ivar(), decl);
+        }
+    }
+
+    // Resolve prop/method clashes inside 'decl'
+    for (const auto& m1 : members) {
+        if (m1.is_property()) {
+            const auto& name = m1.name();
+            for (auto& m2 : members) {
+                if (m2.is_member_method() && !m2.is_hidden() && m2.name() == name) {
+                    m2.make_unique_name(decl);
+                }
+            }
         }
     }
 }
@@ -389,21 +551,38 @@ static void transform_type(TypeDeclarationSymbol& decl)
     if (&base == &derived) {
         return true;
     }
-    for (const auto& b : derived.bases()) {
-        if (is_base_of(base, b)) {
+    const auto* c = derived.base_class();
+    if (c && is_base_of(base, *c)) {
+        return true;
+    }
+    for (const auto& p : derived.base_protocols()) {
+        if (is_base_of(base, p)) {
             return true;
         }
     }
     return false;
 }
 
-static void resolve_base_derived_name_clashes(const NonTypeSymbol& base, NonTypeSymbol& derived)
+static void resolve_base_derived_name_clash_by_renaming(
+    NonTypeSymbol& derived, const TypeDeclarationSymbol& derived_owner, const char* what)
+{
+    const auto& original_name = derived.name();
+    derived.make_unique_name(derived_owner);
+    if (verbosity >= LogLevel::INFO) {
+        std::cerr << '`' << derived_owner.name() << ' ' << original_name << "` conflicts by " << what
+                  << " with a base.  Renaming it to `" << derived.name() << "`\n";
+    }
+}
+
+static void resolve_base_derived_name_clashes(
+    const NonTypeSymbol& base, NonTypeSymbol& derived, const TypeDeclarationSymbol& derived_owner)
 {
     assert(base.is_member_method() || base.is_property());
     assert(derived.is_member_method() || derived.is_property());
     if (base.is_static() == derived.is_static()) {
+        auto pair_of_methods = base.is_member_method() && derived.is_member_method();
         if (base.selector() == derived.selector()) {
-            if (base.is_member_method() && derived.is_member_method()) {
+            if (pair_of_methods) {
                 // 'base' and 'derived' is a pair of non-init methods, and 'derived' overrides
                 // 'base' in terms of Objective-C (same selector).  At the Cangjie side, it must
                 // override as well (have the same Cangjie name).  If the names are different
@@ -421,13 +600,32 @@ static void resolve_base_derived_name_clashes(const NonTypeSymbol& base, NonType
                 // both cases.
                 derived.set_hidden();
             }
+        } else {
+            const auto& name = base.name();
+            if (derived.name() == name) {
+                if (pair_of_methods) {
+                    // Non-init methods 'base' and 'derived' have the same name, but different
+                    // selectors.  That is, 'derived' does not override 'base', just overloads.
+                    // There is a bug in the compiler that issues
+                    //
+                    //   error: @ForeignName could not appear on overridden declaration
+                    //
+                    // if 'derived' has a foreign name in this case.  The workaround is renaming
+                    // 'derived'.
+                    resolve_base_derived_name_clash_by_renaming(derived, derived_owner, "@ForeignName");
+                } else if (derived.kind() != base.kind()) {
+                    // A property, and a method which is not the getter of this property, both have
+                    // the same name.  Resolve the conflict by renaming 'derived'.
+                    resolve_base_derived_name_clash_by_renaming(derived, derived_owner, "prop/method");
+                }
+            }
         }
     } else if (base.name() == derived.name()) {
         // 'base' and 'derived' have different "staticity".  Therefore, this is not an
         // override, in terms of either Objective-C or Cangjie.  But, regardless of the
         // kind (Property or MemberMethod), they must not clash by Cangjie name.  If
         // they do, rename 'derived' by adding the 'Static' or 'Instance' suffix.
-        resolve_static_instance_clash(derived);
+        resolve_static_instance_clash(derived, derived_owner);
     }
 }
 
@@ -439,15 +637,18 @@ static void transform_base_derived(const TypeDeclarationSymbol& base, TypeDeclar
         if (derived_member.is_property()) {
             for (const auto& base_member : base_members) {
                 if (base_member.is_property() || base_member.is_member_method()) {
-                    resolve_base_derived_name_clashes(base_member, derived_member);
+                    resolve_base_derived_name_clashes(base_member, derived_member, derived);
                 }
             }
         } else if (derived_member.is_member_method()) {
             for (const auto& base_member : base_members) {
+                if (base_member.is_hidden()) {
+                    continue;
+                }
                 if (base_member.is_property()) {
-                    resolve_base_derived_name_clashes(base_member, derived_member);
+                    resolve_base_derived_name_clashes(base_member, derived_member, derived);
                 } else if (base_member.is_member_method()) {
-                    resolve_base_derived_name_clashes(base_member, derived_member);
+                    resolve_base_derived_name_clashes(base_member, derived_member, derived);
 
                     if (base_member.selector() != derived_member.selector() ||
                         base_member.is_static() != derived_member.is_static()) {
@@ -514,7 +715,7 @@ static void transform_base_derived(const TypeDeclarationSymbol& base, TypeDeclar
                 const auto base_kind = base_member.kind();
                 if ((base_member.is_property() || base_member.is_instance_variable()) && base_kind != derived_kind &&
                     base_member.name() == derived_member.name()) {
-                    resolve_prop_ivar_clash(derived_member);
+                    resolve_prop_ivar_clash(derived_member, derived);
                 }
             }
         }
@@ -527,21 +728,33 @@ static void transform_visit(TypeDeclarationSymbol& base, TypeDeclarationSymbol& 
 {
     transform_visit(base);
 
-    for (auto& base_base : base.bases()) {
-        transform_visit(base_base, derived);
+    auto* base_base_class = base.base_class();
+    if (base_base_class) {
+        transform_visit(*base_base_class, derived);
+    }
+    for (auto& base_base_protocol : base.base_protocols()) {
+        transform_visit(base_base_protocol, derived);
     }
 
     transform_base_derived(base, derived);
 }
 
+/**
+ * Transform recursively decl's base types and then 'decl' itself (in that
+ * order).
+ */
 static void transform_visit(TypeDeclarationSymbol& decl)
 {
     if (decl.transformed()) {
         return;
     }
 
-    for (auto& base : decl.bases()) {
-        transform_visit(base, decl);
+    auto* base_class = decl.base_class();
+    if (base_class) {
+        transform_visit(*base_class, decl);
+    }
+    for (auto& base_protocol : decl.base_protocols()) {
+        transform_visit(base_protocol, decl);
     }
 
     transform_type(decl);
@@ -549,8 +762,20 @@ static void transform_visit(TypeDeclarationSymbol& decl)
     decl.mark_transformed();
 }
 
+static void transform_global_functions()
+{
+    for (auto& func : Universe::get().top_level()) {
+        assert(func.is_global_function());
+
+        // In standalone functions, all parameter names are unique, but some of the
+        // parameters can be unnamed.
+        resolve_unnamed_parameters(func.parameters());
+    }
+}
+
 /**
- * This function traverses the hierarchy of classes/protocols/structures
+ * Besides enumerations (which are traversed one-by-one as a flat list), this
+ * function traverses the hierarchy of classes/protocols/structures
  * (TypeDeclarationSymbol instances) by calling 'transform_type' for each type
  * and 'transform_base_derived' for each base-derived type pair.
  *
@@ -567,18 +792,9 @@ static void transform_visit(TypeDeclarationSymbol& decl)
  * 'transform_type', and only after that by a series of 'transform_base_derived'
  * calls as a base type (if it has derived types).
  */
-static void transform_visit()
+static void transform_types()
 {
-    auto& universe = Universe::get();
-
-    // In standalone functions, all parameter names are unique, but some of the
-    // parameters can be unnamed.
-    for (auto& func : universe.top_level()) {
-        assert(func.is_global_function());
-        resolve_unnamed_parameters(func.parameters());
-    }
-
-    for (auto& type : universe.types()) {
+    for (auto& type : Universe::get().types()) {
         if (type.is(NamedTypeSymbol::Kind::Enum)) {
             // Enumerations are not a part of the class/protocol/struct hierarchy, but they
             // may need resolving clashes with non-tagged top-level symbols.
@@ -590,6 +806,13 @@ static void transform_visit()
             }
         }
     }
+}
+
+static void transform_visit()
+{
+    transform_global_functions();
+
+    transform_types();
 }
 
 static void set_type_mappings() noexcept

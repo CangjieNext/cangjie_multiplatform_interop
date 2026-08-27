@@ -1209,7 +1209,7 @@ void SourceScanner::visit_impl(const CXCursor& cursor, const CXCursor& parent)
             assert(level() == 1);
             assert(current_type_declaration().is(NamedTypeSymbol::Kind::Interface));
             assert(parent.kind == CXCursor_ObjCInterfaceDecl);
-            current_type_declaration().add_base(
+            current_type_declaration().add_base_class(
                 type_like_symbol(clang_getCursorType(cursor)).symbol().as<TypeDeclarationSymbol>());
             break;
         case CXCursor_ObjCProtocolRef:
@@ -1232,16 +1232,15 @@ void SourceScanner::visit_impl(const CXCursor& cursor, const CXCursor& parent)
                     const auto referenced = clang_getCursorReferenced(cursor);
                     assert(is_valid(referenced));
 
-                    auto& base_to_add = Universe::get()
-                                            .type(TypeDeclarationSymbol::Kind::Protocol,
-                                                String(clang_getCursorSpelling(referenced)).string_view())
-                                            ->as<TypeDeclarationSymbol>();
-                    const auto bases = type_decl.bases();
-                    const bool already_has_base = std::any_of(
-                        bases.begin(), bases.end(), [&base_to_add](const auto& base) { return &base == &base_to_add; });
-
-                    if (!already_has_base) {
-                        type_decl.add_base(base_to_add);
+                    auto& base_protocol_to_add = Universe::get()
+                                                     .type(TypeDeclarationSymbol::Kind::Protocol,
+                                                         String(clang_getCursorSpelling(referenced)).string_view())
+                                                     ->as<TypeDeclarationSymbol>();
+                    auto base_protocols = type_decl.base_protocols();
+                    if (!std::any_of(base_protocols.begin(), base_protocols.end(),
+                            [&base_protocol_to_add](
+                                const auto& base_protocol) { return &base_protocol.get() == &base_protocol_to_add; })) {
+                        type_decl.add_base_protocol(base_protocol_to_add);
                     }
                     break;
                 }

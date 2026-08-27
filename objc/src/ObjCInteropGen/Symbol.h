@@ -95,7 +95,7 @@ public:
             }
 
         private:
-            bool operator()(FileLevelSymbol& symbol) const override
+            [[nodiscard]] bool operator()(FileLevelSymbol& symbol) const override
             {
                 return pred(symbol);
             }
@@ -482,12 +482,12 @@ public:
 
     // String value for the @ObjCMirror attribute.  If empty, no value is specified
     // for @ObjCMirror.
-    const std::string& objc_name_attribute() const noexcept
+    [[nodiscard]] const std::string& objc_name_attribute() const noexcept
     {
         return objc_name_;
     }
 
-    const std::string& objc_name() const noexcept
+    [[nodiscard]] const std::string& objc_name() const noexcept
     {
         return objc_name_.empty() ? name() : objc_name_;
     }
@@ -588,10 +588,10 @@ private:
         return true;
     }
 
-    bool set_reference_level(unsigned new_reference_level) noexcept override;
+    [[nodiscard]] bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
-    bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
+    [[nodiscard]] bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
+    [[nodiscard]] bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
     [[nodiscard]] bool empty() const noexcept
     {
@@ -766,6 +766,15 @@ private:
     Type type_;
 };
 
+class BaseProtocolRef final : public std::reference_wrapper<TypeDeclarationSymbol> {
+public:
+    BaseProtocolRef(TypeDeclarationSymbol& protocol) : std::reference_wrapper<TypeDeclarationSymbol>(protocol)
+    {
+    }
+
+    bool hidden = false;
+};
+
 class TypeDeclarationSymbol : public NamedTypeSymbol {
 public:
     [[nodiscard]] TypeDeclarationSymbol(Kind kind, std::string name) noexcept;
@@ -775,17 +784,29 @@ public:
         return is_ctype_;
     }
 
-    [[nodiscard]] auto bases() const noexcept
+    [[nodiscard]] const TypeDeclarationSymbol* base_class() const noexcept
     {
-        return ConstPointerCollection(bases_);
+        return base_class_;
     }
 
-    [[nodiscard]] auto bases() noexcept
+    [[nodiscard]] TypeDeclarationSymbol* base_class() noexcept
     {
-        return PointerCollection(bases_);
+        return base_class_;
     }
 
-    void add_base(TypeDeclarationSymbol& base);
+    [[nodiscard]] auto base_protocols() const noexcept
+    {
+        return ConstCollection(base_protocols_);
+    }
+
+    [[nodiscard]] auto base_protocols() noexcept
+    {
+        return Collection(base_protocols_);
+    }
+
+    void add_base_class(TypeDeclarationSymbol& base_class) noexcept;
+
+    void add_base_protocol(TypeDeclarationSymbol& base_protocol);
 
     [[nodiscard]] auto parameters() const noexcept
     {
@@ -846,9 +867,9 @@ public:
 
     void add_property(std::string name, std::string getter, std::string setter, Modifiers modifiers);
 
-    NonTypeSymbol& get_getter(const NonTypeSymbol& property);
+    [[nodiscard]] NonTypeSymbol& get_getter(const NonTypeSymbol& property);
 
-    NonTypeSymbol& get_setter(const NonTypeSymbol& property);
+    [[nodiscard]] NonTypeSymbol& get_setter(const NonTypeSymbol& property);
 
     [[nodiscard]] bool transformed() const noexcept
     {
@@ -858,8 +879,8 @@ public:
     void mark_transformed() noexcept;
 
 private:
-    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
-    bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
+    [[nodiscard]] bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
+    [[nodiscard]] bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -876,7 +897,8 @@ private:
 
     std::vector<TypeParameterSymbol> parameters_;
     std::vector<NonTypeSymbol> members_;
-    std::vector<TypeDeclarationSymbol*> bases_;
+    TypeDeclarationSymbol* base_class_ = nullptr;
+    std::vector<BaseProtocolRef> base_protocols_;
     bool is_ctype_ : 1;
     bool contains_pointer_or_func_ : 1;
     bool transformed_ : 1;
@@ -937,10 +959,10 @@ private:
         return target_.has_symbol_assigned() && target_.is_ctype();
     }
 
-    bool set_reference_level(unsigned new_reference_level) noexcept override;
+    [[nodiscard]] bool set_reference_level(unsigned new_reference_level) noexcept override;
 
-    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
-    bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
+    [[nodiscard]] bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
+    [[nodiscard]] bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -971,6 +993,19 @@ public:
     [[nodiscard]] NonTypeSymbol(std::string name, std::string getter, std::string setter, Modifiers modifiers) noexcept;
 
     void rename(std::string new_name) noexcept;
+
+    /**
+     * Rename the symbol ensuring its name uniqueness.  That is, if 'new_base_name'
+     * conflicts with the name of any member of 'owner' or one of its base
+     * classes/interfaces, mangle 'new_base_name' to make it unique.
+     */
+    void rename_uniquely(std::string new_base_name, const TypeDeclarationSymbol& owner);
+
+    /**
+     * If the current name conflicts with the name of any member of 'owner' or one
+     * of its base classes/interfaces, mangle the name to make it unique.
+     */
+    void make_unique_name(const TypeDeclarationSymbol& owner);
 
     [[nodiscard]] bool is_ctype() const noexcept override;
 
@@ -1164,8 +1199,8 @@ public:
     [[nodiscard]] ClosureDepthType calculate_reference_level(const TypeDeclarationSymbol& decl) const noexcept;
 
 private:
-    bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
-    bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
+    [[nodiscard]] bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
+    [[nodiscard]] bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
     Kind kind_;
     Modifiers modifiers_;

@@ -620,6 +620,21 @@ void TypeDeclarationWriter::write_field(const NonTypeSymbol& field)
     output_ << '\n';
 }
 
+template <class It> static void write_tail_base_protocols(StructuredString& output, It begin, It end)
+{
+    for (; begin != end; ++begin) {
+        output << ' ';
+        const auto& base_protocol = *begin;
+        if (base_protocol.hidden) {
+            output << push_block_comment;
+        }
+        output << "& " << emit_cangjie(base_protocol.get());
+        if (base_protocol.hidden) {
+            output << pop_block_comment;
+        }
+    }
+}
+
 void TypeDeclarationWriter::write()
 {
     // Mark all classes and interfaces as @ObjCMirror.  Mark structures as @C when
@@ -673,10 +688,24 @@ void TypeDeclarationWriter::write()
         print_list(output_, parameters, [](auto& output, const auto& parameter) { output << emit_cangjie(parameter); });
         output_ << '>' << pop_block_comment;
     }
-    auto bases = decl_.bases();
-    if (!bases.empty()) {
+    const auto* base_class = decl_.base_class();
+    auto base_protocols = decl_.base_protocols();
+    auto p_b = base_protocols.begin();
+    auto p_e = base_protocols.end();
+    if (base_class) {
+        output_ << " <: " << emit_cangjie(*base_class);
+        write_tail_base_protocols(output_, p_b, p_e);
+    } else if (!base_protocols.empty()) {
         output_ << " <: ";
-        print_list(output_, bases, [](auto& output, auto& base) { output << emit_cangjie(base); }, " & ");
+        const auto& base_protocol = *p_b;
+        if (base_protocol.hidden) {
+            output_ << push_block_comment;
+        }
+        output_ << emit_cangjie(base_protocol.get());
+        if (base_protocol.hidden) {
+            output_ << pop_block_comment;
+        }
+        write_tail_base_protocols(output_, std::next(p_b), p_e);
     }
     {
         BraceScope scope(output_);
