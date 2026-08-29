@@ -123,10 +123,19 @@ public:
 
 static void add_all_symbol_references()
 {
+    std::unordered_set<FileLevelSymbol*> candidates;
     for (const auto& input_file : inputs) {
         for (auto& symbol : input_file) {
             assert(symbol.defining_file());
-            symbol.collect_referenced_symbols();
+            symbol.collect_referenced_symbols(candidates);
+            for (auto* reference : candidates) {
+                if (reference != &symbol && reference->defining_file()) {
+                    if (symbol.add_reference(*reference) && verbosity >= LogLevel::TRACE) {
+                        std::cerr << "Entity `" << symbol.name() << "` references `" << reference->name() << "`\n";
+                    }
+                }
+            }
+            candidates.clear();
         }
     }
 }
