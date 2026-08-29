@@ -154,21 +154,21 @@ int main(int argc, char* argv[])
             return 1;
         }
 
+        initialize_mappings();
+
         stage = "Parsing Objective-C sources";
         parse_sources();
 
         stage = "Creating Cangjie packages";
         create_packages();
+
+        stage = "Transforming sources";
+        apply_transforms();
+
         if (!mark_package()) {
             return 1;
         }
-
-        stage = "Transforming sources";
         check_marked_symbols();
-
-        initialize_mappings();
-
-        apply_transforms();
 
         stage = "Writing Cangjie outputs";
         write_cangjie();
