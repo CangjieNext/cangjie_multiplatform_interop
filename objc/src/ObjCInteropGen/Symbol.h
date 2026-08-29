@@ -182,7 +182,7 @@ public:
         return references_symbols_;
     }
 
-    void collect_referenced_symbols();
+    bool add_reference(FileLevelSymbol& symbol);
 
     [[nodiscard]] InputFile* defining_file() const noexcept
     {
@@ -218,6 +218,13 @@ public:
     [[nodiscard]] size_t number_of_referencing_packages() const noexcept;
 
     void print_referencing_packages_info() const;
+
+    /**
+     * Collect every source-defined FileLevelSymbol that appears in emitted code for
+     * this declaration.  References that occur only inside commented-out
+     * (unsupported) members, aliases, or global functions are omitted.
+     */
+    virtual void collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out);
 
     template <class To> [[nodiscard]] bool is() const noexcept
     {
@@ -641,6 +648,7 @@ private:
         return category_ == PrimitiveTypeCategory::Unit;
     }
 
+private:
     const PrimitiveTypeCategory category_;
     const PrimitiveSize size_;
 };
@@ -673,7 +681,8 @@ private:
 
     [[nodiscard]] bool is_ctype() const noexcept override
     {
-        return true;
+        // va_list internals should never be exposed, even though they are technically C types.
+        return name() != "__builtin_va_list";
     }
 
     const Type underlying_type_;
@@ -856,6 +865,8 @@ private:
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
     bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
+    void collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out) override;
+
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
         return contains_pointer_or_func_;
@@ -937,6 +948,8 @@ private:
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
     bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
+    void collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out) override;
+
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
         return target_.has_symbol_assigned() && target_.contains_pointer_or_func();
@@ -977,6 +990,8 @@ public:
      * @param owner owner type symbol, if any
      */
     [[nodiscard]] bool is_supported(const TypeDeclarationSymbol* owner) const noexcept;
+
+    void collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out) override;
 
     [[nodiscard]] Kind kind() const noexcept
     {
