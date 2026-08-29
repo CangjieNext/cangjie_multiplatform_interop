@@ -15,11 +15,28 @@
 
 namespace objcgen {
 
+[[nodiscard]] static const std::string& original_symbol_name(const FileLevelSymbol& symbol)
+{
+    if (const auto* non_type_symbol = dynamic_cast<const NonTypeSymbol*>(&symbol)) {
+        const auto& selector_attribute = non_type_symbol->selector_attribute();
+        if (!selector_attribute.empty()) {
+            return selector_attribute;
+        }
+    }
+    if (const auto* named_type_symbol = dynamic_cast<const NamedTypeSymbol*>(&symbol)) {
+        const auto& objc_name_attribute = named_type_symbol->objc_name_attribute();
+        if (!objc_name_attribute.empty()) {
+            return objc_name_attribute;
+        }
+    }
+    return symbol.name();
+}
+
 [[nodiscard]] static bool set_package(FileLevelSymbol& symbol)
 {
     bool success = true;
 
-    const auto& name = symbol.name();
+    const auto& name = original_symbol_name(symbol);
 
     bool package_found = false;
 
@@ -248,64 +265,16 @@ static void register_symbols_in_declaration_order()
     }
 }
 
-/** Given the N-dimensional VArray, get the type of its element */
-[[nodiscard]] static const Type& get_element_type(const Type& varray) noexcept
-{
-    assert(varray.kind() == Type::Kind::VArray);
-    const auto& element_type = varray.varray_element_type();
-    return element_type.kind() == Type::Kind::VArray ? get_element_type(element_type) : element_type;
-}
-
-/**
- * For each function parameter, if the type of the parameter is array, convert
- * it to pointer to its element
- */
-static void decay_parameter_types(NonTypeSymbol& function)
-{
-    for (auto& parameter : function.parameters()) {
-        auto type = parameter.type().canonical_type();
-        if (type.kind() == Type::Kind::VArray) {
-            parameter.set_type(Type(Universe::get().pointer(), {get_element_type(type)}));
-        }
-    }
-}
-
-/**
- * For each function parameter, if the type of the parameter is array, convert
- * it to pointer to its element
- */
-static void decay_parameter_types()
-{
-    auto& universe = Universe::get();
-    for (auto& top_level : universe.top_level()) {
-        decay_parameter_types(top_level);
-    }
-    for (auto& type : universe.types()) {
-        auto* decl = dynamic_cast<TypeDeclarationSymbol*>(&type);
-        if (decl) {
-            for (auto& member : decl->members()) {
-                decay_parameter_types(member);
-            }
-        }
-    }
-}
-
 bool mark_package()
 {
-    decay_parameter_types();
-
     if (!mark_roots()) {
         return false;
     }
-
     add_all_symbol_references();
-
     if (!symbol_references_to_packages()) {
         return false;
     }
-
     register_symbols_in_declaration_order();
-
     return true;
 }
 

@@ -311,7 +311,8 @@ static void print_getter_setter_names(StructuredString& output, const NonTypeSym
     }
 }
 
-[[nodiscard]] static bool has_name_clash_through_type_aliases(const NonTypeSymbol& symbol, const std::string& name, PrintFormat format)
+[[nodiscard]] static bool has_name_clash_through_type_aliases(
+    const NonTypeSymbol& symbol, const std::string& name, PrintFormat format)
 {
     class Scanner : public FileLevelSymbolScanner {
     public:

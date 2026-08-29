@@ -592,6 +592,48 @@ static void transform_visit()
     }
 }
 
+/** Given the N-dimensional VArray, get the type of its element */
+[[nodiscard]] static const Type& get_element_type(const Type& varray) noexcept
+{
+    assert(varray.kind() == Type::Kind::VArray);
+    const auto& element_type = varray.varray_element_type();
+    return element_type.kind() == Type::Kind::VArray ? get_element_type(element_type) : element_type;
+}
+
+/**
+ * For each function parameter, if the type of the parameter is array, convert
+ * it to pointer to its element
+ */
+static void decay_parameter_types(NonTypeSymbol& function)
+{
+    for (auto& parameter : function.parameters()) {
+        auto type = parameter.type().canonical_type();
+        if (type.kind() == Type::Kind::VArray) {
+            parameter.set_type(Type(Universe::get().pointer(), {get_element_type(type)}));
+        }
+    }
+}
+
+/**
+ * For each function parameter, if the type of the parameter is array, convert
+ * it to pointer to its element
+ */
+static void decay_parameter_types()
+{
+    auto& universe = Universe::get();
+    for (auto& top_level : universe.top_level()) {
+        decay_parameter_types(top_level);
+    }
+    for (auto& type : universe.types()) {
+        auto* decl = dynamic_cast<TypeDeclarationSymbol*>(&type);
+        if (decl) {
+            for (auto& member : decl->members()) {
+                decay_parameter_types(member);
+            }
+        }
+    }
+}
+
 static void set_type_mappings() noexcept
 {
     for (auto&& type : Universe::get().types()) {
@@ -641,6 +683,7 @@ static void do_map()
 
 void apply_transforms()
 {
+    decay_parameter_types();
     transform_visit();
 
     // Apply mappings
