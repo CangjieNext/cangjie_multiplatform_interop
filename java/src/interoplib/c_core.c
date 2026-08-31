@@ -102,6 +102,27 @@ JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(
     setJavaVmAndInitClassLoading(vm, env, classLoader, forNameMethodID, javaLangClass);
 }
 
+/**
+ * Creates global java reference from local java reference `localRef`.
+ * Returns fresh global reference.
+ * `localRef` is cleaned up as local java reference.
+ *
+ * If `localRef` is `nullptr`, then `nullptr` is returned.
+ */
+jobject Java_JNI_swapLocalWithGlobalRef(JNIEnv* env, jobject localRef)
+{
+    // It is safe to pass nullptr to NewGlobalRef. It just returns nullptr.
+    jobject globalRef = (*env)->NewGlobalRef(env, localRef);
+    // It should be safe to call DeleteLocalRef on nullptr.
+    (*env)->DeleteLocalRef(env, localRef);
+    return globalRef;
+}
+
+void Java_JNI_deleteGlobalRef(JNIEnv* env, jobject ref)
+{
+    (*env)->DeleteGlobalRef(env, ref);
+}
+
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
     struct RuntimeParam param = {0};

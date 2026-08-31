@@ -54,7 +54,7 @@ protected class JNIException <: Exception {
  * Version value should be the same as for cjc for the same SDK.
  * Version value must be bumped up on: API changes in interop library that require compatibility with cjc.
  */
-protected const INTEROPLIB_VERSION: Int64 = 11
+protected const INTEROPLIB_VERSION: Int64 = 12
 
 var jvm = CPointer<JavaVM>()
 var classLoading = AtomicOptionReference<ClassLoading>()
@@ -966,6 +966,7 @@ protected func getLocalRef(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Java_CFF
     }
 }
 
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 protected func deleteLocalRef(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
     unsafe {
         let envCJ = env.read().read()
@@ -2138,6 +2139,30 @@ protected func Java_CFFI_newJavaObject(env: JNIEnv_ptr, clazz: Java_CFFI_Class, 
     res
 }
 
+@C
+@FastNative
+foreign func Java_JNI_swapLocalWithGlobalRef(env: JNIEnv_ptr, localRef: jobject): jobject
+
+@C
+@FastNative
+foreign func Java_JNI_deleteGlobalRef(env: JNIEnv_ptr, ref: jobject): Unit
+
+@Frozen
+protected func Java_CFFI_swapLocalWithGlobalRef(env: JNIEnv_ptr, localRef: jobject): jobject {
+    unsafe {
+        return Java_JNI_swapLocalWithGlobalRef(env, localRef)
+    }
+}
+
+@Frozen
+protected func Java_CFFI_deleteGlobalRef(env: JNIEnv_ptr, ref: jobject): Unit
+{
+    unsafe {
+        return Java_JNI_deleteGlobalRef(env, ref)
+    }
+}
+
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 protected func Java_CFFI_newGlobalReference(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, weak: Bool): Java_CFFI_JavaEntity {
     unsafe {
         let envCJ = env.read().read()
@@ -2184,6 +2209,7 @@ protected func Java_CFFI_arrayGetLength(env: JNIEnv_ptr, array: Java_CFFI_JavaEn
     }
 }
 
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 protected func Java_CFFI_deleteGlobalReference(env: JNIEnv_ptr, ref: Java_CFFI_JavaEntity): Unit {
     unsafe {
         let envCJ = env.read().read()
@@ -2232,7 +2258,16 @@ protected func Java_CFFI_arrayGet(env: JNIEnv_ptr, elementType: Java_CFFI_JavaEn
                 envCJ.GetBooleanArrayRegion(env, array.asJObject(), index, 1, inout value)
                 Java_CFFI_JavaEntity(elementType, value)
             case JOBJECT =>
-                Java_CFFI_JavaEntity(elementType, envCJ.GetObjectArrayElement(env, array.asJObject(), index))
+                var element = envCJ.GetObjectArrayElement(env, array.asJObject(), index)
+                if (INTEROPLIB_VERSION > 11) {
+                    /*
+                     * INTEROPLIB_VERSION: 12
+                     * Changes:
+                     * - Unused local java reference cleanup.
+                     */
+                    element = Java_JNI_swapLocalWithGlobalRef(env, element)
+                }
+                Java_CFFI_JavaEntity(elementType, element)
             case _ => throw Java_CFFI_InvariantFailed()
         }
         handlePendingException(env)
