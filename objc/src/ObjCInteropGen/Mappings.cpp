@@ -17,7 +17,7 @@ namespace objcgen {
 std::deque<TypeMapping*> mappings;
 
 namespace {
-std::regex primitive_regex(R"(_*((u?int|float)(_(least|fast))?(8|16|32|64|native|max|ptr)|wchar|ptrdiff|s?size)(_t)?_*)", std::regex::icase);
+const std::regex primitive_regex(R"(_*((u?int|float)(_(least|fast))?(8|16|32|64|native|max|ptr)|wchar|ptrdiff|s?size)(_t)?_*)", std::regex::icase);
 
 struct PrimitiveMapping final : TypeMapping {
     explicit PrimitiveMapping() = default;
