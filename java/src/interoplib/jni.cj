@@ -966,6 +966,7 @@ protected func getLocalRef(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Java_CFF
     }
 }
 
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 protected func deleteLocalRef(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity): Unit {
     unsafe {
         let envCJ = env.read().read()
@@ -2138,6 +2139,15 @@ protected func Java_CFFI_newJavaObject(env: JNIEnv_ptr, clazz: Java_CFFI_Class, 
     res
 }
 
+@C
+@FastNative
+foreign func Java_CFFI_swapLocalWithGlobalRef(env: JNIEnv_ptr, localRef: jobject): jobject
+
+@C
+@FastNative
+foreign func Java_CFFI_deleteGlobalRef(env: JNIEnv_ptr, ref: jobject): Unit
+
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 protected func Java_CFFI_newGlobalReference(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, weak: Bool): Java_CFFI_JavaEntity {
     unsafe {
         let envCJ = env.read().read()
@@ -2184,6 +2194,7 @@ protected func Java_CFFI_arrayGetLength(env: JNIEnv_ptr, array: Java_CFFI_JavaEn
     }
 }
 
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 protected func Java_CFFI_deleteGlobalReference(env: JNIEnv_ptr, ref: Java_CFFI_JavaEntity): Unit {
     unsafe {
         let envCJ = env.read().read()

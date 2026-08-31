@@ -102,6 +102,18 @@ JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(
     setJavaVmAndInitClassLoading(vm, env, classLoader, forNameMethodID, javaLangClass);
 }
 
+jobject Java_CFFI_swapLocalWithGlobalRef(JNIEnv* env, jobject localRef)
+{
+    jobject globalRef = (*env)->NewGlobalRef(env, localRef);
+    (*env)->DeleteLocalRef(env, localRef);
+    return globalRef;
+}
+
+void Java_CFFI_deleteGlobalRef(JNIEnv* env, jobject ref)
+{
+    (*env)->DeleteGlobalRef(env, ref);
+}
+
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
     struct RuntimeParam param = {0};
