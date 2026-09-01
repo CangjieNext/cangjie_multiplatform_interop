@@ -45,26 +45,9 @@ private:
 enum class ReferenceKind { None, Likely, True };
 } // namespace
 
-[[nodiscard]] static const std::string& original_symbol_name(const FileLevelSymbol& symbol)
-{
-    if (const auto* non_type_symbol = dynamic_cast<const NonTypeSymbol*>(&symbol)) {
-        const auto& selector_attribute = non_type_symbol->selector_attribute();
-        if (!selector_attribute.empty()) {
-            return selector_attribute;
-        }
-    }
-    if (const auto* named_type_symbol = dynamic_cast<const NamedTypeSymbol*>(&symbol)) {
-        const auto& objc_name_attribute = named_type_symbol->objc_name_attribute();
-        if (!objc_name_attribute.empty()) {
-            return objc_name_attribute;
-        }
-    }
-    return symbol.name();
-}
-
 [[nodiscard]] static bool is_root(const Package& package, const FileLevelSymbol& symbol) noexcept
 {
-    const auto& name = original_symbol_name(symbol);
+    const auto& name = symbol.objc_name();
 
     // When `root-filters` is present, only those matches become closure roots.
     if (const auto* filter = package.root_filters()) {
@@ -81,7 +64,7 @@ enum class ReferenceKind { None, Likely, True };
 
 [[nodiscard]] static bool matches_any_filter(const Package& package, const FileLevelSymbol& symbol) noexcept
 {
-    const auto& name = original_symbol_name(symbol);
+    const auto& name = symbol.objc_name();
 
     if (const auto* filter = package.root_filters(); filter && filter->apply(name)) {
         return true;
@@ -137,7 +120,7 @@ static void set_package(FileLevelSymbol& symbol)
 static void collect_ambiguity_reasons(
     const Package& package, const FileLevelSymbol& symbol, std::vector<std::string>& reasons) noexcept
 {
-    const auto& name = original_symbol_name(symbol);
+    const auto& name = symbol.objc_name();
 
     if (const auto* filter = package.root_filters(); filter && filter->apply(name)) {
         reasons.emplace_back("matches `root-filters`");

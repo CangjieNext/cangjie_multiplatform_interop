@@ -149,6 +149,11 @@ public:
         return false;
     }
 
+    [[nodiscard]] virtual const std::string& objc_name() const noexcept
+    {
+        return name();
+    }
+
     virtual bool set_reference_level(unsigned new_reference_level) noexcept;
 
     /**
@@ -510,7 +515,7 @@ public:
         return objc_name_;
     }
 
-    const std::string& objc_name() const noexcept
+    const std::string& objc_name() const noexcept override
     {
         return objc_name_.empty() ? name() : objc_name_;
     }
@@ -1084,6 +1089,11 @@ public:
     [[nodiscard]] const std::string& selector() const noexcept
     {
         return selector_attribute_.empty() ? name() : selector_attribute_;
+    }
+
+    const std::string& objc_name() const noexcept override
+    {
+        return selector();
     }
 
     [[nodiscard]] const Type& return_type() const noexcept;
