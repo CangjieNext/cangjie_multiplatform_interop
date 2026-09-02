@@ -253,7 +253,7 @@ public:
      * this declaration.  References that occur only inside commented-out
      * (unsupported) members, aliases, or global functions are omitted.
      */
-    virtual void collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out);
+    virtual void collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out);
 
     template <class To> [[nodiscard]] bool is() const noexcept
     {
@@ -890,7 +890,7 @@ private:
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
     bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
-    void collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out) override;
+    void collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out) override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -979,7 +979,7 @@ private:
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
     bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
 
-    void collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out) override;
+    void collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out) override;
 
     [[nodiscard]] bool contains_pointer_or_func() const noexcept override
     {
@@ -1022,7 +1022,7 @@ public:
      */
     [[nodiscard]] bool is_supported(const TypeDeclarationSymbol* owner) const noexcept;
 
-    void collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out) override;
+    void collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out) override;
 
     [[nodiscard]] Kind kind() const noexcept
     {

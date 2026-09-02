@@ -221,7 +221,7 @@ bool FileLevelSymbol::add_referencing_symbol(FileLevelSymbol& symbol)
     return changed;
 }
 
-void FileLevelSymbol::collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out)
+void FileLevelSymbol::collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out)
 {
     auto collect = [&out](FileLevelSymbol& symbol) { out.insert(&symbol); };
     for_each_referenced_type(collect);
@@ -1053,7 +1053,7 @@ bool TypeDeclarationSymbol::visit_referenced_types(const FileLevelSymbolScanner&
     return false;
 }
 
-void TypeDeclarationSymbol::collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out)
+void TypeDeclarationSymbol::collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out)
 {
     for (auto& base : this->bases()) {
         out.insert(&base);
@@ -1184,7 +1184,7 @@ bool TypeAliasSymbol::visit_referenced_types(const FileLevelSymbolScanner& visit
     return target.has_symbol_assigned() && visitor(target);
 }
 
-void TypeAliasSymbol::collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out)
+void TypeAliasSymbol::collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out)
 {
     // Unsupported aliases are commented out; their target types must not count.
     if (!is_supported()) {
@@ -1359,7 +1359,7 @@ bool NonTypeSymbol::visit_referenced_types(const FileLevelSymbolScanner& visitor
     return kind_ != Kind::Property && visitor(return_type());
 }
 
-void NonTypeSymbol::collect_referenced_symbols([[maybe_unused]] std::unordered_set<FileLevelSymbol*>& out)
+void NonTypeSymbol::collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out)
 {
     // Global functions at file level: only supported ones are emitted.
     if (is_global_function() && !is_supported(nullptr)) {
