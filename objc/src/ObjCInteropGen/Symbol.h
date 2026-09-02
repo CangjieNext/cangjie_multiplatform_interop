@@ -673,7 +673,6 @@ private:
         return category_ == PrimitiveTypeCategory::Unit;
     }
 
-private:
     const PrimitiveTypeCategory category_;
     const PrimitiveSize size_;
 };
