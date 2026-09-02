@@ -62,7 +62,7 @@ enum class ReferenceKind { None, Likely, True };
     return false;
 }
 
-[[nodiscard]] static bool matches_any_filter(const Package& package, const FileLevelSymbol& symbol) noexcept
+[[nodiscard]] static bool matches_some_filter(const Package& package, const FileLevelSymbol& symbol) noexcept
 {
     const auto& name = symbol.objc_name();
 
@@ -80,22 +80,22 @@ enum class ReferenceKind { None, Likely, True };
 static void set_package(FileLevelSymbol& symbol)
 {
     // If not set, the output Cangjie package will be controlled by the packages that reference this symbol.
-    bool matches_any_filters = false;
+    bool symbol_matches_some_filter = false;
 
     for (auto&& package : packages) {
         if (is_root(package, symbol) && symbol.output_status() != OutputStatus::Root) {
             symbol.mark_root();
         }
 
-        if (matches_any_filter(package, symbol)) {
+        if (matches_some_filter(package, symbol)) {
             // The output Cangjie package is known.
-            matches_any_filters = true;
+            symbol_matches_some_filter = true;
             const auto changed = symbol.add_candidate_package(package);
             assert(changed);
         }
     }
 
-    symbol.set_matches_any_filters(matches_any_filters);
+    symbol.set_matches_some_filter(symbol_matches_some_filter);
 }
 
 [[nodiscard]] static ReferenceKind get_reference_kind(const FileLevelSymbol& symbol, const Package& package)
@@ -222,7 +222,7 @@ static void diagnose_symbol(const FileLevelSymbol& symbol)
 
         if (verbosity >= LogLevel::DEBUG) {
             std::cerr << "Entity `" << symbol.name() << "` from `" << input_file.path().u8string();
-            if (symbol.matches_any_filters()) {
+            if (symbol.matches_some_filter()) {
                 std::cerr << "` matches a filter for `";
             } else if (referenced) {
                 std::cerr << "` is only used from `";
@@ -365,7 +365,7 @@ static void symbol_references_to_packages_pass(FileLevelSymbol& symbol, bool& ch
             changed = true;
         }
 
-        if (reference->matches_any_filters()) {
+        if (reference->matches_some_filter()) {
             continue;
         }
 

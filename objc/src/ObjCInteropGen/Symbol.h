@@ -211,16 +211,16 @@ public:
 
     [[nodiscard]] bool add_candidate_package(Package& package);
 
-    [[nodiscard]] bool matches_any_filters() const noexcept
+    [[nodiscard]] bool matches_some_filter() const noexcept
     {
-        assert(matches_any_filters_.has_value());
-        return *matches_any_filters_;
+        assert(matches_some_filter_.has_value());
+        return *matches_some_filter_;
     }
 
-    void set_matches_any_filters(bool flag) noexcept
+    void set_matches_some_filter(bool flag) noexcept
     {
-        assert(!matches_any_filters_.has_value());
-        matches_any_filters_ = flag;
+        assert(!matches_some_filter_.has_value());
+        matches_some_filter_ = flag;
     }
 
     [[nodiscard]] Package* package() const noexcept;
@@ -305,7 +305,7 @@ private:
     std::unordered_set<FileLevelSymbol*> referenced_by_symbols_; // filled only on non-default verbosity
 
     // Stage 3: all owner package candidates
-    std::optional<bool> matches_any_filters_;
+    std::optional<bool> matches_some_filter_;
     std::unordered_set<Package*> candidate_packages_;
 
     // Stage 4: the assigned output Cangjie file
