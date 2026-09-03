@@ -586,7 +586,7 @@ struct UndecorateResult {
  */
 [[nodiscard]] static UndecorateResult undecorate_parameter_type_name(std::string_view decorated_type_name)
 {
-    auto without_prefix = remove_prefix(remove_arc_ownership_qualifier(decorated_type_name), "const ");
+    auto without_prefix = remove_arc_ownership_qualifier(remove_prefix(decorated_type_name, "const "));
     auto opening_bracket = without_prefix.find('<');
     if (opening_bracket == std::string_view::npos || without_prefix.back() != '>') {
         return {without_prefix, {}};
