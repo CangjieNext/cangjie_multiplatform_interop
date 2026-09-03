@@ -302,7 +302,7 @@ static void diagnose_symbol(const FileLevelSymbol& symbol)
     }
 }
 
-static void mark_roots()
+void mark_roots()
 {
     auto& universe = Universe::get();
     for (auto& member : universe.top_level()) {
@@ -427,9 +427,8 @@ static void symbol_references_to_packages()
     return true;
 }
 
-bool mark_package()
+bool process_symbol_references()
 {
-    mark_roots();
     add_all_symbol_references();
     set_root_reference_level();
     symbol_references_to_packages();
