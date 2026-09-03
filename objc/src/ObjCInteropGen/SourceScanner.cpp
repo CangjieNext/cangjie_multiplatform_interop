@@ -577,7 +577,7 @@ struct UndecorateResult {
 [[nodiscard]] static UndecorateResult undecorate_parameter_type_name(std::string_view decorated_type_name)
 {
     auto without_prefix =
-        remove_prefix(remove_prefix(remove_prefix(decorated_type_name, "__unsafe_unretained "), "__strong "), "const ");
+        remove_prefix(remove_prefix(remove_prefix(remove_prefix(decorated_type_name, "__unsafe_unretained "), "__strong "), "const "), "__autoreleasing ");
     auto opening_bracket = without_prefix.find('<');
     if (opening_bracket == std::string_view::npos || without_prefix.back() != '>') {
         return {without_prefix, {}};
