@@ -558,6 +558,17 @@ struct UndecorateResult {
     return protocol ? protocol->as<TypeDeclarationSymbol>() : universe.id();
 }
 
+[[nodiscard]] static std::string_view remove_arc_ownership_qualifier(std::string_view str)
+{
+    constexpr std::string_view arc_qualifiers[] = {"__strong ", "__weak ", "__unsafe_unretained ", "__autoreleasing "};
+    for (const auto qualifier : arc_qualifiers) {
+        if (starts_with(str, qualifier)) {
+            return remove_prefix(str, qualifier);
+        }
+    }
+    return str;
+}
+
 /**
  * The type parameter name can be specified with a narrowing protocol.  Like in
  * this sample (`T<NSCopying>` instead of just `T`):
@@ -567,8 +578,7 @@ struct UndecorateResult {
  *     @end
  * </pre>
  *
- * Also the type parameter name can be prefixed with the `const`,
- * `__unsafe_unretained`, or `__strong` modifier.
+ * Also the type parameter name can be prefixed with the ARC ownership qualifier and/or `const`.
  *
  * <p> We need a pure name without any "decorations", to make it possible to
  * find the parameter in its owner's parameter list.  The pure name hardly can
@@ -576,8 +586,7 @@ struct UndecorateResult {
  */
 [[nodiscard]] static UndecorateResult undecorate_parameter_type_name(std::string_view decorated_type_name)
 {
-    auto without_prefix =
-        remove_prefix(remove_prefix(remove_prefix(decorated_type_name, "__unsafe_unretained "), "__strong "), "const ");
+    auto without_prefix = remove_arc_ownership_qualifier(remove_prefix(decorated_type_name, "const "));
     auto opening_bracket = without_prefix.find('<');
     if (opening_bracket == std::string_view::npos || without_prefix.back() != '>') {
         return {without_prefix, {}};
