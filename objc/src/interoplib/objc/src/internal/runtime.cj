@@ -8,6 +8,7 @@ package objc.internal
 
 import std.sync.Mutex
 
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 /**
  * To avoid std.sync.Mutex dependency at objc glue-code.
  */
@@ -100,7 +101,7 @@ private var REGISTRY_ID_SEL = NativeObjCSel()
 
 @Frozen
 protected unsafe func getRegistryId(id: NativeObjCId): RegistryId {
-    if (REGISTRY_ID_SEL.isNull()) {
+    if (CPointer<UIntNative>(inout REGISTRY_ID_SEL).read() == 0) {
         REGISTRY_ID_SEL = registerName(REGISTRY_ID_SEL_STR)
     }
 
@@ -112,7 +113,7 @@ private var SET_REGISTRY_ID_SEL = NativeObjCSel()
 
 @Frozen
 protected unsafe func setRegistryId(id: NativeObjCId, regId: RegistryId): Unit {
-    if (SET_REGISTRY_ID_SEL.isNull()) {
+    if (CPointer<UIntNative>(inout SET_REGISTRY_ID_SEL).read() == 0) {
         SET_REGISTRY_ID_SEL = registerName(SET_REGISTRY_ID_SEL_STR)
     }
 
@@ -143,9 +144,10 @@ protected unsafe func removeFromRegistry(registryId: RegistryId): Unit {
     REGISTRY.remove(registryId)
 }
 
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 @Frozen
 /**
- * @Deprecated: use `objCAlloc` instead.
+ * @note: use `objCAlloc` instead.
  * Allocates a pointer to the class by its name.
  * Effectively a wrapper around `objc_alloc`, but with Cangjie String as a parameter for convenience.
  * Note: MUST be called in a transaction with corresponding init* method of the class and the pointer, returned by this function, MUST NOT be stored anywhere.
@@ -362,10 +364,10 @@ private var INIT_WITH_UTF8_STRING_SEL = NativeObjCSel()
  * Converts Cangjie String to NSString.
  */
 protected unsafe func convertToNSString(str: String): NativeObjCId {
-    if (NSSTRING_CLASS.isNull()) {
+    if (CPointer<UIntNative>(inout NSSTRING_CLASS).read() == 0) {
         NSSTRING_CLASS = getClass(NSSTRING_CLASS_IDENT)
     }
-    if (INIT_WITH_UTF8_STRING_SEL.isNull()) {
+    if (CPointer<UIntNative>(inout INIT_WITH_UTF8_STRING_SEL).read() == 0) {
         INIT_WITH_UTF8_STRING_SEL = registerName(INIT_WITH_UTF8_STRING_SEL_STR)
     }
 
@@ -390,10 +392,10 @@ private var UTF8STRING_SEL = NativeObjCSel()
  * Gets object description and converts it to Cangjie String.
  */
 protected unsafe func descriptionAsString(id: NativeObjCId): String {
-    if (DESCRIPTION_SEL.isNull()) {
+    if (CPointer<UIntNative>(inout DESCRIPTION_SEL).read() == 0) {
         DESCRIPTION_SEL = registerName(DESCRIPTION_SEL_STR)
     }
-    if (UTF8STRING_SEL.isNull()) {
+    if (CPointer<UIntNative>(inout UTF8STRING_SEL).read() == 0) {
         UTF8STRING_SEL = registerName(UTF8STRING_SEL_STR)
     }
 
@@ -466,11 +468,11 @@ private unsafe func getIvar(id: NativeObjCId, fieldName: String): NativeObjCIvar
     let cls = object_getClass(id)
     var ivar = zeroValue<NativeObjCIvar>()
 
-    try (fieldCName = LibC.mallocCString(fieldName).asResource()) {
-        ivar = class_getInstanceVariable(cls, fieldCName.value)
-    }
+    let fieldCName = LibC.mallocCString(fieldName)
+    ivar = class_getInstanceVariable(cls, fieldCName)
+    LibC.free(fieldCName)
 
-    if (ivar.isNull()) {
+    if (CPointer<UIntNative>(inout ivar).read() == 0) {
         throw Exception("No instance variable with name '${fieldName}' found in class '${class_getName(cls)}'")
     }
 
@@ -483,8 +485,9 @@ private unsafe func getIvar(id: NativeObjCId, fieldName: String): NativeObjCIvar
  */
 protected unsafe func isKindOfClass(id: NativeObjCId, clazz: NativeObjCClass): Bool {
     var realClass = object_getClass(id);
-    while (realClass.isNotNull()) {
-        if (realClass.toUIntNative() == clazz.toUIntNative()) {
+    while (CPointer<UIntNative>(inout realClass).read() != 0) {
+        // Can't do the same trick with `clazz` ptr, because it is immutable
+        if (CPointer<UIntNative>(inout realClass).read() == clazz.toUIntNative()) {
             return true
         }
         realClass = class_getSuperclass(realClass)
@@ -498,7 +501,7 @@ protected unsafe func isKindOfClass(id: NativeObjCId, clazz: NativeObjCClass): B
  */
 protected unsafe func conformsToProtocol(id: NativeObjCId, proto: NativeObjCProtocol): Bool {
     var realClass = object_getClass(id);
-    while (realClass.isNotNull()) {
+    while (CPointer<UIntNative>(inout realClass).read() != 0) {
         if (class_conformsToProtocol(realClass, proto)) {
             return true
         }
