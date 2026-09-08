@@ -302,7 +302,7 @@ static void diagnose_symbol(const FileLevelSymbol& symbol)
     }
 }
 
-static void mark_roots()
+void mark_roots()
 {
     auto& universe = Universe::get();
     for (auto& member : universe.top_level()) {
@@ -320,7 +320,7 @@ static void mark_roots()
     }
 }
 
-static void add_all_symbol_references()
+void add_all_symbol_references()
 {
     std::unordered_set<FileLevelSymbol*> candidates;
     for (const auto& input_file : inputs) {
@@ -427,9 +427,58 @@ static void symbol_references_to_packages()
     return true;
 }
 
-bool mark_package()
+static void mark_hidden_base_derived(const TypeDeclarationSymbol& base, TypeDeclarationSymbol& derived)
 {
-    mark_roots();
+    auto base_members = base.members();
+    auto derived_members = derived.members();
+    for (auto& derived_member : derived_members) {
+        if (derived_member.is_property() || derived_member.is_member_method()) {
+            for (const auto& base_member : base_members) {
+                if (!base_member.is_property() && !base_member.is_member_method()) {
+                    continue;
+                }
+                if (base_member.is_static() == derived_member.is_static()
+                    && base_member.selector() == derived_member.selector()
+                    && !(base_member.is_member_method() && derived_member.is_member_method())) {
+                    // 'base_member' and 'derived_member' have the same selector.
+                    // If they are of different kind (Property/MemberMethod or MemberMethod/Property),
+                    // they cannot have the same Cangjie name.
+                    // If they are both properties, they also cannot have the same Cangjie name (mentioned in docs).
+                    // Make 'derived_member' hidden in both cases.
+                    derived_member.set_hidden();
+                }
+            }
+        }
+    }
+}
+
+static void mark_hidden(TypeDeclarationSymbol& declaration)
+{
+    for (auto& base : declaration.bases()) {
+        mark_hidden_base_derived(base, declaration);
+    }
+    for (auto& member : declaration.members()) {
+        if (member.is_property()) {
+            declaration.get_getter(member).set_hidden();
+            if (!member.is_readonly()) {
+                declaration.get_setter(member).set_hidden();
+            }
+        }
+    }
+}
+
+void mark_hidden()
+{
+    auto& universe = Universe::get();
+    for (auto& type : universe.types()) {
+        if (auto* declaration = dynamic_cast<TypeDeclarationSymbol*>(&type)) {
+            mark_hidden(*declaration);
+        }
+    }
+}
+
+bool collect_symbols()
+{
     add_all_symbol_references();
     set_root_reference_level();
     symbol_references_to_packages();

@@ -10,7 +10,10 @@
 
 namespace objcgen {
 
-bool mark_package();
+void mark_roots();
+bool collect_symbols();
+void add_all_symbol_references();
+void mark_hidden();
 
 } // namespace objcgen
 

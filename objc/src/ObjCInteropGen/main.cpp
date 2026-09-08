@@ -163,16 +163,19 @@ int main(int argc, char* argv[])
         stage = "Creating Cangjie packages";
         create_packages();
 
+        stage = "Filling Cangjie packages";
+        mark_roots();
+        mark_hidden();
+        if (!collect_symbols()) {
+            return 1;
+        }
         stage = "Transforming sources";
         apply_transforms();
 
+        add_all_symbol_references();
+
         stage = "Applying mappings";
         apply_mappings();
-
-        stage = "Filling Cangjie packages";
-        if (!mark_package()) {
-            return 1;
-        }
 
         stage = "Checking sources";
         check_marked_symbols();

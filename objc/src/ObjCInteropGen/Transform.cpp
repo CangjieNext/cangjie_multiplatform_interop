@@ -333,12 +333,6 @@ static void transform_type(TypeDeclarationSymbol& decl)
     auto members = decl.members();
 
     for (auto& member : members) {
-        if (member.is_property()) {
-            decl.get_getter(member).set_hidden();
-            if (!member.is_readonly()) {
-                decl.get_setter(member).set_hidden();
-            }
-        }
         if (member.is_member_method() || member.is_constructor()) {
             // In Objective-C methods, all parameters have names, but the names can be
             // non-unique.
@@ -401,26 +395,16 @@ static void resolve_base_derived_name_clashes(const NonTypeSymbol& base, NonType
 {
     assert(base.is_member_method() || base.is_property());
     assert(derived.is_member_method() || derived.is_property());
-    if (base.is_static() == derived.is_static()) {
-        if (base.selector() == derived.selector()) {
-            if (base.is_member_method() && derived.is_member_method()) {
-                // 'base' and 'derived' is a pair of non-init methods, and 'derived' overrides
-                // 'base' in terms of Objective-C (same selector).  At the Cangjie side, it must
-                // override as well (have the same Cangjie name).  If the names are different
-                // (if 'base' was renamed at earlier transformation stages), then rename
-                // 'derived' as well.
-                const auto& base_name = base.name();
-                if (base_name != derived.name()) {
-                    derived.rename(base_name);
-                }
-            } else {
-                // 'base' and 'derived' have the same selector.  If they are of different kind
-                // (Property/MemberMethod or MemberMethod/Property) they cannot have the same
-                // Cangjie name.  Also (this is mentioned in the documentation) they cannot have
-                // the same Cangjie name if they are both properties.  Make 'derived' hidden in
-                // both cases.
-                derived.set_hidden();
-            }
+    if (base.is_static() == derived.is_static() && base.selector() == derived.selector()
+        && base.is_member_method() && derived.is_member_method()) {
+        // 'base' and 'derived' is a pair of non-init methods, and 'derived' overrides
+        // 'base' in terms of Objective-C (same selector).  At the Cangjie side, it must
+        // override as well (have the same Cangjie name).  If the names are different
+        // (if 'base' was renamed at earlier transformation stages), then rename
+        // 'derived' as well.
+        const auto &base_name = base.name();
+        if (base_name != derived.name()) {
+            derived.rename(base_name);
         }
     } else if (base.name() == derived.name()) {
         // 'base' and 'derived' have different "staticity".  Therefore, this is not an
