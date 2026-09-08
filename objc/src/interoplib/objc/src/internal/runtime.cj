@@ -143,9 +143,10 @@ protected unsafe func removeFromRegistry(registryId: RegistryId): Unit {
     REGISTRY.remove(registryId)
 }
 
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 @Frozen
 /**
- * @Deprecated: use `objCAlloc` instead.
+ * @note: use `objCAlloc` instead.
  * Allocates a pointer to the class by its name.
  * Effectively a wrapper around `objc_alloc`, but with Cangjie String as a parameter for convenience.
  * Note: MUST be called in a transaction with corresponding init* method of the class and the pointer, returned by this function, MUST NOT be stored anywhere.
