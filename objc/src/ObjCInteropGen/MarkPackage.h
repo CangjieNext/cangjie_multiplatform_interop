@@ -11,6 +11,7 @@
 namespace objcgen {
 
 bool mark_package();
+void filter_name_clashing_symbols();
 
 } // namespace objcgen
 

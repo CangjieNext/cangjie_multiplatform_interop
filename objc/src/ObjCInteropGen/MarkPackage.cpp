@@ -6,6 +6,7 @@
 
 #include "MarkPackage.h"
 
+#include <deque>
 #include <iostream>
 
 #include "InputFile.h"
@@ -434,6 +435,57 @@ bool mark_package()
     set_root_reference_level();
     symbol_references_to_packages();
     return register_symbols_in_declaration_order();
+}
+
+void filter_name_clashing_symbols()
+{
+    std::unordered_set<FileLevelSymbol*> live_symbols;
+    std::deque<FileLevelSymbol*> pending;
+
+    const auto enqueue = [&live_symbols, &pending](FileLevelSymbol& symbol) {
+        if (symbol.package_file() && live_symbols.insert(&symbol).second) {
+            pending.push_back(&symbol);
+        }
+    };
+
+    // Package roots remain live unless the root itself is a hidden/unsupported
+    // top-level function. Type members are handled as edges of their owner type.
+    for (const auto& input_file : inputs) {
+        for (auto& symbol : input_file) {
+            if (symbol.output_status() != OutputStatus::Root) {
+                continue;
+            }
+            if (auto* function = dynamic_cast<NonTypeSymbol*>(&symbol);
+                function && (!function->is_supported(nullptr) || function->is_hidden())) {
+                continue;
+            }
+            enqueue(symbol);
+        }
+    }
+
+    std::unordered_set<FileLevelSymbol*> references;
+    while (!pending.empty()) {
+        auto* symbol = pending.front();
+        pending.pop_front();
+
+        references.clear();
+        if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(symbol)) {
+            type->collect_live_referenced_symbols(references);
+        } else {
+            references.insert(symbol->references_symbols().begin(), symbol->references_symbols().end());
+        }
+
+        for (auto* reference : references) {
+            enqueue(*reference);
+        }
+    }
+
+    for (auto& package : packages) {
+        for (auto& package_file : package) {
+            package_file.erase_symbols_if(
+                [&live_symbols](FileLevelSymbol* symbol) { return live_symbols.count(symbol) == 0; });
+        }
+    }
 }
 
 } // namespace objcgen

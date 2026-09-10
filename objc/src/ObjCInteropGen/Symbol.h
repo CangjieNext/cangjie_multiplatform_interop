@@ -884,6 +884,9 @@ public:
 
     void mark_transformed() noexcept;
 
+    /** Collect references contributed by declarations that remain live after Transform. */
+    void collect_live_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out);
+
 private:
     bool visit_referenced_types(const FileLevelSymbolVisitor& visitor) override;
     bool visit_referenced_types(const FileLevelSymbolScanner& visitor) const override;
@@ -1019,6 +1022,8 @@ public:
      * @param owner owner type symbol, if any
      */
     [[nodiscard]] bool is_supported(const TypeDeclarationSymbol* owner) const noexcept;
+
+    [[nodiscard]] bool has_name_clash(const TypeDeclarationSymbol* owner) const noexcept;
 
     void collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out) override;
 
