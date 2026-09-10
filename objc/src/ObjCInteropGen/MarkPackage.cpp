@@ -416,6 +416,32 @@ static void symbol_references_to_packages()
         return false;
     }
 
+    // for (const auto& input_file : inputs) {
+    //     for (auto& symbol : input_file) {
+    //         if (auto* package_file = symbol.package_file()) {
+    //             package_file->add_symbol(symbol);
+    //         }
+    //     }
+    // }
+
+    return true;
+}
+
+bool mark_package_early()
+{
+    mark_roots();
+    add_all_symbol_references();
+    set_root_reference_level();
+    symbol_references_to_packages();
+    return register_symbols_in_declaration_order();
+}
+
+bool mark_package_late()
+{
+    // mark_roots();
+    add_all_symbol_references();
+    // set_root_reference_level();
+    symbol_references_to_packages();
     for (const auto& input_file : inputs) {
         for (auto& symbol : input_file) {
             if (auto* package_file = symbol.package_file()) {
@@ -423,17 +449,8 @@ static void symbol_references_to_packages()
             }
         }
     }
-
     return true;
-}
-
-bool mark_package()
-{
-    mark_roots();
-    add_all_symbol_references();
-    set_root_reference_level();
-    symbol_references_to_packages();
-    return register_symbols_in_declaration_order();
+    //return register_symbols_in_declaration_order();
 }
 
 } // namespace objcgen

@@ -712,4 +712,9 @@ void apply_mappings()
     do_map();
 }
 
+
+void filter_name_clashing_symbols()
+{
+
+}
 } // namespace objcgen

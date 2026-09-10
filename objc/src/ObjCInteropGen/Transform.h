@@ -12,6 +12,7 @@ namespace objcgen {
 
 void apply_transforms();
 void apply_mappings();
+void filter_name_clashing_symbols();
 
 } // namespace objcgen
 

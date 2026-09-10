@@ -10,7 +10,8 @@
 
 namespace objcgen {
 
-bool mark_package();
+bool mark_package_early();
+bool mark_package_late();
 
 } // namespace objcgen
 

@@ -19,6 +19,8 @@
 
 namespace objcgen {
 
+static bool SymbolsRenamed = false;
+
 class Package;
 
 class PackageFilter : NonCopyable {

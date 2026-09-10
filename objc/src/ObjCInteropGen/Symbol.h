@@ -1013,6 +1013,10 @@ public:
 
     [[nodiscard]] bool is_objc_compatible_signature() const noexcept;
 
+    [[nodiscard]] bool has_name_clash_through_type_aliases() const noexcept;
+
+    [[nodiscard]] bool has_name_clash(const TypeDeclarationSymbol* owner) const noexcept;
+
     /**
      * Whether this declaration is currently supported by the FE.
      * If not, then it will be commented out.

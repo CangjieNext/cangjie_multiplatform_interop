@@ -1061,7 +1061,7 @@ void TypeDeclarationSymbol::collect_referenced_symbols(std::unordered_set<FileLe
     // Only members that will actually be emitted contribute references.  Unsupported
     // members are commented out in the output and must not pull in their types.
     for (auto& member : this->members()) {
-        if (member.is_supported(this) && !member.is_hidden()) {
+        if (!SymbolsRenamed || (member.is_supported(this) && !member.is_hidden())) {
             if (member.is_property()) {
                 get_getter(member).collect_referenced_symbols(out);
             } else {
@@ -1187,7 +1187,7 @@ bool TypeAliasSymbol::visit_referenced_types(const FileLevelSymbolScanner& visit
 void TypeAliasSymbol::collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out)
 {
     // Unsupported aliases are commented out; their target types must not count.
-    if (!is_supported()) {
+    if (SymbolsRenamed && !is_supported()) {
         return;
     }
     FileLevelSymbol::collect_referenced_symbols(out);
@@ -1281,6 +1281,41 @@ bool NonTypeSymbol::is_objc_compatible_signature() const noexcept
     return symbol.any_of_referenced_types([&name](const auto& s) { return name == s.name(); });
 }
 
+bool NonTypeSymbol::has_name_clash_through_type_aliases() const noexcept
+{
+    const auto& name = this->selector();
+    class Scanner : public FileLevelSymbolScanner {
+    public:
+        explicit Scanner(const std::string& name) noexcept : name_(name)
+        {
+        }
+
+        [[nodiscard]] bool operator()(const FileLevelSymbol& symbol) const override
+        {
+            if (auto* type_alias = dynamic_cast<const TypeAliasSymbol*>(this)) {
+                if (auto& target = type_alias->target(); target.has_symbol_assigned()) {
+                    auto canonical_type = type_alias->canonical_type();
+                    if (canonical_type.is_ctype() && canonical_type.contains_pointer_or_func()) {
+                        return (*this)(target);
+                    }
+                }
+            }
+
+            return name_ == name;
+        }
+
+        using FileLevelSymbolScanner::operator();
+
+    private:
+        const std::string& name_;
+    };
+    return any_of_referenced_types(Scanner(this->selector()));
+}
+
+bool NonTypeSymbol::has_name_clash(const TypeDeclarationSymbol* owner) const noexcept {
+    return has_name_clash_with_referenced_types(is_property() ? *find_getter(*owner) : *this, name());
+}
+
 bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexcept
 {
     assert(owner || is_global_function());
@@ -1295,7 +1330,7 @@ bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexc
     }
 
     if (is_method()) {
-        return is_objc_compatible_signature() && !has_name_clash_with_referenced_types(*this, name());
+        return is_objc_compatible_signature();
     }
 
     if (is_field() || is_property() || is_instance_variable()) {
@@ -1320,13 +1355,7 @@ bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexc
                 // Current FE fails to process a field or property of an @ObjCMirror class if
                 // the field and its type have the same name (no such problem in non-@ObjCMirror
                 // declarations).  As a workaround, comment out such fields.
-                return name() != type.name() &&
-                    type.is_objc_compatible()
-                    // For properties, not the property itself but its getter is passed to
-                    // 'has_name_clash_with_referenced_types'.  That is because
-                    // NonTypeSymbol::visit_referenced_types still cannot properly visit all types.
-                    // Should be fixed later.
-                    && !has_name_clash_with_referenced_types(is_property() ? *find_getter(*owner) : *this, name());
+                return name() != type.name() && type.is_objc_compatible();
             default:
                 assert(false);
                 return false;
@@ -1362,7 +1391,7 @@ bool NonTypeSymbol::visit_referenced_types(const FileLevelSymbolScanner& visitor
 void NonTypeSymbol::collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out)
 {
     // Global functions at file level: only supported ones are emitted.
-    if (is_global_function() && !is_supported(nullptr)) {
+    if (is_global_function() && SymbolsRenamed && !is_supported(nullptr)) {
         return;
     }
     FileLevelSymbol::collect_referenced_symbols(out);
