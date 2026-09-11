@@ -1020,6 +1020,8 @@ public:
      */
     [[nodiscard]] bool is_supported(const TypeDeclarationSymbol* owner) const noexcept;
 
+    [[nodiscard]] bool has_name_clash(const TypeDeclarationSymbol* owner) const noexcept;
+
     void collect_referenced_symbols(std::unordered_set<FileLevelSymbol*>& out) override;
 
     [[nodiscard]] Kind kind() const noexcept

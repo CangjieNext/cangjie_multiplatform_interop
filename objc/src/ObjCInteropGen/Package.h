@@ -8,6 +8,7 @@
 #ifndef SCOPE_H
 #define SCOPE_H
 
+#include <algorithm>
 #include <cassert>
 #include <filesystem>
 #include <string>
@@ -65,6 +66,11 @@ public:
     {
         assert(symbol.defining_file());
         symbols_.push_back(&symbol);
+    }
+
+    template <class Pred> void erase_symbols_if(Pred pred)
+    {
+        symbols_.erase(std::remove_if(symbols_.begin(), symbols_.end(), pred), symbols_.end());
     }
 
     [[nodiscard]] auto begin() const noexcept

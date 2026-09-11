@@ -311,38 +311,6 @@ static void print_getter_setter_names(StructuredString& output, const NonTypeSym
     }
 }
 
-[[nodiscard]] static bool has_name_clash_through_type_aliases(
-    const NonTypeSymbol& symbol, const std::string& name, PrintFormat format)
-{
-    class Scanner : public FileLevelSymbolScanner {
-    public:
-        explicit Scanner(const std::string& name) noexcept : name_(name)
-        {
-        }
-
-        [[nodiscard]] bool operator()(const FileLevelSymbol& symbol) const override
-        {
-            if (auto* type_alias = dynamic_cast<const TypeAliasSymbol*>(&symbol)) {
-                if (auto& target = type_alias->target(); target.has_symbol_assigned()) {
-                    auto canonical_type = type_alias->canonical_type();
-                    if (canonical_type.is_ctype() && canonical_type.contains_pointer_or_func()) {
-                        return (*this)(target);
-                    }
-                }
-            }
-
-            return name_ == symbol.name();
-        }
-
-        using FileLevelSymbolScanner::operator();
-
-    private:
-        const std::string& name_;
-    };
-    return mode != Mode::EXPERIMENTAL && format == PrintFormat::EmitCangjieStrict &&
-        symbol.any_of_referenced_types(Scanner(name));
-}
-
 static void write_function(
     StructuredString& output, const TypeDeclarationSymbol* decl, const NonTypeSymbol& function, PrintFormat format)
 {
@@ -351,7 +319,7 @@ static void write_function(
     }
     const auto& return_type = function.return_type();
     const auto& name = function.name();
-    auto supported = function.is_supported(decl) && !has_name_clash_through_type_aliases(function, name, format);
+    auto supported = function.is_supported(decl);
     if (!supported) {
         output << push_line_comment;
     }
@@ -473,8 +441,7 @@ void TypeDeclarationWriter::write_property(const NonTypeSymbol& prop)
 {
     assert(prop.is_property());
     auto is_static = prop.is_static();
-    auto getter = prop.find_getter(decl_);
-    auto supported = prop.is_supported(&decl_) && !has_name_clash_through_type_aliases(*getter, prop.name(), format_);
+    auto supported = prop.is_supported(&decl_);
     if (!supported) {
         output_ << push_line_comment;
     }
@@ -576,7 +543,7 @@ void TypeDeclarationWriter::write_instance_variable(NonTypeSymbol& ivar)
     assert(ivar.is_instance());
     assert(ivar.is_public() || ivar.is_protected());
     const auto& name = ivar.name();
-    auto supported = ivar.is_supported(&decl_) && !has_name_clash_through_type_aliases(ivar, ivar.name(), format_);
+    auto supported = ivar.is_supported(&decl_);
     if (!supported) {
         output_ << push_line_comment;
     }
@@ -604,7 +571,7 @@ void TypeDeclarationWriter::write_field(const NonTypeSymbol& field)
     if (field.is_bit_field() && field.name().empty()) {
         return;
     }
-    auto supported = field.is_supported(&decl_) && !has_name_clash_through_type_aliases(field, field.name(), format_);
+    auto supported = field.is_supported(&decl_);
     if (!supported) {
         output_ << push_line_comment;
     }
