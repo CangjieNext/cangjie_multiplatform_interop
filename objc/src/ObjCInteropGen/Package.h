@@ -111,8 +111,8 @@ public:
     }
 };
 
-// `filters` defines which entities may belong to a package. When `root-filters` is set,
-// only `root-filters` matches become closure roots; filter-only members join the package
+// `filters` defines which entities may belong to a package. When global `roots` is set,
+// only `roots` matches become closure roots; `filter` members join the package
 // only when reached via reference closure.
 class Package final : NonCopyable {
     const std::string cangjie_name_;

@@ -22,6 +22,8 @@ public:
 
     static const toml::Value* find(const std::string& key);
 
+    static const toml::Value* roots();
+
     static ClosureDepthType closure_depth() noexcept;
 };
 

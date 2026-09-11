@@ -50,7 +50,7 @@ enum class ReferenceKind { None, Likely, True };
 {
     const auto& name = symbol.objc_name();
 
-    // When `root-filters` is present, only those matches become closure roots.
+    // When `roots` is present, only those matches become closure roots.
     if (const auto* filter = package.root_filters()) {
         return filter->apply(name);
     }
@@ -124,7 +124,7 @@ static void collect_ambiguity_reasons(
     const auto& name = symbol.objc_name();
 
     if (const auto* filter = package.root_filters(); filter && filter->apply(name)) {
-        reasons.emplace_back("matches `root-filters`");
+        reasons.emplace_back("matches `roots`");
     }
 
     if (const auto* filter = package.filters(); filter && filter->apply(name)) {

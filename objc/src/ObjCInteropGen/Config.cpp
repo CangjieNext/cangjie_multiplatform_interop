@@ -213,6 +213,17 @@ const toml::Value* Config::find(const std::string& key)
     return g_config.find(key);
 }
 
+const toml::Value* Config::roots()
+{
+    if (const auto* roots = find("roots")) {
+        if (!roots->is<toml::Array>()) {
+            fatal("`roots` should be a TOML array of strings");
+        }
+        return roots;
+    }
+    return nullptr;
+}
+
 ClosureDepthType Config::closure_depth() noexcept
 {
     assert(g_config.is<toml::Table>());
