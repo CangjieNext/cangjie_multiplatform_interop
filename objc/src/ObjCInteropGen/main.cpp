@@ -16,6 +16,7 @@
 #include "Mode.h"
 #include "Package.h"
 #include "SourceScannerConfig.h"
+#include "Stage.h"
 #include "Strings.h"
 #include "TomlParseError.h"
 #include "Transform.h"
@@ -54,8 +55,7 @@ static std::optional<std::string_view> get_arg_value(const char* const argv[], i
 
 int main(int argc, char* argv[])
 {
-    std::string_view stage = "Parsing command line options";
-
+    stage = Stage::PARSE_CMD;
     try {
         if (argc <= 1) {
             show_help(argv[0]);
@@ -154,30 +154,31 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        stage = "Preparing mappings";
+        stage = Stage::PREPARE_MAPPINGS;
         initialize_mappings();
 
-        stage = "Parsing Objective-C sources";
+        stage = Stage::PARSE_OBJC;
         parse_sources();
 
-        stage = "Creating Cangjie packages";
+        stage = Stage::CREATE_CJ_PACKAGES;
         create_packages();
 
-        stage = "Transforming sources";
-        apply_transforms();
-
-        stage = "Applying mappings";
-        apply_mappings();
-
-        stage = "Filling Cangjie packages";
+        stage = Stage::FILL_CJ_PACKAGES;
         if (!mark_package()) {
             return 1;
         }
 
-        stage = "Checking sources";
+        stage = Stage::TRANSFORM;
+        apply_transforms();
+        filter_name_clashing_symbols();
+
+        stage = Stage::APPLY_MAPPINGS;
+        apply_mappings();
+
+        stage = Stage::CHECK_SOURCES;
         check_marked_symbols();
 
-        stage = "Writing Cangjie outputs";
+        stage = Stage::WRITE_CJ_OUTPUTS;
         write_cangjie();
     } catch (const TomlParseError& e) {
         std::cerr << e.path() << ": " << e.what() << std::endl;
@@ -186,10 +187,10 @@ int main(int argc, char* argv[])
         // FatalException is assumed to print the error message before throwing
         return 1;
     } catch (const std::exception& e) {
-        std::cerr << stage << ":\n" << e.what() << std::endl;
+        std::cerr << stage_to_description[stage] << ":\n" << e.what() << std::endl;
         return 1;
     } catch (...) {
-        std::cerr << stage << ":\n"
+        std::cerr << stage_to_description[stage] << ":\n"
                   << "Unknown exception" << std::endl;
         return 1;
     }
