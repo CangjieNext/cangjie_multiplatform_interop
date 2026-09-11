@@ -40,8 +40,18 @@ public:
 
     [[nodiscard]] const std::string& package_name() const noexcept;
 
+    bool mark_root() noexcept
+    {
+        if (!this->is_root) {
+            this->is_root = true;
+            return true;
+        }
+        return false;
+    }
+
 private:
     const Package& package_;
+    bool is_root = false;
 };
 
 class PackageFile final {
@@ -111,8 +121,8 @@ public:
     }
 };
 
-// `filters` defines which entities may belong to a package. When `root-filters` is set,
-// only `root-filters` matches become closure roots; filter-only members join the package
+// `filters` defines which entities may belong to a package. When global `roots` is set,
+// only `roots` matches become closure roots; `filter` members join the package
 // only when reached via reference closure.
 class Package final : NonCopyable {
     const std::string cangjie_name_;
@@ -147,6 +157,7 @@ public:
 
     [[nodiscard]] const PackageFilter* root_filters() const noexcept
     {
+        // TODO: Return filters if is_root is true
         return root_filters_;
     }
 
@@ -266,6 +277,10 @@ public:
 
 private:
     package_map_t by_cangjie_name_;
+};
+
+class Roots final {
+
 };
 
 extern Packages packages;

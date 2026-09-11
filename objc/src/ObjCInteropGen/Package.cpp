@@ -7,6 +7,7 @@
 #include "PackageConfig.h"
 
 #include <iostream>
+#include <regex>
 
 #include "Config.h"
 #include "ExpandString.h"
@@ -15,6 +16,9 @@
 namespace objcgen {
 
 Packages packages;
+
+typedef std::unordered_map<std::string, PackageFilter*> root_pattern_to_filter;
+static root_pattern_to_filter root_filters;
 
 const std::string& PackageFilter::package_name() const noexcept
 {
@@ -49,17 +53,35 @@ static void create_package(std::size_t package_index, const toml::Table& config)
 
     auto output_path = compute_output_path(name_desc, config, package_cangjie_name);
     auto& package = *new Package(package_cangjie_name, expand_string(output_path));
-    package.set_filters(create_filter(package, filters_it->second));
-
-    if (auto root_filters_it = config.find("root-filters"); root_filters_it != config.end()) {
-        package.set_root_filters(create_filter(package, root_filters_it->second));
+    auto& filter = create_filter(package, filters_it->second);
+    if (root_filters.empty()) {
+        filter.mark_root();
     }
-
+    for (auto&[pattern, pattern_filter]: root_filters) {
+        if (filter.apply(pattern)) {
+            if (!filter.mark_root()) {
+                fatal("`filters` for the ", name_desc, " entry are not allowed to match multiple roots");
+            }
+            pattern_filter = &filter;
+        }
+    }
+    package.set_filters(filter);
     packages.insert(package);
 }
 
 void create_packages()
 {
+    // Create roots
+    if (const auto* roots = Config::find("roots")) {
+        for (auto&& root : roots->as<toml::Array>()) {
+            if (!root.is<std::string>()) {
+                fatal("`roots` entry is not a TOML string");
+            }
+            root_filters.insert({root.as<std::string>(), nullptr});
+        }
+    }
+
+    // Create packages
     if (const auto* packages = Config::find("packages")) {
         std::size_t i = 0;
         for (auto&& package_any : packages->as<toml::Array>()) {
@@ -72,6 +94,13 @@ void create_packages()
         }
     } else {
         fatal("`packages` should be a TOML array of tables");
+    }
+
+    // Check roots
+    for (auto& root_pattern: root_filters) {
+        if (root_pattern.second == nullptr) {
+            fatal("No package found for root ", root_pattern.first);
+        }
     }
 }
 
