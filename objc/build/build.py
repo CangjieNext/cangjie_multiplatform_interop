@@ -38,10 +38,12 @@ DYLIB_EXT = "dylib" if IS_DARWIN else "dll" if IS_WINDOWS else "so"
 
 OUT_OBJC_INTERNAL_DYLIB = os.path.join(OUTPUT_DIR, f"libobjc.internal.{DYLIB_EXT}")
 OUT_OBJC_INTERNAL_A     = os.path.join(OUTPUT_DIR, "libobjc.internal.a")
+OUT_OBJC_INTERNAL_BC     = os.path.join(OUTPUT_DIR, "libobjc.internal.bc")
 OUT_OBJC_INTERNAL_CJO   = os.path.join(OUTPUT_DIR, "objc.internal.cjo")
 
 OUT_OBJC_LANG_DYLIB = os.path.join(OUTPUT_DIR, f"libobjc.lang.{DYLIB_EXT}")
 OUT_OBJC_LANG_A     = os.path.join(OUTPUT_DIR, "libobjc.lang.a")
+OUT_OBJC_LANG_BC     = os.path.join(OUTPUT_DIR, "libobjc.lang.bc")
 OUT_OBJC_LANG_CJO   = os.path.join(OUTPUT_DIR, "objc.lang.cjo")
 
 LOG_DIR = os.path.join(BUILD_DIR, 'logs')
@@ -331,6 +333,7 @@ def build(args):
 
         cjc_A = cjc_args + ["--output-type=staticlib"]
         cjc_SO = cjc_args + ["--output-type=dylib"]
+        cjc_BC = cjc_args + ["--output-type=staticlib", "--lto=full"]
 
         # objc.internal (+ objclib.o)
         command(
@@ -367,6 +370,10 @@ def build(args):
             *(cjc_SO + ["-p", SRC_INTERNAL, "--link-options", OBJCLIB_O]),
             cwd=INTEROPLIB_DIR
         )
+        command(
+            *(cjc_BC + ["-p", SRC_INTERNAL, OBJCLIB_O]),
+            cwd=INTEROPLIB_DIR
+        )
 
         # objc.lang
         command(
@@ -375,6 +382,10 @@ def build(args):
         )
         command(
             *(cjc_SO + ["-p", SRC_LANG, f"-L{OUTPUT_DIR}", "-lobjc.internal"]),
+            cwd=INTEROPLIB_DIR
+        )
+        command(
+            *(cjc_BC + ["-p", SRC_LANG]),
             cwd=INTEROPLIB_DIR
         )
 
