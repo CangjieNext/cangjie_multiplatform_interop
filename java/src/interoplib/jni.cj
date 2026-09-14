@@ -85,9 +85,9 @@ class ClassLoading {
                 let envCJ = env.read().read()
                 let searchNameArg = envCJ.NewStringUTF(env, searchName.value)
                 var args: VArray<jvalue, $3> = [
-                    UInt64(searchNameArg.toUIntNative()),
+                    ptrToInt(searchNameArg),
                     0,
-                    UInt64(classLoader.toUIntNative())
+                    ptrToInt(classLoader)
                 ]
                 result = envCJ.CallStaticObjectMethodA(env, javaLangClass, forNameID, inout args)
                 envCJ.DeleteLocalRef(env, searchNameArg)
@@ -1022,22 +1022,35 @@ protected enum Java_CFFI_JavaEntityKind <: ToString {
     }
 }
 
+/* all these cannot be generics due to C FFI limitations */
 private unsafe func ptrFromInt(value: UInt64): CPointer<Unit> {
-    CPointer<Unit>(CPointer<UInt8>() + Int64(value))
+    var mutValue = UIntNative(value)
+    CPointer<CPointer<Unit>>(inout mutValue).read()
 }
 
-// TODO: implement without heap memory allocation (alloca? intrinsic?)
-private unsafe func reinterpretCast<A, B>(value: B): A where A <: CType, B <: CType {
-    var newValue = zeroValue<A>()
+private unsafe func ptrToInt(value: CPointer<Unit>): UInt64 {
+    var mutValue = value
+    UInt64(CPointer<UIntNative>(inout mutValue).read())
+}
 
-    try (fBox = LibC.malloc<B>(count: 1).asResource()) {
-        fBox.value.write(value)
+private unsafe func utof(value: UInt32): Float32 {
+    var mutValue = value
+    CPointer<Float32>(inout mutValue).read()
+}
 
-        let iBox = CPointer<A>(fBox.value)
-        newValue = iBox.read()
-    }
+private unsafe func utof(value: UInt64): Float64 {
+    var mutValue = value
+    CPointer<Float64>(inout mutValue).read()
+}
 
-    newValue
+private unsafe func ftou(value: Float32): UInt32 {
+    var mutValue = value
+    CPointer<UInt32>(inout mutValue).read()
+}
+
+private unsafe func ftou(value: Float64): UInt64 {
+    var mutValue = value
+    CPointer<UInt64>(inout mutValue).read()
 }
 
 protected struct Java_CFFI_JavaEntity {
@@ -1051,7 +1064,7 @@ protected struct Java_CFFI_JavaEntity {
 
     public init(kind: Java_CFFI_JavaEntityKind, value: CPointer<Unit>) {
         this.kind = kind
-        this.value = UInt64(value.toUIntNative())
+        this.value = unsafe { ptrToInt(value) }
     }
 
     public init(kind: Java_CFFI_JavaEntityKind, value: UInt64) {
@@ -1091,12 +1104,12 @@ protected struct Java_CFFI_JavaEntity {
 
     public init(kind: Java_CFFI_JavaEntityKind, value: Float32) {
         this.kind = kind
-        this.value = unsafe { UInt64(reinterpretCast<UInt32, Float32>(value)) }
+        this.value = unsafe { UInt64(ftou(value)) }
     }
 
     public init(kind: Java_CFFI_JavaEntityKind, value: Float64) {
         this.kind = kind
-        this.value = unsafe { reinterpretCast<UInt64, Float64>(value) }
+        this.value = unsafe { ftou(value) }
     }
 
     public init(value: Int64) {
@@ -1222,16 +1235,16 @@ protected struct Java_CFFI_JavaEntity {
 
     public unsafe func asJFloat(): jfloat {
         match (kind) {
-            case JVALUE => reinterpretCast<Float32, UInt32>(UInt32(value))
-            case JFLOAT => reinterpretCast<Float32, UInt32>(UInt32(value))
+            case JVALUE => utof(UInt32(value))
+            case JFLOAT => utof(UInt32(value))
             case _ => throw InteropLibException("Cannot get jfloat from ${kind.toString()}")
         }
     }
 
     public unsafe func asJDouble(): jdouble {
         match (kind) {
-            case JVALUE => reinterpretCast<Float64, UInt64>(value)
-            case JDOUBLE => reinterpretCast<Float64, UInt64>(value)
+            case JVALUE => utof(value)
+            case JDOUBLE => utof(value)
             case _ => throw InteropLibException("Cannot get jdouble from ${kind.toString()}")
         }
     }
@@ -1626,14 +1639,6 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
             }
         }
     }
-}
-
-private func Java_CFFI_callStaticMethod(env: JNIEnv_ptr, clazz: Java_CFFI_Class, methodName: String, methodSignature: String, args: Array<Java_CFFI_JavaEntity>): Java_CFFI_JavaEntity {
-    let signature = Java_CFFI_parseMethodSignature(methodSignature)
-    let id = Java_CFFI_MethodID.constrStatic(env, clazz, methodName, signature)
-    let callNest = Java_CFFI_JavaCallNest(args.size)
-
-    Java_CFFI_callStaticMethod(env, clazz, id, args, callNest)
 }
 
 @Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
@@ -2326,26 +2331,19 @@ private func to_jstring(env: JNIEnv_ptr, str: String): jstring {
     result
 }
 
+@FastNative
+foreign func Java_JNI_getEnv(vm: CPointer<JavaVM>, outEnv: CPointer<JNIEnv_ptr>): jint
+
 protected func Java_CFFI_get_env(): JNIEnv_ptr {
-    var envPtr = JNIEnv_ptr()
-
-    let javaVM = jvm
-    if (javaVM.isNull()) {
-        throw InteropLibException("JVM instance is not yet set")
-    }
-
     unsafe {
-        /*
-            Thread should be attached as daemon to prevent waiting for Cangjie threads.
-            Because Cangjie runtime threads are registered (for example, during objects finalization),
-            JVM is blocked from terminating.
-
-            A better solution is to detach Cangjie thread from JVM.
-        */
-        javaVM.read().read().AttachCurrentThreadAsDaemon(jvm, inout envPtr, CPointer<Unit>())
+        var javaVM = jvm
+        if (CPointer<UIntNative>(inout javaVM).read() == 0) {
+            throw InteropLibException("JVM instance is not yet set")
+        }
+        var envPtr = JNIEnv_ptr()
+        Java_JNI_getEnv(jvm, inout envPtr)
+        return envPtr
     }
-
-    envPtr
 }
 
 protected func Java_CFFI_JavaEntityJobject(jobject: CPointer<Unit>): Java_CFFI_JavaEntity {
@@ -2501,18 +2499,22 @@ private func Java_CFFI_throw_exception(env: JNIEnv_ptr, exception: jthrowable) {
     }
 }
 
+@FastNative
+foreign func Java_JNI_exceptionOccured(env: JNIEnv_ptr): jthrowable
+
 protected func handlePendingException(env: JNIEnv_ptr) {
     unsafe {
         let envCJ : JNINativeInterface_ = env.read().read()
-        let pendingException = envCJ.ExceptionOccurred(env)
-        if (!pendingException.isNull()) {
+        var pendingException = Java_JNI_exceptionOccured(env)
+
+        if (CPointer<UIntNative>(inout pendingException).read() != 0) {
             envCJ.ExceptionClear(env)
             let clazz = Java_CFFI_getClass(env, "java/lang/Throwable")
             let id = Java_CFFI_getMethodID(env, clazz, "toString", "()Ljava/lang/String;")
             let obj = Java_CFFI_JavaEntity(JOBJECT, pendingException)
             let res = envCJ.CallObjectMethod(env, obj.asJObject(), id)
             let jMessage = Java_CFFI_JavaEntity(JOBJECT, res)
-            let getMessageException = envCJ.ExceptionOccurred(env)
+            let getMessageException = Java_JNI_exceptionOccured(env)
             var cjMessage: String
             if (getMessageException.isNull()) {
                 cjMessage = Java_CFFI_JavaStringToCangjie(env, jMessage)

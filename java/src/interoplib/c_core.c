@@ -118,9 +118,20 @@ jobject Java_JNI_swapLocalWithGlobalRef(JNIEnv* env, jobject localRef)
     return globalRef;
 }
 
+/* wrapper around DeleteGlobalRef, for @FastNative */
 void Java_JNI_deleteGlobalRef(JNIEnv* env, jobject ref)
 {
     (*env)->DeleteGlobalRef(env, ref);
+}
+
+/* wrapper around AttachCurrentThreadAsDaemon, for @FastNative */
+jint Java_JNI_getEnv(JavaVM* vm, JNIEnv** outEnv) {
+    return (*vm)->AttachCurrentThreadAsDaemon(vm, (void**) outEnv, NULL);
+}
+
+/* wrapper around ExceptionOccured, for @FastNative */
+jthrowable Java_JNI_exceptionOccured(JNIEnv* env) {
+    return (*env)->ExceptionOccurred(env);
 }
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
