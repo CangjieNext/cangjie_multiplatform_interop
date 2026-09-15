@@ -276,4 +276,13 @@ PackageFilter& create_filter(const Package& package, const toml::Value& node)
         "` filter is expected to be a TOML table, a regex string or an array");
 }
 
+[[nodiscard]] PackageFilter& merge_filters(const PackageFilter& filter1, const PackageFilter& filter2)
+{
+    assert(filter1.package_name() == filter2.package_name());
+    auto& union_filter = *new UnionFilter(filter1.package());
+    union_filter.add_argument(filter1);
+    union_filter.add_argument(filter2);
+    return union_filter;
+}
+
 } // namespace objcgen
