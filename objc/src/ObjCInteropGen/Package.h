@@ -44,6 +44,31 @@ private:
     const Package& package_;
 };
 
+class RootFilter
+{
+    Package* package_ = nullptr;
+    const std::string pattern_;
+
+public:
+    explicit RootFilter(std::string pattern) : pattern_(std::move(pattern))
+    {
+    }
+
+    [[nodiscard]] Package* package() const noexcept
+    {
+        return package_;
+    }
+
+    [[nodiscard]] const std::string& pattern() const noexcept
+    {
+        return pattern_;
+    }
+
+    bool set_package(Package* package);
+
+    [[nodiscard]] const PackageFilter& as_filter() const noexcept;
+};
+
 class PackageFile final {
     std::filesystem::path output_path_;
     Package* const package_;
@@ -111,8 +136,8 @@ public:
     }
 };
 
-// `filters` defines which entities may belong to a package. When `root-filters` is set,
-// only `root-filters` matches become closure roots; filter-only members join the package
+// `filters` defines which entities may belong to a package. When global `roots` is set,
+// only `roots` matches become closure roots; `filter` members join the package
 // only when reached via reference closure.
 class Package final : NonCopyable {
     const std::string cangjie_name_;
@@ -271,6 +296,61 @@ private:
 extern Packages packages;
 
 void create_packages();
+
+using roots_set_t = std::unordered_set<RootFilter*>;
+
+class RootsIterator final {
+    roots_set_t::const_iterator it_;
+
+public:
+    explicit RootsIterator(roots_set_t::const_iterator it) noexcept : it_(it)
+    {
+    }
+
+    [[nodiscard]] RootFilter& operator*() const noexcept
+    {
+        return **it_;
+    }
+
+    RootsIterator& operator++() noexcept
+    {
+        ++it_;
+        return *this;
+    }
+
+    [[nodiscard]] friend bool operator!=(const RootsIterator& lhs, const RootsIterator& rhs) noexcept
+    {
+        return lhs.it_ != rhs.it_;
+    }
+};
+
+class Roots final {
+public:
+    void register_from_value(const std::string& value)
+    {
+        roots.insert(new RootFilter(value));
+    }
+
+    [[nodiscard]] std::size_t size() const noexcept
+    {
+        return roots.size();
+    }
+
+    [[nodiscard]] RootsIterator begin() const noexcept
+    {
+        return RootsIterator{roots.begin()};
+    }
+
+    [[nodiscard]] RootsIterator end() const noexcept
+    {
+        return RootsIterator{roots.end()};
+    }
+
+private:
+    std::unordered_set<RootFilter*> roots;
+};
+
+extern Roots roots;
 
 } // namespace objcgen
 
