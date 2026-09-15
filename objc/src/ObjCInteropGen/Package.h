@@ -44,6 +44,30 @@ private:
     const Package& package_;
 };
 
+class RootFilter {
+    const std::string pattern_;
+    Package* package_ = nullptr;
+
+public:
+    explicit RootFilter(std::string pattern) : pattern_(std::move(pattern))
+    {
+    }
+
+    [[nodiscard]] const std::string& pattern() const noexcept
+    {
+        return pattern_;
+    }
+
+    [[nodiscard]] Package* package() const noexcept
+    {
+        return package_;
+    }
+
+    bool set_package(Package* package);
+
+    [[nodiscard]] const PackageFilter& as_filter() const noexcept;
+};
+
 class PackageFile final {
     std::filesystem::path output_path_;
     Package* const package_;
@@ -271,6 +295,73 @@ private:
 extern Packages packages;
 
 void create_packages();
+
+using roots_set_t = std::unordered_set<RootFilter*>;
+
+class RootsIterator final {
+    roots_set_t::const_iterator it_;
+
+public:
+    explicit RootsIterator(roots_set_t::const_iterator it) noexcept : it_(it)
+    {
+    }
+
+    [[nodiscard]] RootFilter& operator*() const noexcept
+    {
+        return **it_;
+    }
+
+    RootsIterator& operator++() noexcept
+    {
+        ++it_;
+        return *this;
+    }
+
+    [[nodiscard]] friend bool operator!=(const RootsIterator& lhs, const RootsIterator& rhs) noexcept
+    {
+        return lhs.it_ != rhs.it_;
+    }
+};
+
+class Roots final {
+public:
+    void register_from_value(const std::string& value)
+    {
+        roots.insert(new RootFilter(value));
+    }
+
+    ~Roots()
+    {
+        for (const auto* root : roots) {
+            delete root;
+        }
+    }
+
+    [[nodiscard]] std::size_t size() const noexcept
+    {
+        return roots.size();
+    }
+
+    [[nodiscard]] RootsIterator begin() const noexcept
+    {
+        return RootsIterator{roots.begin()};
+    }
+
+    [[nodiscard]] RootsIterator end() const noexcept
+    {
+        return RootsIterator{roots.end()};
+    }
+
+    [[nodiscard]] bool empty() const noexcept
+    {
+        return roots.empty();
+    }
+
+private:
+    std::unordered_set<RootFilter*> roots;
+};
+
+extern Roots roots;
 
 } // namespace objcgen
 

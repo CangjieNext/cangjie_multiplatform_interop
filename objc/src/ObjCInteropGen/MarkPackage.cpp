@@ -54,6 +54,10 @@ enum class ReferenceKind { None, Likely, True };
     if (const auto* filter = package.root_filters()) {
         return filter->apply(name);
     }
+    // If there are global roots, other filter properties cannot act as roots.
+    if (!roots.empty()) {
+        return false;
+    }
 
     // Otherwise, other filter properties act as roots.
     if (const auto* filter = package.filters(); filter && filter->apply(name)) {
@@ -88,6 +92,7 @@ static void set_package(FileLevelSymbol& symbol)
             symbol.mark_root();
         }
 
+        // It could make sense to generate warning if no symbol in universe matches some root
         if (matches_some_filter(package, symbol)) {
             // The output Cangjie package is known.
             symbol_matches_some_filter = true;
@@ -124,7 +129,7 @@ static void collect_ambiguity_reasons(
     const auto& name = symbol.objc_name();
 
     if (const auto* filter = package.root_filters(); filter && filter->apply(name)) {
-        reasons.emplace_back("matches `root-filters`");
+        reasons.emplace_back("matches `roots`");
     }
 
     if (const auto* filter = package.filters(); filter && filter->apply(name)) {
