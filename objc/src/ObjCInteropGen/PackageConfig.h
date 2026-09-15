@@ -22,6 +22,8 @@ namespace objcgen {
 
 [[nodiscard]] PackageFilter& create_filter(const Package& package, const toml::Value& node);
 
+[[nodiscard]] PackageFilter& merge_filters(const PackageFilter& filter1, const PackageFilter& filter2);
+
 [[nodiscard]] std::string compute_output_path(
     const std::string& name, const toml::Table& config, std::string_view package_cangjie_name);
 
