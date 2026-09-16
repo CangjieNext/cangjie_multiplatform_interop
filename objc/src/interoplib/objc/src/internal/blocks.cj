@@ -6,7 +6,7 @@
 
 package objc.internal
 
-import std.sync.*
+import std.sync.AtomicInt64
 
 /*
 * Cangjie does not support referencing global symbols that are not functions,
