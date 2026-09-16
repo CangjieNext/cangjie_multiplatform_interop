@@ -8,6 +8,7 @@ package objc.internal
 
 import std.sync.Mutex
 
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 /**
  * To avoid std.sync.Mutex dependency at objc glue-code.
  */
@@ -83,6 +84,7 @@ protected class ObjCUnreachableCodeException <: Exception {}
  */
 protected class ObjCStaticMethodCallOnInterfaceException <: Exception {}
 
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 @Frozen
 /**
  * Gets a Cangjie object of type R from registry by the pointer of its Objective-C counterpart.
@@ -92,6 +94,28 @@ protected unsafe func getFromRegistryByNativeHandle<R>(id: NativeObjCId): R {
     getFromRegistryById<R>(
         CFunc<(NativeObjCId, NativeObjCSel) -> RegistryId>(objCMsgSend())(id, registerName(REGISTRY_ID_IDENT))
     )
+}
+
+private const REGISTRY_ID_SEL_STR = "$registryId"
+private var REGISTRY_ID_SEL = NativeObjCSel()
+
+protected unsafe func getRegistryId(id: NativeObjCId): RegistryId {
+    if (CPointer<UIntNative>(inout REGISTRY_ID_SEL).read() == 0) {
+        REGISTRY_ID_SEL = registerName(REGISTRY_ID_SEL_STR)
+    }
+
+    CFunc<(NativeObjCId, NativeObjCSel) -> RegistryId>(objCMsgSend())(id, REGISTRY_ID_SEL)
+}
+
+private const SET_REGISTRY_ID_SEL_STR = "set$registryId:"
+private var SET_REGISTRY_ID_SEL = NativeObjCSel()
+
+protected unsafe func setRegistryId(id: NativeObjCId, regId: RegistryId): Unit {
+    if (CPointer<UIntNative>(inout SET_REGISTRY_ID_SEL).read() == 0) {
+        SET_REGISTRY_ID_SEL = registerName(SET_REGISTRY_ID_SEL_STR)
+    }
+
+    CFunc<(NativeObjCId, NativeObjCSel, RegistryId) -> Unit>(objCMsgSend())(id, SET_REGISTRY_ID_SEL, regId)
 }
 
 @Frozen
@@ -116,23 +140,25 @@ protected unsafe func removeFromRegistry(registryId: RegistryId): Unit {
     REGISTRY.remove(registryId)
 }
 
+@Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 /**
+ * @note: use `objCAlloc` instead.
  * Allocates a pointer to the class by its name.
- * Effectively a wrapper around [cls alloc], but with Cangjie String as a parameter for convenience.
+ * Effectively a wrapper around `objc_alloc`, but with Cangjie String as a parameter for convenience.
  * Note: MUST be called in a transaction with corresponding init* method of the class and the pointer, returned by this function, MUST NOT be stored anywhere.
  */
-protected unsafe func alloc(cls: String): NativeObjCId {
-    objc_alloc(getClass(cls))
+protected unsafe func alloc(className: String): NativeObjCId {
+    objc_alloc(getClass(className))
 }
 
 @Frozen
 /**
- * Allocates a pointer to the class by class object.
- * Effectively a wrapper around [cls alloc].
+ * Allocates a pointer to the class by Objective-C class pointer.
+ * Effectively a wrapper around `objc_alloc`.
  * Note: MUST be called in a transaction with corresponding init* method of the class and the pointer, returned by this function, MUST NOT be stored anywhere.
  */
-protected unsafe func objCAlloc(cls: NativeObjCClass): NativeObjCId {
-    objc_alloc(cls)
+protected unsafe func objCAlloc(clazz: NativeObjCClass): NativeObjCId {
+    objc_alloc(clazz)
 }
 
 /**
@@ -256,6 +282,7 @@ protected unsafe func setInstanceVariable<T>(id: NativeObjCId, name: String, val
     let fieldPtr = getFieldPtr<T>(id, name)
     fieldPtr.write(value)
 }
+
 @Frozen
 /**
  * Gets a class NativeObjCId by it's name.
@@ -282,6 +309,7 @@ protected unsafe func getProtocol(protoName: String): NativeObjCProtocol {
 
     proto
 }
+
 @Frozen
 /**
  * Returns a pointer to objc_msgSend implementation.
@@ -313,35 +341,58 @@ protected func objCMsgSendSuper(objCSuper: NativeObjCSuperPtr, sel: NativeObjCSe
     }
 }
 
+private const NSSTRING_CLASS_IDENT = "NSString"
+private var NSSTRING_CLASS = NativeObjCClass()
+private const INIT_WITH_UTF8_STRING_SEL_STR = "initWithUTF8String:"
+private var INIT_WITH_UTF8_STRING_SEL = NativeObjCSel()
+
 /**
  * Converts Cangjie String to NSString.
  */
-protected func convertToNSString(str: String): NativeObjCId {
-    unsafe {
-        let cstr = LibC.mallocCString(str)
-        let ptr = CPointer<Unit>(cstr.getChars())
-        let nsString = getClass("NSString")
-        let result = CFunc<(NativeObjCId, NativeObjCSel, CPointer<Unit>) -> NativeObjCId>(objCMsgSend())(
-            objc_alloc(nsString), registerName("initWithUTF8String:"), ptr
-        )
-        LibC.free(cstr)
-        return result
+protected unsafe func convertToNSString(str: String): NativeObjCId {
+    if (CPointer<UIntNative>(inout NSSTRING_CLASS).read() == 0) {
+        NSSTRING_CLASS = getClass(NSSTRING_CLASS_IDENT)
     }
+    if (CPointer<UIntNative>(inout INIT_WITH_UTF8_STRING_SEL).read() == 0) {
+        INIT_WITH_UTF8_STRING_SEL = registerName(INIT_WITH_UTF8_STRING_SEL_STR)
+    }
+
+    let cstr = LibC.mallocCString(str)
+    let ptr = CPointer<Unit>(cstr.getChars())
+    let result = CFunc<(NativeObjCId, NativeObjCSel, CPointer<Unit>) -> NativeObjCId>(objCMsgSend())(
+        objCAlloc(NSSTRING_CLASS),
+        INIT_WITH_UTF8_STRING_SEL,
+        ptr
+    )
+    LibC.free(cstr)
+    return result
 }
+
+private const DESCRIPTION_SEL_STR = "description"
+private var DESCRIPTION_SEL = NativeObjCSel()
+private const UTF8STRING_SEL_STR = "UTF8String"
+private var UTF8STRING_SEL = NativeObjCSel()
 
 /**
  * Gets object description and converts it to Cangjie String.
  */
-protected func descriptionAsString(id: NativeObjCId): String {
-    unsafe {
-        let description = CFunc<(NativeObjCId, NativeObjCSel) -> NativeObjCId>(objCMsgSend())(id, registerName("description"))
-        let result = CFunc<(NativeObjCId, NativeObjCSel) -> CPointer<Unit>>(objCMsgSend())(
-            description, registerName("UTF8String")
-        )
-        let str = CString(CPointer<UInt8>(result))
-        return str.toString()
+protected unsafe func descriptionAsString(id: NativeObjCId): String {
+    if (CPointer<UIntNative>(inout DESCRIPTION_SEL).read() == 0) {
+        DESCRIPTION_SEL = registerName(DESCRIPTION_SEL_STR)
     }
+    if (CPointer<UIntNative>(inout UTF8STRING_SEL).read() == 0) {
+        UTF8STRING_SEL = registerName(UTF8STRING_SEL_STR)
+    }
+
+    let description = CFunc<(NativeObjCId, NativeObjCSel) -> NativeObjCId>(objCMsgSend())(id, DESCRIPTION_SEL)
+    let result = CFunc<(NativeObjCId, NativeObjCSel) -> CPointer<Unit>>(objCMsgSend())(
+        description,
+        UTF8STRING_SEL
+    )
+    let str = CString(CPointer<UInt8>(result))
+    return str.toString()
 }
+
 @Frozen
 /**
  * Autoreleases the argument. Equivalent to [id autorelease].
@@ -349,6 +400,7 @@ protected func descriptionAsString(id: NativeObjCId): String {
 protected unsafe func objCAutorelease(id: NativeObjCId): NativeObjCId {
     objc_autorelease(id)
 }
+
 @Frozen
 /**
  * Autoreleases the argument by objc_autoreleaseReturnValue call.
@@ -356,6 +408,7 @@ protected unsafe func objCAutorelease(id: NativeObjCId): NativeObjCId {
 protected unsafe func objCAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId {
     objc_autoreleaseReturnValue(id)
 }
+
 @Frozen
 /**
  * Decreases the reference counter by one.
@@ -363,6 +416,7 @@ protected unsafe func objCAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId
 protected unsafe func objCRelease(id: NativeObjCId): Unit {
     objc_release(id)
 }
+
 @Frozen
 /**
  * Increases the reference counter by one.
@@ -370,6 +424,7 @@ protected unsafe func objCRelease(id: NativeObjCId): Unit {
 protected unsafe func objCRetain(id: NativeObjCId): NativeObjCId {
     objc_retain(id)
 }
+
 @Frozen
 /**
  * Autoreleases and retains the argument by objc_retainAutoreleaseReturnValue call.
@@ -377,6 +432,7 @@ protected unsafe func objCRetain(id: NativeObjCId): NativeObjCId {
 protected unsafe func objCRetainAutoreleaseReturnValue(id: NativeObjCId): NativeObjCId {
     objc_retainAutoreleaseReturnValue(id)
 }
+
 @Frozen
 protected unsafe func objCRetainAutoreleasedReturnValue(id: NativeObjCId): NativeObjCId {
     objc_retainAutoreleasedReturnValue(id)
@@ -396,11 +452,11 @@ private unsafe func getIvar(id: NativeObjCId, fieldName: String): NativeObjCIvar
     let cls = object_getClass(id)
     var ivar = zeroValue<NativeObjCIvar>()
 
-    try (fieldCName = LibC.mallocCString(fieldName).asResource()) {
-        ivar = class_getInstanceVariable(cls, fieldCName.value)
-    }
+    let fieldCName = LibC.mallocCString(fieldName)
+    ivar = class_getInstanceVariable(cls, fieldCName)
+    LibC.free(fieldCName)
 
-    if (ivar.isNull()) {
+    if (CPointer<UIntNative>(inout ivar).read() == 0) {
         throw Exception("No instance variable with name '${fieldName}' found in class '${class_getName(cls)}'")
     }
 
@@ -412,8 +468,10 @@ private unsafe func getIvar(id: NativeObjCId, fieldName: String): NativeObjCIvar
  */
 protected unsafe func isKindOfClass(id: NativeObjCId, clazz: NativeObjCClass): Bool {
     var realClass = object_getClass(id);
-    while (realClass.isNotNull()) {
-        if (realClass.toUIntNative() == clazz.toUIntNative()) {
+    var clazzPtr = clazz
+    while (CPointer<UIntNative>(inout realClass).read() != 0) {
+        // Can't do the same trick with `clazz` ptr, because it is immutable
+        if (CPointer<UIntNative>(inout realClass).read() == CPointer<UIntNative>(inout clazzPtr).read()) {
             return true
         }
         realClass = class_getSuperclass(realClass)
@@ -426,7 +484,7 @@ protected unsafe func isKindOfClass(id: NativeObjCId, clazz: NativeObjCClass): B
  */
 protected unsafe func conformsToProtocol(id: NativeObjCId, proto: NativeObjCProtocol): Bool {
     var realClass = object_getClass(id);
-    while (realClass.isNotNull()) {
+    while (CPointer<UIntNative>(inout realClass).read() != 0) {
         if (class_conformsToProtocol(realClass, proto)) {
             return true
         }
@@ -435,6 +493,7 @@ protected unsafe func conformsToProtocol(id: NativeObjCId, proto: NativeObjCProt
     return false
 }
 
+@Frozen
 /**
  * Checks if a given class instances respond to a given selector.
  * Effectively exports Objective-C runtime `class_respondsToSelector` function.
@@ -443,6 +502,7 @@ protected unsafe func respondsToSelector(cls: NativeObjCClass, sel: NativeObjCSe
     class_respondsToSelector(cls, sel)
 }
 
+@Frozen
 /**
  * Checks if a given class instances respond to a given selector.
  * Effectively exports Objective-C runtime `object_getClass` function.
