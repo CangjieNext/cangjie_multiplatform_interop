@@ -343,39 +343,11 @@ static void print_horizontal_conflict_warning(const TypeDeclarationSymbol& clazz
     return clash;
 }
 
-[[nodiscard]] static bool fix_horizontal_foreign_name_clashes(
-    const TypeDeclarationSymbol& decl, const TypeDeclarationSymbol& protocol)
-{
-    assert(decl.is(NamedTypeSymbol::Kind::Interface) || decl.is(NamedTypeSymbol::Kind::Protocol));
-    assert(protocol.is(NamedTypeSymbol::Kind::Protocol));
-    auto method_kind = decl.is(NamedTypeSymbol::Kind::Interface) ? NonTypeSymbol::Kind::InterfaceMethod
-                                                                 : NonTypeSymbol::Kind::ProtocolMethod;
-    auto clash = false;
-    for (const auto& c_m : decl.members()) {
-        if (c_m.kind() == method_kind) {
-            const auto& name = c_m.name();
-            auto empty_foreign_name = c_m.selector_attribute().empty();
-            for (const auto& p_m : protocol.members()) {
-                if (p_m.is_protocol_method() && p_m.name() == name &&
-                    p_m.selector_attribute().empty() != empty_foreign_name) {
-                    clash = true;
-                    print_horizontal_conflict_warning(decl, c_m, protocol, "@ForeignName annotation");
-                }
-            }
-            break;
-        }
-    }
-    return clash;
-}
-
 [[nodiscard]] static bool fix_horizontal_clashes_shallow(
     const TypeDeclarationSymbol& decl, const TypeDeclarationSymbol& protocol)
 {
     auto clash = decl.is(NamedTypeSymbol::Kind::Interface) && fix_horizontal_mutability_clashes(decl, protocol);
     if (fix_horizontal_optionality_clashes(decl, protocol)) {
-        clash = true;
-    }
-    if (fix_horizontal_foreign_name_clashes(decl, protocol)) {
         clash = true;
     }
     return clash;
@@ -602,22 +574,10 @@ static void resolve_base_derived_name_clashes(
             }
         } else {
             const auto& name = base.name();
-            if (derived.name() == name) {
-                if (pair_of_methods) {
-                    // Non-init methods 'base' and 'derived' have the same name, but different
-                    // selectors.  That is, 'derived' does not override 'base', just overloads.
-                    // There is a bug in the compiler that issues
-                    //
-                    //   error: @ForeignName could not appear on overridden declaration
-                    //
-                    // if 'derived' has a foreign name in this case.  The workaround is renaming
-                    // 'derived'.
-                    resolve_base_derived_name_clash_by_renaming(derived, derived_owner, "@ForeignName");
-                } else if (derived.kind() != base.kind()) {
-                    // A property, and a method which is not the getter of this property, both have
-                    // the same name.  Resolve the conflict by renaming 'derived'.
-                    resolve_base_derived_name_clash_by_renaming(derived, derived_owner, "prop/method");
-                }
+            if (derived.name() == name && derived.kind() != base.kind()) {
+                // A property, and a method which is not the getter of this property, both have
+                // the same name.  Resolve the conflict by renaming 'derived'.
+                resolve_base_derived_name_clash_by_renaming(derived, derived_owner, "prop/method");
             }
         }
     } else if (base.name() == derived.name()) {
