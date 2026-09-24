@@ -102,6 +102,12 @@ JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(
     setJavaVmAndInitClassLoading(vm, env, classLoader, forNameMethodID, javaLangClass);
 }
 
+jobject Java_JNI_newGlobalRef(JNIEnv* env, jobject ref)
+{
+    jobject globalRef = (*env)->NewGlobalRef(env, ref);
+    return globalRef;
+}
+
 /**
  * Creates global java reference from local java reference `localRef`.
  * Returns fresh global reference.

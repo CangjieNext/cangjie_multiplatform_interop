@@ -2141,11 +2141,20 @@ protected func Java_CFFI_newJavaObject(env: JNIEnv_ptr, clazz: Java_CFFI_Class, 
 
 @C
 @FastNative
+foreign func Java_JNI_newGlobalRef(env: JNIEnv_ptr, ref: jobject): jobject
+
+@C
+@FastNative
 foreign func Java_JNI_swapLocalWithGlobalRef(env: JNIEnv_ptr, localRef: jobject): jobject
 
 @C
 @FastNative
 foreign func Java_JNI_deleteGlobalRef(env: JNIEnv_ptr, ref: jobject): Unit
+
+@Frozen
+protected unsafe func Java_CFFI_newGlobalReference(env: JNIEnv_ptr, ref: jobject): jobject {
+    return Java_JNI_newGlobalRef(env, ref)
+}
 
 @Frozen
 protected unsafe func Java_CFFI_swapLocalWithGlobalRef(env: JNIEnv_ptr, localRef: jobject): jobject {
