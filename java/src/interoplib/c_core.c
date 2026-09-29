@@ -83,23 +83,19 @@ static void setEmptyDefaultSIGSEGVHandler(void)
 
 static jclass javaLangClass = NULL;
 static jmethodID forNameMethodID = NULL;
+static JavaVM* jvm = NULL;
 
 JNIEXPORT void JNICALL Java_cangjie_lang_LibraryLoader_nativeLoadCJLibrary(
-    JNIEnv* env, jclass unused, jstring libName, jobject classLoader)
+    JNIEnv* env, jclass unused, jbyteArray libNameBytes, jobject classLoader)
 {
-    JavaVM* vm = NULL;
-    jboolean isCopy = JNI_FALSE;
-    const char* cjLibraryName = (*env)->GetStringUTFChars(env, libName, &isCopy);
-    // This string will be in Modified UTF-8, which is almost certainly not the filesystem encoding (for dlopen).
-    // The filesystem encoding is very likely to be UTF-8 on Linux, this will cause problems with surrogate pairs,
-    // if present in the library name.
-    // Consider string encoding conversion from MUTF-8 to UTF-8, at least on Linux.
+    jsize len = (*env)->GetArrayLength(env, libNameBytes);
+    char* cjLibraryName = malloc((size_t)len + 1);
+    (*env)->GetByteArrayRegion(env, libNameBytes, 0, len, (jbyte*)cjLibraryName);
+    cjLibraryName[len] = 0;
     LoadCJLibraryWithInit(cjLibraryName);
-    (*env)->ReleaseStringUTFChars(env, libName, cjLibraryName);
+    free(cjLibraryName);
 
-    (*env)->GetJavaVM(env, &vm);
-
-    setJavaVmAndInitClassLoading(vm, env, classLoader, forNameMethodID, javaLangClass);
+    setJavaVmAndInitClassLoading(jvm, env, classLoader, forNameMethodID, javaLangClass);
 }
 
 /**
@@ -118,13 +114,30 @@ jobject Java_JNI_swapLocalWithGlobalRef(JNIEnv* env, jobject localRef)
     return globalRef;
 }
 
+/* wrapper around DeleteGlobalRef, for @FastNative */
 void Java_JNI_deleteGlobalRef(JNIEnv* env, jobject ref)
 {
     (*env)->DeleteGlobalRef(env, ref);
 }
 
+/* wrapper around AttachCurrentThreadAsDaemon, for @FastNative */
+JNIEnv* Java_JNI_getEnv() {
+    JNIEnv* env;
+    jint res = (*jvm)->AttachCurrentThreadAsDaemon(jvm, (void**) &env, NULL);
+    if (res != 0) {
+        return NULL;
+    }
+    return env;
+}
+
+/* wrapper around ExceptionOccured, for @FastNative */
+jthrowable Java_JNI_exceptionOccured(JNIEnv* env) {
+    return (*env)->ExceptionOccurred(env);
+}
+
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
+    jvm = vm;
     struct RuntimeParam param = {0};
     param.logParam.logLevel = InitLogLevel();
     InitCJRuntime(&param);
