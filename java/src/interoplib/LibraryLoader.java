@@ -6,6 +6,8 @@
 
 package cangjie.lang;
 
+import java.io.UnsupportedEncodingException;
+
 public class LibraryLoader {
     public static void loadLibrary(String libName) {
         try {
@@ -17,12 +19,14 @@ public class LibraryLoader {
             // Or LibraryLoader.loadLibrary for other Cangjie projects.
         }
         try {
-            String systemLibName = System.mapLibraryName(libName);
-            nativeLoadCJLibrary(systemLibName, LibraryLoader.class.getClassLoader());
+            byte[] systemLibNameBytes = System.mapLibraryName(libName).getBytes("UTF-8");
+            nativeLoadCJLibrary(systemLibNameBytes, LibraryLoader.class.getClassLoader());
         } catch (LinkageError e) {
             // Handle UnsatisfiedLinkError caused by not found java.internal library.
+        } catch (UnsupportedEncodingException uee) {
+            // UTF-8 is guaranteed to be supported for any major java implementation
         }
     }
 
-    private static native void nativeLoadCJLibrary(String libName, ClassLoader classLoader);
+    private static native void nativeLoadCJLibrary(byte[] libNameBytes, ClassLoader classLoader);
 }

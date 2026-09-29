@@ -85,9 +85,9 @@ class ClassLoading {
                 let envCJ = env.read().read()
                 let searchNameArg = envCJ.NewStringUTF(env, searchName.value)
                 var args: VArray<jvalue, $3> = [
-                    UInt64(searchNameArg.toUIntNative()),
+                    ptrToInt(searchNameArg),
                     0,
-                    UInt64(classLoader.toUIntNative())
+                    ptrToInt(classLoader)
                 ]
                 result = envCJ.CallStaticObjectMethodA(env, javaLangClass, forNameID, inout args)
                 envCJ.DeleteLocalRef(env, searchNameArg)
@@ -162,7 +162,7 @@ protected struct JNINativeInterface_ {
     var CallObjectMethod = CFunc<(JNIEnv_ptr, jobject, jmethodID) -> jobject>(CPointer<Unit>())
     private var CallObjectMethodV = CPointer<Unit>()
     var CallObjectMethodA = CFunc<(JNIEnv_ptr, jobject, jmethodID, CPointer<jvalue>) -> jobject>(CPointer<Unit>())
-    
+
     var CallBooleanMethod = CFunc<(JNIEnv_ptr, jobject, jmethodID) -> jboolean>(CPointer<Unit>())
     private var CallBooleanMethodV = CPointer<Unit>()
     var CallBooleanMethodA = CFunc<(JNIEnv_ptr, jobject, jmethodID, CPointer<jvalue>) -> jboolean>(CPointer<Unit>())
@@ -516,7 +516,7 @@ private func checkObjectSignature(signature: String, parsed: Java_CFFI_Component
             let innerClass = Java_CFFI_innermostClass(parsed)
             let innerClassName = Java_CFFI_className(innerClass)
             let dimensions = Java_CFFI_arrayDimensions(parsed)
-            
+
             let correction = match(innerClass) {
                 case PRIMITIVE(_) => -innerClassName.size + 1
                 case OBJECT(obj) => match(obj) {
@@ -640,8 +640,8 @@ private func Java_CFFI_className(obj: Java_CFFI_ComponentSignature): String {
         }
     }
     buffer.append(innerName)
-    
-    for (_ in 0..Java_CFFI_arrayDimensions(obj)) { 
+
+    for (_ in 0..Java_CFFI_arrayDimensions(obj)) {
         buffer.append("[]")
     }
 
@@ -666,13 +666,13 @@ private func signatureBaseCheck(signature: String) {
 @Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
 protected func Java_CFFI_parseComponentSignature(signature: String): Java_CFFI_ComponentSignature {
     signatureBaseCheck(signature)
-    
+
     let parsed = Java_CFFI_parseComponentSignatureImpl(unsafe { signature.rawData() }, 0)
 
     // check that parsed all string
     match (parsed) {
         case OBJECT(obj) => checkObjectSignature(signature, parsed, obj)
-        case PRIMITIVE(_) => 
+        case PRIMITIVE(_) =>
             if (signature.size != 1) {
                 throw InteropLibException("Cannot parse primitive signature ${signature}")
             }
@@ -707,7 +707,7 @@ private func arrayCopy<T>(dst: Array<T>, dstBegIdx: Int64, src: Array<T>, srcBeg
 private func Java_CFFI_parseComponentSignatureImpl(signature: Array<Byte>, begin: Int64): Java_CFFI_ComponentSignature {
     let remainSize = signature.size - begin
     assert(remainSize > 0)
-    
+
     match (signature[begin]) {
         case b'B' => PRIMITIVE(BYTE)
         case b'C' => PRIMITIVE(CHAR)
@@ -721,7 +721,7 @@ private func Java_CFFI_parseComponentSignatureImpl(signature: Array<Byte>, begin
         case b'L' => { =>
             let classNameBegin = begin + 1
             let classNameEnd = classNameBorder(signature, begin)
-                
+
             let classNameLength = classNameEnd - classNameBegin
             let classNameBytes = Array<Byte>(classNameLength, repeat: 0)
             arrayCopy(classNameBytes, 0, signature, classNameBegin, classNameEnd)
@@ -738,7 +738,7 @@ private func restoreObjectSignatureSize(signature: Java_CFFI_ComponentSignature,
         case ARRAY(_) => { =>
             let dimensions = Java_CFFI_arrayDimensions(signature)
             let innerClass = Java_CFFI_innermostClass(signature)
-            
+
             let innerClassCorrection = match (innerClass) {
                 case PRIMITIVE(_) => 1
                 case OBJECT(obj) => match(obj) {
@@ -767,14 +767,14 @@ protected func Java_CFFI_parseMethodSignature(signature: String): Java_CFFI_Meth
     }
 
     var pos = 1
-    
+
     let buffer = ArrayQueue<Java_CFFI_ComponentSignature>()
     while (signature[pos] != b')') {
         let argument = Java_CFFI_parseComponentSignatureImpl(unsafe { signature.rawData() }, pos)
         pos += restoreComponentSignatureSize(argument)
         buffer.add(argument)
     }
-    
+
     pos += 1
     if (signature.size - pos <= 0) {
         throw InteropLibException("Cannot parse method return type for signature ${signature}")
@@ -888,7 +888,7 @@ protected open class Java_CFFI_EntityID {
 
 protected class Java_CFFI_FieldID <: Java_CFFI_EntityID {
     let id: jfieldID
-    
+
     init(signature: Java_CFFI_EntitySignature, id: jfieldID, `static`: Bool) {
         super(signature, `static`)
         this.id = id
@@ -1022,22 +1022,35 @@ protected enum Java_CFFI_JavaEntityKind <: ToString {
     }
 }
 
+/* all these cannot be generics due to C FFI limitations */
 private unsafe func ptrFromInt(value: UInt64): CPointer<Unit> {
-    CPointer<Unit>(CPointer<UInt8>() + Int64(value))
+    var mutValue = UIntNative(value)
+    CPointer<CPointer<Unit>>(inout mutValue).read()
 }
 
-// TODO: implement without heap memory allocation (alloca? intrinsic?)
-private unsafe func reinterpretCast<A, B>(value: B): A where A <: CType, B <: CType {
-    var newValue = zeroValue<A>()
+private unsafe func ptrToInt(value: CPointer<Unit>): UInt64 {
+    var mutValue = value
+    UInt64(CPointer<UIntNative>(inout mutValue).read())
+}
 
-    try (fBox = LibC.malloc<B>(count: 1).asResource()) {
-        fBox.value.write(value)
+private unsafe func utof(value: UInt32): Float32 {
+    var mutValue = value
+    CPointer<Float32>(inout mutValue).read()
+}
 
-        let iBox = CPointer<A>(fBox.value)
-        newValue = iBox.read()
-    }
+private unsafe func utof(value: UInt64): Float64 {
+    var mutValue = value
+    CPointer<Float64>(inout mutValue).read()
+}
 
-    newValue
+private unsafe func ftou(value: Float32): UInt32 {
+    var mutValue = value
+    CPointer<UInt32>(inout mutValue).read()
+}
+
+private unsafe func ftou(value: Float64): UInt64 {
+    var mutValue = value
+    CPointer<UInt64>(inout mutValue).read()
 }
 
 protected struct Java_CFFI_JavaEntity {
@@ -1051,7 +1064,7 @@ protected struct Java_CFFI_JavaEntity {
 
     public init(kind: Java_CFFI_JavaEntityKind, value: CPointer<Unit>) {
         this.kind = kind
-        this.value = UInt64(value.toUIntNative())
+        this.value = unsafe { ptrToInt(value) }
     }
 
     public init(kind: Java_CFFI_JavaEntityKind, value: UInt64) {
@@ -1091,12 +1104,12 @@ protected struct Java_CFFI_JavaEntity {
 
     public init(kind: Java_CFFI_JavaEntityKind, value: Float32) {
         this.kind = kind
-        this.value = unsafe { UInt64(reinterpretCast<UInt32, Float32>(value)) }
+        this.value = unsafe { UInt64(ftou(value)) }
     }
 
     public init(kind: Java_CFFI_JavaEntityKind, value: Float64) {
         this.kind = kind
-        this.value = unsafe { reinterpretCast<UInt64, Float64>(value) }
+        this.value = unsafe { ftou(value) }
     }
 
     public init(value: Int64) {
@@ -1222,16 +1235,16 @@ protected struct Java_CFFI_JavaEntity {
 
     public unsafe func asJFloat(): jfloat {
         match (kind) {
-            case JVALUE => reinterpretCast<Float32, UInt32>(UInt32(value))
-            case JFLOAT => reinterpretCast<Float32, UInt32>(UInt32(value))
+            case JVALUE => utof(UInt32(value))
+            case JFLOAT => utof(UInt32(value))
             case _ => throw InteropLibException("Cannot get jfloat from ${kind.toString()}")
         }
     }
 
     public unsafe func asJDouble(): jdouble {
         match (kind) {
-            case JVALUE => reinterpretCast<Float64, UInt64>(value)
-            case JDOUBLE => reinterpretCast<Float64, UInt64>(value)
+            case JVALUE => utof(value)
+            case JDOUBLE => utof(value)
             case _ => throw InteropLibException("Cannot get jdouble from ${kind.toString()}")
         }
     }
@@ -1320,7 +1333,7 @@ private unsafe func noParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntit
                 }
                 Java_CFFI_JavaEntity()
         }
-        case OBJECT(object) => 
+        case OBJECT(object) =>
             withLocalRef(env, obj.asJObject()) { localRef =>
                 let envCJ = env.read().read()
                 let jResult = envCJ.CallNonvirtualObjectMethod(env, localRef, envCJ.GetObjectClass(env, localRef), method.id)
@@ -1333,7 +1346,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
     match (signature.ret) {
         case PRIMITIVE(base) => match (base) {
             case BYTE =>
-                withLocalRef(env, obj.asJObject()) { localRef => 
+                withLocalRef(env, obj.asJObject()) { localRef =>
                     withPinnedArray(argsCallNest.array) { argsPtr =>
                         let envCJ = env.read().read()
                         let jResult = envCJ.CallNonvirtualByteMethodA(env, localRef, envCJ.GetObjectClass(env, localRef), method.id, argsPtr)
@@ -1341,7 +1354,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
                     }
                 }
             case CHAR =>
-                withLocalRef(env, obj.asJObject()) { localRef => 
+                withLocalRef(env, obj.asJObject()) { localRef =>
                     withPinnedArray(argsCallNest.array) { argsPtr =>
                         let envCJ = env.read().read()
                         let jResult = envCJ.CallNonvirtualCharMethodA(env, localRef, envCJ.GetObjectClass(env, localRef), method.id, argsPtr)
@@ -1349,7 +1362,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
                     }
                 }
             case DOUBLE =>
-                withLocalRef(env, obj.asJObject()) { localRef => 
+                withLocalRef(env, obj.asJObject()) { localRef =>
                     withPinnedArray(argsCallNest.array) { argsPtr =>
                         let envCJ = env.read().read()
                         let jResult = envCJ.CallNonvirtualDoubleMethodA(env, localRef, envCJ.GetObjectClass(env, localRef), method.id, argsPtr)
@@ -1357,7 +1370,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
                     }
                 }
             case FLOAT =>
-                withLocalRef(env, obj.asJObject()) { localRef => 
+                withLocalRef(env, obj.asJObject()) { localRef =>
                     withPinnedArray(argsCallNest.array) { argsPtr =>
                         let envCJ = env.read().read()
                         let jResult = envCJ.CallNonvirtualFloatMethodA(env, localRef, envCJ.GetObjectClass(env, localRef), method.id, argsPtr)
@@ -1365,7 +1378,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
                     }
                 }
             case INT =>
-                withLocalRef(env, obj.asJObject()) { localRef => 
+                withLocalRef(env, obj.asJObject()) { localRef =>
                     withPinnedArray(argsCallNest.array) { argsPtr =>
                         let envCJ = env.read().read()
                         let jResult = envCJ.CallNonvirtualIntMethodA(env, localRef, envCJ.GetObjectClass(env, localRef), method.id, argsPtr)
@@ -1373,7 +1386,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
                     }
                 }
             case LONG =>
-                withLocalRef(env, obj.asJObject()) { localRef => 
+                withLocalRef(env, obj.asJObject()) { localRef =>
                     withPinnedArray(argsCallNest.array) { argsPtr =>
                         let envCJ = env.read().read()
                         let jResult = envCJ.CallNonvirtualLongMethodA(env, localRef, envCJ.GetObjectClass(env, localRef), method.id, argsPtr)
@@ -1381,7 +1394,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
                     }
                 }
             case SHORT =>
-                withLocalRef(env, obj.asJObject()) { localRef => 
+                withLocalRef(env, obj.asJObject()) { localRef =>
                     withPinnedArray(argsCallNest.array) { argsPtr =>
                         let envCJ = env.read().read()
                         let jResult = envCJ.CallNonvirtualShortMethodA(env, localRef, envCJ.GetObjectClass(env, localRef), method.id, argsPtr)
@@ -1389,7 +1402,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
                     }
                 }
             case BOOLEAN =>
-                withLocalRef(env, obj.asJObject()) { localRef => 
+                withLocalRef(env, obj.asJObject()) { localRef =>
                     withPinnedArray(argsCallNest.array) { argsPtr =>
                         let envCJ = env.read().read()
                         let jResult = envCJ.CallNonvirtualBooleanMethodA(env, localRef, envCJ.GetObjectClass(env, localRef), method.id, argsPtr)
@@ -1397,7 +1410,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
                     }
                 }
             case VOID =>
-                withLocalRef(env, obj.asJObject()) { localRef => 
+                withLocalRef(env, obj.asJObject()) { localRef =>
                     withPinnedArray(argsCallNest.array) { argsPtr =>
                         let envCJ = env.read().read()
                         envCJ.CallNonvirtualVoidMethodA(env, localRef, envCJ.GetObjectClass(env, localRef), method.id, argsPtr)
@@ -1406,7 +1419,7 @@ private unsafe func withParamsCallMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEnt
                 Java_CFFI_JavaEntity()
         }
         case OBJECT(object) =>
-            withLocalRef(env, obj.asJObject()) { localRef => 
+            withLocalRef(env, obj.asJObject()) { localRef =>
                 withPinnedArray(argsCallNest.array) { argsPtr =>
                     let envCJ = env.read().read()
                     let jResult = envCJ.CallNonvirtualObjectMethodA(env, localRef, envCJ.GetObjectClass(env, localRef), method.id, argsPtr)
@@ -1428,7 +1441,7 @@ protected func Java_CFFI_callMethod(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntity, 
         case METHOD(methodSignature) => methodSignature
         case FIELD(_) => throw Java_CFFI_InvariantFailed()
     }
-    
+
     if (args.size != signature.params.size) {
         throw InteropLibException("Given ${args.size} arguments for ${signature.params.size} arguments method")
     }
@@ -1465,7 +1478,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
         case METHOD(methodSignature) => methodSignature
         case FIELD(_) => throw Java_CFFI_InvariantFailed()
     }
-    
+
     if (args.size != signature.params.size) {
         throw InteropLibException("Given ${args.size} arguments for ${signature.params.size} arguments method")
     }
@@ -1529,7 +1542,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
                         }
                         Java_CFFI_JavaEntity()
                 }
-                case OBJECT(object) => 
+                case OBJECT(object) =>
                     withLocalRef(env, obj.asJObject()) { localRef =>
                         let envCJ = env.read().read()
                         let jResult = envCJ.CallObjectMethod(env, localRef, method.id)
@@ -1543,7 +1556,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
             match (signature.ret) {
                 case PRIMITIVE(base) => match (base) {
                     case BYTE =>
-                        withLocalRef(env, obj.asJObject()) { localRef => 
+                        withLocalRef(env, obj.asJObject()) { localRef =>
                             withPinnedArray(argsCallNest.array) { argsPtr =>
                                 let envCJ = env.read().read()
                                 let jResult = envCJ.CallByteMethodA(env, localRef, method.id, argsPtr)
@@ -1551,7 +1564,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
                             }
                         }
                     case CHAR =>
-                        withLocalRef(env, obj.asJObject()) { localRef => 
+                        withLocalRef(env, obj.asJObject()) { localRef =>
                             withPinnedArray(argsCallNest.array) { argsPtr =>
                                 let envCJ = env.read().read()
                                 let jResult = envCJ.CallCharMethodA(env, localRef, method.id, argsPtr)
@@ -1559,7 +1572,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
                             }
                         }
                     case DOUBLE =>
-                        withLocalRef(env, obj.asJObject()) { localRef => 
+                        withLocalRef(env, obj.asJObject()) { localRef =>
                             withPinnedArray(argsCallNest.array) { argsPtr =>
                                 let envCJ = env.read().read()
                                 let jResult = envCJ.CallDoubleMethodA(env, localRef, method.id, argsPtr)
@@ -1567,7 +1580,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
                             }
                         }
                     case FLOAT =>
-                        withLocalRef(env, obj.asJObject()) { localRef => 
+                        withLocalRef(env, obj.asJObject()) { localRef =>
                             withPinnedArray(argsCallNest.array) { argsPtr =>
                                 let envCJ = env.read().read()
                                 let jResult = envCJ.CallFloatMethodA(env, localRef, method.id, argsPtr)
@@ -1575,7 +1588,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
                             }
                         }
                     case INT =>
-                        withLocalRef(env, obj.asJObject()) { localRef => 
+                        withLocalRef(env, obj.asJObject()) { localRef =>
                             withPinnedArray(argsCallNest.array) { argsPtr =>
                                 let envCJ = env.read().read()
                                 let jResult = envCJ.CallIntMethodA(env, localRef, method.id, argsPtr)
@@ -1583,7 +1596,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
                             }
                         }
                     case LONG =>
-                        withLocalRef(env, obj.asJObject()) { localRef => 
+                        withLocalRef(env, obj.asJObject()) { localRef =>
                             withPinnedArray(argsCallNest.array) { argsPtr =>
                                 let envCJ = env.read().read()
                                 let jResult = envCJ.CallLongMethodA(env, localRef, method.id, argsPtr)
@@ -1591,7 +1604,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
                             }
                         }
                     case SHORT =>
-                        withLocalRef(env, obj.asJObject()) { localRef => 
+                        withLocalRef(env, obj.asJObject()) { localRef =>
                             withPinnedArray(argsCallNest.array) { argsPtr =>
                                 let envCJ = env.read().read()
                                 let jResult = envCJ.CallShortMethodA(env, localRef, method.id, argsPtr)
@@ -1599,7 +1612,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
                             }
                         }
                     case BOOLEAN =>
-                        withLocalRef(env, obj.asJObject()) { localRef => 
+                        withLocalRef(env, obj.asJObject()) { localRef =>
                             withPinnedArray(argsCallNest.array) { argsPtr =>
                                 let envCJ = env.read().read()
                                 let jResult = envCJ.CallBooleanMethodA(env, localRef, method.id, argsPtr)
@@ -1607,7 +1620,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
                             }
                         }
                     case VOID =>
-                        withLocalRef(env, obj.asJObject()) { localRef => 
+                        withLocalRef(env, obj.asJObject()) { localRef =>
                             withPinnedArray(argsCallNest.array) { argsPtr =>
                                 let envCJ = env.read().read()
                                 envCJ.CallVoidMethodA(env, localRef, method.id, argsPtr)
@@ -1616,7 +1629,7 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
                         Java_CFFI_JavaEntity()
                 }
                 case OBJECT(object) =>
-                    withLocalRef(env, obj.asJObject()) { localRef => 
+                    withLocalRef(env, obj.asJObject()) { localRef =>
                         withPinnedArray(argsCallNest.array) { argsPtr =>
                             let envCJ = env.read().read()
                             let jResult = envCJ.CallObjectMethodA(env, localRef, method.id, argsPtr)
@@ -1626,14 +1639,6 @@ private func Java_CFFI_callVirtualMethod_no_exception_handling(env: JNIEnv_ptr, 
             }
         }
     }
-}
-
-private func Java_CFFI_callStaticMethod(env: JNIEnv_ptr, clazz: Java_CFFI_Class, methodName: String, methodSignature: String, args: Array<Java_CFFI_JavaEntity>): Java_CFFI_JavaEntity {
-    let signature = Java_CFFI_parseMethodSignature(methodSignature)
-    let id = Java_CFFI_MethodID.constrStatic(env, clazz, methodName, signature)
-    let callNest = Java_CFFI_JavaCallNest(args.size)
-
-    Java_CFFI_callStaticMethod(env, clazz, id, args, callNest)
 }
 
 @Deprecated["Legacy APIs, which are no longer used by the compiler Interop desugaring"]
@@ -1648,7 +1653,7 @@ protected func Java_CFFI_callStaticMethod(env: JNIEnv_ptr, clazz: Java_CFFI_Clas
         case METHOD(methodSignature) => methodSignature
         case FIELD(_) => throw Java_CFFI_InvariantFailed()
     }
-    
+
     if (args.size != signature.params.size) {
         throw InteropLibException("Given ${args.size} arguments for ${signature.params.size} arguments method")
     }
@@ -1706,7 +1711,7 @@ protected func Java_CFFI_callStaticMethod(env: JNIEnv_ptr, clazz: Java_CFFI_Clas
             match (signature.ret) {
                 case PRIMITIVE(base) => match (base) {
                     case BYTE =>
-                        withPinnedArray(argsCallNest.array) { argsPtr => 
+                        withPinnedArray(argsCallNest.array) { argsPtr =>
                             let envCJ = env.read().read()
                             let jResult = envCJ.CallStaticByteMethodA(env, clazz.obj, method.id, argsPtr)
                             Java_CFFI_JavaEntity(JBYTE, jResult)
@@ -1972,7 +1977,7 @@ private unsafe func setFieldJavaEntity(env: JNIEnv_ptr, obj: Java_CFFI_JavaEntit
     match (signature) {
         case PRIMITIVE(base) => setPrimitiveFieldJavaEntity(env, obj, base, id, value)
         case OBJECT(object) =>
-            withLocalRef(env, obj.asJObject()) { localRef => 
+            withLocalRef(env, obj.asJObject()) { localRef =>
                 let envCJ = env.read().read()
                 envCJ.SetObjectField(env, localRef, id, value.asJObject())
             }
@@ -2110,7 +2115,7 @@ protected func Java_CFFI_newJavaObject(env: JNIEnv_ptr, clazz: Java_CFFI_Class, 
         }
         case OBJECT(_) => throw InteropLibException("Java constructor return type should be void")
     }
-    
+
     if (args.size != signature.params.size) {
         throw InteropLibException("Given ${args.size} arguments for ${signature.params.size} arguments constructor")
     }
@@ -2335,26 +2340,20 @@ private func to_jstring(env: JNIEnv_ptr, str: String): jstring {
     result
 }
 
+@FastNative
+foreign func Java_JNI_getEnv(): JNIEnv_ptr
+
 protected func Java_CFFI_get_env(): JNIEnv_ptr {
-    var envPtr = JNIEnv_ptr()
-
-    let javaVM = jvm
-    if (javaVM.isNull()) {
-        throw InteropLibException("JVM instance is not yet set")
-    }
-
     unsafe {
-        /*
-            Thread should be attached as daemon to prevent waiting for Cangjie threads.
-            Because Cangjie runtime threads are registered (for example, during objects finalization),
-            JVM is blocked from terminating.
-
-            A better solution is to detach Cangjie thread from JVM.
-        */
-        javaVM.read().read().AttachCurrentThreadAsDaemon(jvm, inout envPtr, CPointer<Unit>())
+        var env = Java_JNI_getEnv()
+        // check that env is NULL
+        // why this idiom is used here: env.isNull() is shown to be much slower
+        // this is a performance-critical check, so speed is more important than clarity
+        if (CPointer<UIntNative>(inout env).read() == 0) {
+            throw InteropLibException("JVM instance is not yet set")
+        }
+        return env
     }
-
-    envPtr
 }
 
 protected func Java_CFFI_JavaEntityJobject(jobject: CPointer<Unit>): Java_CFFI_JavaEntity {
@@ -2376,13 +2375,13 @@ protected func Java_CFFI_getFromRegistryByObjOption<T>(env: JNIEnv_ptr, obj: Jav
         if (jobj.isNull()) {
             return None
         }
- 
+
         let objClass = envCJ.GetObjectClass(env, jobj)
         let fieldId = envCJ.GetFieldID(env, objClass, cstrRegId, cstrJ)
         if (fieldId.isNull()) {
             return None
         }
- 
+
         let id = envCJ.GetLongField(env, obj.asJObject(), fieldId)
         Java_CFFI_getFromRegistryOption<T>(id)
     }
@@ -2510,18 +2509,25 @@ private func Java_CFFI_throw_exception(env: JNIEnv_ptr, exception: jthrowable) {
     }
 }
 
+@FastNative
+foreign func Java_JNI_exceptionOccured(env: JNIEnv_ptr): jthrowable
+
 protected func handlePendingException(env: JNIEnv_ptr) {
     unsafe {
         let envCJ : JNINativeInterface_ = env.read().read()
-        let pendingException = envCJ.ExceptionOccurred(env)
-        if (!pendingException.isNull()) {
+        var pendingException = Java_JNI_exceptionOccured(env)
+
+        // check that pendingException is NULL
+        // why this idiom is used here: pendingException.isNull() is shown to be much slower
+        // this is a performance-critical check, so speed is more important than clarity
+        if (CPointer<UIntNative>(inout pendingException).read() != 0) {
             envCJ.ExceptionClear(env)
             let clazz = Java_CFFI_getClass(env, "java/lang/Throwable")
             let id = Java_CFFI_getMethodID(env, clazz, "toString", "()Ljava/lang/String;")
             let obj = Java_CFFI_JavaEntity(JOBJECT, pendingException)
             let res = envCJ.CallObjectMethod(env, obj.asJObject(), id)
             let jMessage = Java_CFFI_JavaEntity(JOBJECT, res)
-            let getMessageException = envCJ.ExceptionOccurred(env)
+            let getMessageException = Java_JNI_exceptionOccured(env)
             var cjMessage: String
             if (getMessageException.isNull()) {
                 cjMessage = Java_CFFI_JavaStringToCangjie(env, jMessage)
