@@ -8,10 +8,12 @@ package cangjie.lang;
 
 public class LibraryLoader {
     public static void loadLibrary(String libName) {
-        System.loadLibrary(libName);
-        String systemLibName = System.mapLibraryName(libName);
-        nativeLoadCJLibrary(systemLibName, LibraryLoader.class.getClassLoader());
+        try {
+            System.loadLibrary(libName);
+            byte[] systemLibNameBytes = System.mapLibraryName(libName).getBytes("UTF-8");
+            nativeLoadCJLibrary(systemLibNameBytes, LibraryLoader.class.getClassLoader());
+        } catch (Exception ex) {}
     }
 
-    private static native void nativeLoadCJLibrary(String libName, ClassLoader classLoader);
+    private static native void nativeLoadCJLibrary(byte[] libNameBytes, ClassLoader classLoader);
 }
