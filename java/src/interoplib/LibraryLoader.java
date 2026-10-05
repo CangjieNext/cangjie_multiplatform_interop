@@ -8,9 +8,15 @@ package cangjie.lang;
 
 public class LibraryLoader {
     public static void loadLibrary(String libName) {
-        System.loadLibrary(libName);
-        String systemLibName = System.mapLibraryName(libName);
-        nativeLoadCJLibrary(systemLibName, LibraryLoader.class.getClassLoader());
+        try {
+            System.loadLibrary(libName);
+            String systemLibName = System.mapLibraryName(libName);
+            nativeLoadCJLibrary(systemLibName, LibraryLoader.class.getClassLoader());
+        } catch (LinkageError e) {
+            // Handle UnsatisfiedLinkError caused by not found library with the libName.
+            // When it is expected due to static linkage, for LTO applying
+            // LibraryLoader.loadLibrary with proper libName should be added manually to customer's MainActivity.
+        }
     }
 
     private static native void nativeLoadCJLibrary(String libName, ClassLoader classLoader);
