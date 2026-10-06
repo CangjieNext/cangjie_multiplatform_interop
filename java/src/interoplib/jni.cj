@@ -2530,19 +2530,6 @@ private func Java_CFFI_wrap_cj_exception(env: JNIEnv_ptr, ex: Exception): JNIExc
     JNIException(ex.message, throwObj)
 }
 
-protected func withExclusiveScopeExceptionHandling<R>(action: () -> R): R where R <: CType {
-    try {
-        action()
-    } catch (ex: Exception) {
-        match (ex) {
-            case scopeEx: ExclusiveScopeException =>
-                throw scopeEx.causedBy ?? ex
-            case _ =>
-                throw ex
-        }
-    }
-}
-
 protected func withExceptionHandling<R>(env: JNIEnv_ptr, action: () -> R): R where R <: CType {
     try {
         action()
