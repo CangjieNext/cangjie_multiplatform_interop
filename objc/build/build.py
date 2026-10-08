@@ -38,16 +38,18 @@ DYLIB_EXT = "dylib" if IS_DARWIN else "dll" if IS_WINDOWS else "so"
 
 OUT_OBJC_INTERNAL_DYLIB = os.path.join(OUTPUT_DIR, f"libobjc.internal.{DYLIB_EXT}")
 OUT_OBJC_INTERNAL_A     = os.path.join(OUTPUT_DIR, "libobjc.internal.a")
+OUT_OBJC_INTERNAL_BC    = os.path.join(OUTPUT_DIR, "libobjc.internal.bc")
 OUT_OBJC_INTERNAL_CJO   = os.path.join(OUTPUT_DIR, "objc.internal.cjo")
 
 OUT_OBJC_LANG_DYLIB = os.path.join(OUTPUT_DIR, f"libobjc.lang.{DYLIB_EXT}")
 OUT_OBJC_LANG_A     = os.path.join(OUTPUT_DIR, "libobjc.lang.a")
+OUT_OBJC_LANG_BC    = os.path.join(OUTPUT_DIR, "libobjc.lang.bc")
 OUT_OBJC_LANG_CJO   = os.path.join(OUTPUT_DIR, "objc.lang.cjo")
 
 LOG_DIR = os.path.join(BUILD_DIR, 'logs')
 LOG_FILE = os.path.join(LOG_DIR, 'ObjCInteropGen.log')
 
-CJC_BASE_ARGS = ["-Woff", "unused", "-Woff", "parser", "-O2", f"--output-dir={OUTPUT_DIR}", "--int-overflow=wrapping", "--disable-reflection"]
+CJC_BASE_ARGS = ["--no-sub-pkg", f"--import-path={OUTPUT_DIR}", "-Woff", "unused", "-Woff", "parser", "-O2", f"--output-dir={OUTPUT_DIR}", "--int-overflow=wrapping", "--disable-reflection"]
 
 def log_output(output):
     """log command output"""
@@ -306,7 +308,7 @@ def build(args):
         )
 
         # cjc to compile cj-code of interoplib
-        cjc_args = ["cjc", "--no-sub-pkg", f"--import-path={OUTPUT_DIR}"] + CJC_BASE_ARGS
+        cjc_args = CJC_BASE_ARGS.copy()
 
         # Only ELF targets support -z.
         # Apple platforms (macOS/iOS) are MachO, Windows is COFF.
@@ -329,10 +331,15 @@ def build(args):
                 cjc_args += ["-L", lib_path]
             cjc_args += ["-lobjc", "-lgnustep-base"]
 
-        cjc_A = cjc_args + ["--output-type=staticlib"]
-        cjc_SO = cjc_args + ["--output-type=dylib"]
+        cjc_BC = ["cjc-frontend"] + CJC_BASE_ARGS + ["--output-type=staticlib"]
+        cjc_A = ["cjc"] + cjc_args + ["--output-type=staticlib"]
+        cjc_SO = ["cjc"] + cjc_args + ["--output-type=dylib"]
 
         # objc.internal (+ objclib.o)
+        command(
+            *(cjc_BC + ["-p", SRC_INTERNAL, "-o", "libobjc.internal.bc"]),
+            cwd=INTEROPLIB_DIR
+        )
         command(
             *(cjc_A + ["-p", SRC_INTERNAL]),
             cwd=INTEROPLIB_DIR
@@ -369,6 +376,10 @@ def build(args):
         )
 
         # objc.lang
+        command(
+            *(cjc_BC + ["-p", SRC_LANG, "-o", "libobjc.lang.bc"]),
+            cwd=INTEROPLIB_DIR
+        )
         command(
             *(cjc_A + ["-p", SRC_LANG]),
             cwd=INTEROPLIB_DIR
@@ -518,7 +529,9 @@ def install(args):
 
         install_files(
             prepare_dir(install_path, "modules", runtime),
+            OUT_OBJC_INTERNAL_BC,
             OUT_OBJC_INTERNAL_CJO,
+            OUT_OBJC_LANG_BC,
             OUT_OBJC_LANG_CJO
         )
 
