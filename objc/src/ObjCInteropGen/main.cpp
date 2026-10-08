@@ -170,10 +170,10 @@ int main(int argc, char* argv[])
 
         stage = Stage::TRANSFORM;
         apply_transforms();
-        filter_name_clashing_symbols();
 
         stage = Stage::APPLY_MAPPINGS;
         apply_mappings();
+        filter_name_clashing_symbols();
 
         stage = Stage::CHECK_SOURCES;
         check_marked_symbols();
