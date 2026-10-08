@@ -56,7 +56,10 @@ INTEROPLIB_DIR = os.path.join(HOME_DIR, 'src', 'interoplib')
 LIBRARY_LOADER_JAR = "library-loader.jar"
 JAVA_INTEROP_THIRD_PARTY = os.path.join(MIRROR_GEN_DIR, 'third_party')
 
+OUT_JAVA_INTERNAL_BC = os.path.join(DIST_DIR, "libjava.internal.bc")
 OUT_JAVA_INTERNAL_CJO = os.path.join(DIST_DIR, "java.internal.cjo")
+
+OUT_JAVA_LANG_BC = os.path.join(DIST_DIR, "libjava.lang.bc")
 OUT_JAVA_LANG_CJO = os.path.join(DIST_DIR, "java.lang.cjo")
 
 LOG_DIR = os.path.join(BUILD_DIR, 'logs')
@@ -66,6 +69,7 @@ CJC_BASE_ARGS = [
     "-Woff", "unused",
     "-Woff", "parser",
     "-Woff", "deprecated",
+    "--import-path=" + DIST_DIR,
     "--output-dir=" + DIST_DIR,
     "--int-overflow=wrapping", "--disable-reflection"
 ]
@@ -157,6 +161,13 @@ def command(*args, cwd=None, env=None):
     log_output(output)
     if output.returncode:
         fatal('"' + ' '.join(args) + '" returned ' + output.returncode)
+
+def is_lto_supported(target):
+    if target:
+        lower = target.lower()
+        return not ("darwin" in lower or "windows" in lower)
+    else:
+        return not (IS_DARWIN or IS_WINDOWS)
 
 def dylib_ext(target):
     if "darwin" in target or "ios" in target:
@@ -428,9 +439,15 @@ def build(args):
 
         command(*(cjc_SO.copy() + ["jni.cj", "registry.cj", OUT_CINTEROPLIB_O]), cwd=INTEROPLIB_DIR)
 
-        javalib_args = [f"--import-path={DIST_DIR}"] + list(glob.glob(os.path.join(INTEROPLIB_DIR, "javalib") + "/*.cj", recursive=False))
+        javalib_args = list(glob.glob(os.path.join(INTEROPLIB_DIR, "javalib") + "/*.cj", recursive=False))
         command(*(cjc_A.copy() + javalib_args.copy()), cwd=INTEROPLIB_DIR)
         command(*(cjc_SO.copy() + javalib_args.copy() + ["-L" + DIST_DIR, "-ljava.internal"]), cwd=INTEROPLIB_DIR)
+
+        # .bc files when lto is supported
+        if is_lto_supported(args.target):
+            cjc_BC = cjc_A + ["--experimental", "--lto=full"]
+            command(*(cjc_BC + ["jni.cj", "registry.cj", "-o", "libjava.internal.bc"]), cwd=INTEROPLIB_DIR)
+            command(*(cjc_BC + javalib_args + ["-o", "libjava.lang.bc"]), cwd=INTEROPLIB_DIR)
 
         command(
             "javac", "-d", DIST_DIR, "-source", "8", "-target", "8", "-Xlint:all", "LibraryLoader.java", "$$NativeConstructorMarker.java",
@@ -531,7 +548,12 @@ def install(args):
         )
 
         DEST_CJO = prepare_dir(install_path, "modules", runtime)
-        install_files(DEST_CJO, OUT_JAVA_INTERNAL_CJO, OUT_JAVA_LANG_CJO)
+        install_files(
+            DEST_CJO,
+            OUT_JAVA_INTERNAL_CJO,
+            OUT_JAVA_LANG_CJO,
+            *( [OUT_JAVA_INTERNAL_BC, OUT_JAVA_LANG_BC] if is_lto_supported(args.target) else [] )
+        )
 
         lib_loader_dst = prepare_dir(install_path, 'lib')
         lib_loader_jar = os.path.join(DIST_DIR, LIBRARY_LOADER_JAR)
