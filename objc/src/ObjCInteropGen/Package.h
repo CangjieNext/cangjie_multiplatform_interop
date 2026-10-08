@@ -296,60 +296,18 @@ extern Packages packages;
 
 void create_packages();
 
-using roots_set_t = std::unordered_set<RootFilter*>;
-
-class RootsIterator final {
-    roots_set_t::const_iterator it_;
-
-public:
-    explicit RootsIterator(roots_set_t::const_iterator it) noexcept : it_(it)
-    {
-    }
-
-    [[nodiscard]] RootFilter& operator*() const noexcept
-    {
-        return **it_;
-    }
-
-    RootsIterator& operator++() noexcept
-    {
-        ++it_;
-        return *this;
-    }
-
-    [[nodiscard]] friend bool operator!=(const RootsIterator& lhs, const RootsIterator& rhs) noexcept
-    {
-        return lhs.it_ != rhs.it_;
-    }
-};
-
 class Roots final {
 public:
-    void register_from_value(const std::string& value)
+    void register_from_value(std::string value)
     {
-        roots.insert(new RootFilter(value));
+        roots.emplace_back(std::move(value));
     }
 
-    ~Roots()
-    {
-        for (const auto* root : roots) {
-            delete root;
-        }
-    }
+    ~Roots() = default;
 
     [[nodiscard]] std::size_t size() const noexcept
     {
         return roots.size();
-    }
-
-    [[nodiscard]] RootsIterator begin() const noexcept
-    {
-        return RootsIterator{roots.begin()};
-    }
-
-    [[nodiscard]] RootsIterator end() const noexcept
-    {
-        return RootsIterator{roots.end()};
     }
 
     [[nodiscard]] bool empty() const noexcept
@@ -357,8 +315,13 @@ public:
         return roots.empty();
     }
 
+    [[nodiscard]] auto begin() noexcept { return roots.begin(); }
+    [[nodiscard]] auto begin() const noexcept { return roots.begin(); }
+    [[nodiscard]] auto end() noexcept { return roots.end(); }
+    [[nodiscard]] auto end() const noexcept { return roots.end(); }
+
 private:
-    std::unordered_set<RootFilter*> roots;
+    std::vector<RootFilter> roots;
 };
 
 extern Roots roots;
