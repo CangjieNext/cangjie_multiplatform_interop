@@ -38,16 +38,18 @@ DYLIB_EXT = "dylib" if IS_DARWIN else "dll" if IS_WINDOWS else "so"
 
 OUT_OBJC_INTERNAL_DYLIB = os.path.join(OUTPUT_DIR, f"libobjc.internal.{DYLIB_EXT}")
 OUT_OBJC_INTERNAL_A     = os.path.join(OUTPUT_DIR, "libobjc.internal.a")
+OUT_OBJC_INTERNAL_BC    = os.path.join(OUTPUT_DIR, "libobjc.internal.bc")
 OUT_OBJC_INTERNAL_CJO   = os.path.join(OUTPUT_DIR, "objc.internal.cjo")
 
 OUT_OBJC_LANG_DYLIB = os.path.join(OUTPUT_DIR, f"libobjc.lang.{DYLIB_EXT}")
 OUT_OBJC_LANG_A     = os.path.join(OUTPUT_DIR, "libobjc.lang.a")
+OUT_OBJC_LANG_BC    = os.path.join(OUTPUT_DIR, "libobjc.lang.bc")
 OUT_OBJC_LANG_CJO   = os.path.join(OUTPUT_DIR, "objc.lang.cjo")
 
 LOG_DIR = os.path.join(BUILD_DIR, 'logs')
 LOG_FILE = os.path.join(LOG_DIR, 'ObjCInteropGen.log')
 
-CJC_BASE_ARGS = ["-Woff", "unused", "-Woff", "parser", "-O2", f"--output-dir={OUTPUT_DIR}", "--int-overflow=wrapping", "--disable-reflection"]
+CJC_BASE_ARGS = ["--no-sub-pkg", f"--import-path={OUTPUT_DIR}", "-Woff", "unused", "-Woff", "parser", "-O2", f"--output-dir={OUTPUT_DIR}", "--int-overflow=wrapping", "--disable-reflection"]
 
 def log_output(output):
     """log command output"""
@@ -127,6 +129,13 @@ target_mapping = { "ios-aarch64": "arm64-apple-ios11",
     "ios-simulator-aarch64": "arm64-apple-ios11-simulator",
     "ios-simulator-x86_64": "x86_64-apple-ios11-simulator"
 }
+
+def is_lto_supported(target_lib):
+    if target_lib:
+        lower = target_lib.lower()
+        return not ("darwin" in lower or "windows" in lower)
+    else:
+        return not (IS_DARWIN or IS_WINDOWS)
 
 def adjust_target(target):
     return target_mapping.get(target, target)
@@ -306,7 +315,7 @@ def build(args):
         )
 
         # cjc to compile cj-code of interoplib
-        cjc_args = ["cjc", "--no-sub-pkg", f"--import-path={OUTPUT_DIR}"] + CJC_BASE_ARGS
+        cjc_args = CJC_BASE_ARGS.copy()
 
         # Only ELF targets support -z.
         # Apple platforms (macOS/iOS) are MachO, Windows is COFF.
@@ -329,8 +338,8 @@ def build(args):
                 cjc_args += ["-L", lib_path]
             cjc_args += ["-lobjc", "-lgnustep-base"]
 
-        cjc_A = cjc_args + ["--output-type=staticlib"]
-        cjc_SO = cjc_args + ["--output-type=dylib"]
+        cjc_A = ["cjc"] + cjc_args + ["--output-type=staticlib"]
+        cjc_SO = ["cjc"] + cjc_args + ["--output-type=dylib"]
 
         # objc.internal (+ objclib.o)
         command(
@@ -377,6 +386,18 @@ def build(args):
             *(cjc_SO + ["-p", SRC_LANG, f"-L{OUTPUT_DIR}", "-lobjc.internal"]),
             cwd=INTEROPLIB_DIR
         )
+
+        # .bc files when lto is supported
+        if is_lto_supported(args.target_lib):
+            cjc_BC = cjc_A + ["--experimental", "--lto=full"]
+            command(
+                *(cjc_BC + ["-p", SRC_INTERNAL, "-o", "libobjc.internal.bc"]),
+                cwd=INTEROPLIB_DIR
+            )
+            command(
+                *(cjc_BC + ["-p", SRC_LANG, "-o", "libobjc.lang.bc"]),
+                cwd=INTEROPLIB_DIR
+            )
 
         LOG.info('end build interoplib for ' + runtime + '\n')
     else:
@@ -518,8 +539,9 @@ def install(args):
 
         install_files(
             prepare_dir(install_path, "modules", runtime),
-            OUT_OBJC_INTERNAL_CJO,
-            OUT_OBJC_LANG_CJO
+            OUT_OBJC_INTERNAL_CJO, 
+            OUT_OBJC_LANG_CJO,
+            *( [OUT_OBJC_INTERNAL_BC, OUT_OBJC_LANG_BC] if is_lto_supported(args.target) else [] )
         )
 
         LOG.info("end install interoplib for " + runtime + "\n")
