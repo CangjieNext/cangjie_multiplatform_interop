@@ -66,6 +66,7 @@ CJC_BASE_ARGS = [
     "-Woff", "unused",
     "-Woff", "parser",
     "-Woff", "deprecated",
+    "--import-path=" + DIST_DIR,
     "--output-dir=" + DIST_DIR,
     "--int-overflow=wrapping", "--disable-reflection"
 ]
@@ -402,9 +403,11 @@ def build(args):
             cjc_args += ["--strip-all"]
             cjc_args += ["-O2"]
 
+        cjc_BC = ["cjc-frontend"] + list(CJC_BASE_ARGS) + ["--output-type=staticlib"]
         cjc_A = cjc_args.copy() + ["--output-type=staticlib"]
         cjc_SO = cjc_args.copy() + ["--output-type=dylib"]
 
+        command(*(cjc_BC.copy() + ["jni.cj", "registry.cj", "-o", "libjava.internal.bc"]), cwd=INTEROPLIB_DIR)
         command(*(cjc_A.copy() + ["jni.cj", "registry.cj"]), cwd=INTEROPLIB_DIR)
         command(
             ar, "-x", "libjava.internal.a",
@@ -428,7 +431,8 @@ def build(args):
 
         command(*(cjc_SO.copy() + ["jni.cj", "registry.cj", OUT_CINTEROPLIB_O]), cwd=INTEROPLIB_DIR)
 
-        javalib_args = [f"--import-path={DIST_DIR}"] + list(glob.glob(os.path.join(INTEROPLIB_DIR, "javalib") + "/*.cj", recursive=False))
+        javalib_args = list(glob.glob(os.path.join(INTEROPLIB_DIR, "javalib") + "/*.cj", recursive=False))
+        command(*(cjc_BC.copy() + javalib_args.copy() + ["-o", "libjava.lang.bc"]), cwd=INTEROPLIB_DIR)
         command(*(cjc_A.copy() + javalib_args.copy()), cwd=INTEROPLIB_DIR)
         command(*(cjc_SO.copy() + javalib_args.copy() + ["-L" + DIST_DIR, "-ljava.internal"]), cwd=INTEROPLIB_DIR)
 
