@@ -721,6 +721,9 @@ void write_cangjie()
     for (auto&& package : packages) {
         for (auto&& package_file : package) {
             assert(&package_file.package() == &package);
+            if (package_file.is_empty()) {
+                continue;
+            }
 
             const auto& file_path = package_file.output_path();
             create_directories(file_path.parent_path());

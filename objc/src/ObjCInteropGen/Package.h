@@ -86,6 +86,11 @@ public:
         return *package_;
     }
 
+    [[nodiscard]] bool is_empty() const noexcept
+    {
+        return symbols_.empty();
+    }
+
     void add_symbol(FileLevelSymbol& symbol)
     {
         assert(symbol.defining_file());
