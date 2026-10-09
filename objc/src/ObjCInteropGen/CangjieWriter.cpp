@@ -146,8 +146,8 @@ static void write_method_parameters(StructuredString& output, const NonTypeSymbo
 
 static void write_foreign_name(StructuredString& output, std::string_view attribute, std::string_view value)
 {
-    // FE supports foreign name attributes in @ObjCMirror classes only.  In the
-    // GENERATE_DEFINITIONS mode, where @ObjCMirror is not used, the foreign name
+    // FE supports foreign name attributes in @ObjC classes only. In the
+    // GENERATE_DEFINITIONS mode, where @ObjC is not used, the foreign name
     // attributes are commented out.
     auto hide_foreign_name = generate_definitions_mode();
     if (hide_foreign_name) {
@@ -331,14 +331,14 @@ static void write_function(
             output << "foreign ";
         } else {
             if (!generate_definitions_mode()) {
-                output << "@ObjCMirror\n";
+                output << "@ObjC\n";
                 format = PrintFormat::EmitCangjieStrict;
             }
             const auto& selector_attribute = function.selector_attribute();
             if (!selector_attribute.empty()) {
                 write_foreign_name(output, foreign_name_attribute, selector_attribute);
             }
-            output << "public ";
+            output << "public foreign ";
         }
     } else if (function.is_protocol_method()) {
         is_ctype = false;
@@ -397,7 +397,7 @@ static void print_objcmirror_attribute(StructuredString& output, const NamedType
     if (hide_objcmirror_attribute) {
         output << push_block_comment << ' ';
     }
-    output << "@ObjCMirror";
+    output << "@ObjC";
     const auto& objc_name_attribute = decl.objc_name_attribute();
     if (!objc_name_attribute.empty()) {
         output << "[\"" << objc_name_attribute << "\"]";
@@ -655,14 +655,14 @@ static void write_bases(StructuredString& output, const TypeDeclarationSymbol& d
 
 void TypeDeclarationWriter::write()
 {
-    // Mark all classes and interfaces as @ObjCMirror.  Mark structures as @C when
-    // they are empty or contain CType fields only, and as @ObjCMirror otherwise.
-    // Currently FE does not support @ObjCMirror structures, so print them as
+    // Mark all classes and interfaces as @ObjC foreign.  Mark structures as @C when
+    // they are empty or contain CType fields only, and as @ObjC foreign otherwise.
+    // Currently FE does not support @ObjC foreign structures, so print them as
     // ordinary Cangjie structures.
     //
-    // In the EXPERIMENTAL mode, print them as @ObjCMirror structures.
+    // In the EXPERIMENTAL mode, print them as @ObjC foreign structures.
     //
-    // In the GENERATE_DEFINITIONS mode, comment out @ObjCMirror from both
+    // In the GENERATE_DEFINITIONS mode, comment out @ObjC foreign from both
     // classes/interfaces and structures.
     switch (decl_.kind()) {
         case NamedTypeSymbol::Kind::Protocol:
@@ -686,14 +686,17 @@ void TypeDeclarationWriter::write()
     output_ << "public ";
     switch (decl_.kind()) {
         case NamedTypeSymbol::Kind::Protocol:
-            output_ << "interface";
+            output_ << "foreign interface";
             break;
         case NamedTypeSymbol::Kind::Struct:
         case NamedTypeSymbol::Kind::Union:
+            if (!decl_.is_ctype() && mode == Mode::EXPERIMENTAL) {
+                output_ << "foreign ";
+            }
             output_ << "struct";
             break;
         case NamedTypeSymbol::Kind::Interface:
-            output_ << "open class";
+            output_ << "open foreign class";
             break;
         default:
             assert(false);

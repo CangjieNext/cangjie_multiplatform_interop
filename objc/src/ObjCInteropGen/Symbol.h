@@ -513,8 +513,8 @@ public:
 
     void set_mapping(const TypeMapping* mapping) noexcept;
 
-    // String value for the @ObjCMirror attribute.  If empty, no value is specified
-    // for @ObjCMirror.
+    // String value for the @ObjC foreign attribute.  If empty, no value is specified
+    // for @ObjC foreign.
     [[nodiscard]] const std::string& objc_name_attribute() const noexcept
     {
         return objc_name_;
