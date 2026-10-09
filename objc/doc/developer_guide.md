@@ -341,8 +341,8 @@ Objective-C源码：
 生成的Cangjie镜像类：
 
 ```
-@ObjCMirror
-public open class A <: id {
+@ObjC
+public open foreign class A <: id {
     public open func foo(): Unit
     @ForeignName["foo:"] public open func foo(i: Int32): Unit
     @ForeignName["foo:bar:"] public open func fooBar(i: Int32, j: Int32): Unit
