@@ -8,8 +8,8 @@ package cjworld
 
 import objc.lang.*
 
-@ObjCMirror
-open class M {
+@ObjC
+open foreign class M {
     public func pointerToUnit(): ObjCPointer<Unit>
     public func pointerToPrimitive(): ObjCPointer<Int64>
     public func pointerToPointer(): ObjCPointer<ObjCPointer<Float64>>

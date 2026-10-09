@@ -8,5 +8,5 @@ package objc.lang
 
 public import objc.internal.*
 
-@ObjCMirror
-public interface ObjCId {}
+@ObjC
+public foreign interface ObjCId {}

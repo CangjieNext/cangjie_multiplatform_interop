@@ -680,7 +680,7 @@ public final class EmitMirrorVisitor {
             translateTypeParameters(classSymbol.getTypeParameters(), classDecl);
             addSuperTypes();
             if (generateAnnotationMode) {
-                addJavaMirrorAnnotation();
+                addJavaAnnotation();
             }
             computeModifiers();
             visitBody();
@@ -722,9 +722,9 @@ public final class EmitMirrorVisitor {
             }
         }
 
-        private void addJavaMirrorAnnotation() {
-            final var javaMirrorAnnotation = new CJTree.Expression.Name.SimpleName.IdentifierName("JavaMirror");
-            final var annotation = new CJTree.Declaration.Annotation(javaMirrorAnnotation);
+        private void addJavaAnnotation() {
+            final var javaAnnotation = new CJTree.Expression.Name.SimpleName.IdentifierName("Java");
+            final var annotation = new CJTree.Declaration.Annotation(javaAnnotation);
             final var argument = new CJTree.Expression.Literal.String(formTypeName(classSymbol).toString());
             annotation.argumentList.add(argument);
             classDecl.annotations.add(annotation);
@@ -744,6 +744,11 @@ public final class EmitMirrorVisitor {
             }
             if (classSymbol.isAbstract() && !classSymbol.isInterface()) {
                 cjModifiers.add(Modifiers.ABSTRACT.toCJTree());
+            }
+            if (generateAnnotationMode) {
+                // 'foreign' should be inserted only if `@Java` annotation is added.
+                // Previously, it was just '@JavaMirror'.
+                cjModifiers.add(Modifiers.FOREIGN.toCJTree());
             }
             classDecl.modifiers.addAll(cjModifiers);
         }
