@@ -310,14 +310,19 @@ protected unsafe func getProtocol(protoName: String): NativeObjCProtocol {
     proto
 }
 
+private let OBJC_MSG_SEND_PTR = CPointer<Unit>(objc_msgSend)
+
 @Frozen
 /**
  * Returns a pointer to objc_msgSend implementation.
  * The result should be cast to proper CFunc<(NativeObjCId, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
  */
 protected func objCMsgSend(): CPointer<Unit> {
-    return CPointer<Unit>(objc_msgSend)
+    OBJC_MSG_SEND_PTR
 }
+
+@When[os == "macOS" || os == "iOS"]
+private let OBJC_MSG_SEND_SUPER_PTR = CPointer<Unit>(objc_msgSendSuper)
 
 @When[os == "macOS" || os == "iOS"]
 @Frozen
@@ -326,7 +331,7 @@ protected func objCMsgSend(): CPointer<Unit> {
  * The result should be cast to proper CFunc<(NativeObjCSuperPtr, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
  */
 protected func objCMsgSendSuper(_: NativeObjCSuperPtr, _: NativeObjCSel): CPointer<Unit> {
-    CPointer<Unit>(objc_msgSendSuper)
+    OBJC_MSG_SEND_SUPER_PTR
 }
 
 @When[os == "Linux" || os == "Windows"]
