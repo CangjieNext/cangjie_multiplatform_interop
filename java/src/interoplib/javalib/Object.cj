@@ -11,8 +11,8 @@ public import java.internal.*
 /*
  * Warning: package name `java.lang` and `JObject` name do matter for cjc
  */
-@JavaMirror["java.lang.Object"]
-public open class JObject {
+@Java["java.lang.Object"]
+public open foreign class JObject {
     public init()
     @ForeignName["hashCode"]
     public open func hashCode32(): Int32

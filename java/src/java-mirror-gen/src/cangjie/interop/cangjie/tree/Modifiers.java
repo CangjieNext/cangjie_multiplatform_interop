@@ -42,6 +42,7 @@ public enum Modifiers {
     MUT("mut"),
     UNSAFE("unsafe"),
     REQUIRED("required"),
+    FOREIGN("foreign"),
 
     OPERATOR("operator");
 

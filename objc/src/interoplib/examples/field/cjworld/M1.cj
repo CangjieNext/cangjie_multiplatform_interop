@@ -8,8 +8,8 @@ package cjworld
 
 import objc.lang.*
 
-@ObjCMirror
-class M1 {
+@ObjC
+foreign class M1 {
     public let answer: Float64
 
     @ForeignName["initWithAnswer:"]

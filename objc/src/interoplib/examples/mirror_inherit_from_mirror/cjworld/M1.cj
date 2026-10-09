@@ -8,8 +8,8 @@ package cjworld
 
 import objc.lang.*
 
-@ObjCMirror
-open class M1 {
+@ObjC
+open foreign class M1 {
     @ForeignName["init"]
     public init()
     @ForeignName["goo"]
