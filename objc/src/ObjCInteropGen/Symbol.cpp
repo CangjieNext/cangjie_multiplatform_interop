@@ -547,7 +547,7 @@ static void print_tricky_default_value(StructuredString& stream, std::string_vie
 {
     // The dirty trick is applied for printing default values of:
     // - Interface types -- instances of the interface type cannot be created.
-    // - @ObjCMirror classes -- they do not have a primary constructor.
+    // - @ObjC foreign classes -- they do not have a primary constructor.
     stream << "Option<" << type_name << ">.None.getOrThrow()";
 }
 
@@ -1239,7 +1239,7 @@ bool NonTypeSymbol::is_objc_compatible_signature() const noexcept
 }
 
 // The current FE issues a compiler error on functions, properties, as well as
-// fields in @ObjCMirror classes, if their definitions reference a type which
+// fields in @ObjC foreign classes, if their definitions reference a type which
 // name coincides with the name of the function/property/field itself.  As a
 // workaround, comment out such objects.
 [[nodiscard]] static bool has_name_clash_with_referenced_types(const NonTypeSymbol& symbol, const std::string& name)
@@ -1283,8 +1283,8 @@ bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexc
                 return true;
             case NamedTypeSymbol::Kind::Protocol:
             case NamedTypeSymbol::Kind::Interface:
-                // Current FE fails to process a field or property of an @ObjCMirror class if
-                // the field and its type have the same name (no such problem in non-@ObjCMirror
+                // Current FE fails to process a field or property of an @ObjC foreign class if
+                // the field and its type have the same name (no such problem in non-@ObjC foreign
                 // declarations).  As a workaround, comment out such fields.
                 return name() != type.name() &&
                     type.is_objc_compatible()

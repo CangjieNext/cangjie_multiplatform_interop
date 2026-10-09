@@ -8,5 +8,5 @@ package objc.lang
 
 import objc.internal.*
 
-@ObjCMirror
-public class ObjCClass {}
+@ObjC
+public foreign class ObjCClass {}
