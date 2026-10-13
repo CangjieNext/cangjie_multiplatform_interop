@@ -777,7 +777,8 @@ static void transform_types()
     }
 }
 
-static void transform_visit() {
+static void transform_visit()
+{
     transform_global_functions();
 
     transform_types();
