@@ -597,12 +597,25 @@ private:
 
 class EnumDeclarationSymbol final : public NamedTypeSymbol {
 public:
-    explicit EnumDeclarationSymbol(std::string name, NamedTypeSymbol& underlying_type) noexcept
-        : NamedTypeSymbol(NamedTypeSymbol::Kind::Enum, std::move(name)), underlying_type_(&underlying_type)
+    explicit EnumDeclarationSymbol(std::string name, Type underlying_type) noexcept
+        : NamedTypeSymbol(NamedTypeSymbol::Kind::Enum, std::move(name)), underlying_type_(std::move(underlying_type))
     {
     }
 
-    [[nodiscard]] NamedTypeSymbol& underlying_type() const noexcept;
+    [[nodiscard]] const Type& underlying_type() const noexcept
+    {
+        return underlying_type_;
+    }
+
+    [[nodiscard]] Type& underlying_type() noexcept
+    {
+        return underlying_type_;
+    }
+
+    void set_underlying_type(Type underlying_type) noexcept
+    {
+        underlying_type_ = std::move(underlying_type);
+    }
 
     void add_constant(std::string name, const std::array<uint64_t, 2>& value);
 
@@ -630,7 +643,7 @@ private:
         return constants_.empty();
     }
 
-    NamedTypeSymbol* underlying_type_;
+    Type underlying_type_;
     std::vector<EnumConstantSymbol> constants_;
 };
 

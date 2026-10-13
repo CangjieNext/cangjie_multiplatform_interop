@@ -505,7 +505,7 @@ template <CXTypeKind type_kind> Type SourceScanner::get_named_type(const CXType&
                     auto underlying_type = clang_getEnumDeclIntegerType(decl);
                     assert(is_valid(underlying_type));
                     symbol = new EnumDeclarationSymbol(
-                        std::move(name), type_like_symbol(underlying_type).symbol().as<NamedTypeSymbol>());
+                        std::move(name), type_like_symbol(underlying_type));
                 } else {
                     symbol = new TypeDeclarationSymbol(symbol_kind, std::move(name));
                 }

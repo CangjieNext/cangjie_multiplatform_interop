@@ -636,7 +636,7 @@ void Type::print_default_value(StructuredString& stream, PrintFormat format) con
                 named_type->as<UnexposedTypeSymbol>().underlying_type().print_default_value(stream, format);
                 return;
             case NamedTypeSymbol::Kind::Enum:
-                Type(named_type->as<EnumDeclarationSymbol>().underlying_type()).print_default_value(stream, format);
+                named_type->as<EnumDeclarationSymbol>().underlying_type().print_default_value(stream, format);
                 return;
             case NamedTypeSymbol::Kind::Interface:
             case NamedTypeSymbol::Kind::Protocol:
@@ -777,12 +777,6 @@ std::optional<Type> NamedTypeSymbol::map()
     }
 }
 
-NamedTypeSymbol& EnumDeclarationSymbol::underlying_type() const noexcept
-{
-    assert(underlying_type_);
-    return *underlying_type_;
-}
-
 void EnumDeclarationSymbol::add_constant(std::string name, const std::array<uint64_t, 2>& value)
 {
     assert(std::all_of(
@@ -796,20 +790,19 @@ bool EnumDeclarationSymbol::set_reference_level(unsigned new_reference_level) no
     if (set) {
         // Set the same reference level for the underlying type, because it is required
         // for compilability at the Cangjie side.
-        assert(underlying_type_);
-        underlying_type_->set_reference_level(new_reference_level);
+        underlying_type_.symbol().set_reference_level(new_reference_level);
     }
     return set;
 }
 
 bool EnumDeclarationSymbol::visit_referenced_types(const FileLevelSymbolVisitor& visitor)
 {
-    return underlying_type_ && visitor(*underlying_type_);
+    return underlying_type_.has_symbol_assigned() && visitor(underlying_type_);
 }
 
 bool EnumDeclarationSymbol::visit_referenced_types(const FileLevelSymbolScanner& visitor) const
 {
-    return underlying_type_ && visitor(*underlying_type_);
+    return underlying_type_.has_symbol_assigned() && visitor(underlying_type_);
 }
 
 [[nodiscard]] static Type underlying_unexposed_type(size_t size)

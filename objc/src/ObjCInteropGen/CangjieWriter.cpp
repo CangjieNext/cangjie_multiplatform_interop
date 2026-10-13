@@ -64,11 +64,9 @@ static StructuredString& operator<<(StructuredString& stream, const DefaultValue
 }
 
 static void print_enum_constant_value(
-    StructuredString& output, const NamedTypeSymbol& underlying_type, const EnumConstantSymbol& constant)
+    StructuredString& output, const Type& underlying_type, const EnumConstantSymbol& constant)
 {
-    const auto& canonical_type_symbol = underlying_type.kind() == NamedTypeSymbol::Kind::TypeDef
-        ? underlying_type.as<TypeAliasSymbol>().canonical_type_symbol().as<NamedTypeSymbol>()
-        : underlying_type;
+    const auto& canonical_type_symbol = underlying_type.canonical_type_symbol().as<NamedTypeSymbol>();
     if (canonical_type_symbol.kind() == NamedTypeSymbol::Kind::Primitive) {
         const auto& primitive_type = canonical_type_symbol.as<PrimitiveTypeSymbol>();
         // Avoid the "number exceeds the value range of type" Cangjie compiler error by
