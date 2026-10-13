@@ -777,7 +777,8 @@ static void transform_types()
     }
 }
 
-static void transform_visit() {
+static void transform_visit()
+{
     transform_global_functions();
 
     transform_types();
@@ -791,11 +792,11 @@ static void transform_visit() {
     return element_type.kind() == Type::Kind::VArray ? get_element_type(element_type) : element_type;
 }
 
-    /**
-     * For each function parameter, if the type of the parameter is array, convert
-     * it to pointer to its element
-     */
-    static void decay_parameter_types(NonTypeSymbol& function)
+/**
+ * For each function parameter, if the type of the parameter is array, convert
+ * it to pointer to its element
+ */
+static void decay_parameter_types(NonTypeSymbol& function)
 {
     for (auto& parameter : function.parameters()) {
         auto type = parameter.type().canonical_type();
@@ -805,11 +806,11 @@ static void transform_visit() {
     }
 }
 
-    /**
-     * For each function parameter, if the type of the parameter is array, convert
-     * it to pointer to its element
-     */
-    static void decay_parameter_types()
+/**
+ * For each function parameter, if the type of the parameter is array, convert
+ * it to pointer to its element
+ */
+static void decay_parameter_types()
 {
     auto& universe = Universe::get();
     for (auto& top_level : universe.top_level()) {
