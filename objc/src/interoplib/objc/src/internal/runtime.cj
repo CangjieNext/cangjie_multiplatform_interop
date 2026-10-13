@@ -310,64 +310,28 @@ protected unsafe func getProtocol(protoName: String): NativeObjCProtocol {
     proto
 }
 
-@When[os == "macOS" || os == "iOS"]
-/**
- * Darwin's RTLD_DEFAULT, `((void *) -2)` in <dlfcn.h>.
- */
-private const RTLD_DEFAULT: IntNative = -2
+private let OBJC_MSG_SEND_PTR = CPointer<Unit>(objc_msgSend)
 
-@When[os == "macOS" || os == "iOS"]
-/**
- * Looks up the address of a symbol exported by any image loaded into the process.
- * Throws if the symbol is not found.
- */
-private unsafe func lookupSymbol(name: String): CPointer<Unit> {
-    let cName = LibC.mallocCString(name)
-    let ptr = dlsym(RTLD_DEFAULT, cName)
-    LibC.free(cName)
-    if (ptr.isNull()) {
-        throw IllegalStateException("Objective-C runtime symbol ${name} is not found")
-    }
-    ptr
-}
-
-@When[os == "macOS" || os == "iOS"]
-private let OBJC_MSG_SEND: CPointer<Unit> = unsafe { lookupSymbol("objc_msgSend") }
-
-@When[os == "macOS" || os == "iOS"]
-private let OBJC_MSG_SEND_SUPER: CPointer<Unit> = unsafe { lookupSymbol("objc_msgSendSuper") }
-
-@When[os == "macOS" || os == "iOS"]
-@Frozen
-/**
- * Returns a pointer to objc_msgSend implementation.
- * The result should be cast to proper CFunc<(NativeObjCId, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
- * Note: the address is resolved with dlsym at package initialization: on Apple platforms calls through
- * the address of the `objc_msgSend` foreign func declaration crash at run time.
- */
-protected func objCMsgSend(): CPointer<Unit> {
-    OBJC_MSG_SEND
-}
-
-@When[os == "Linux" || os == "Windows"]
 @Frozen
 /**
  * Returns a pointer to objc_msgSend implementation.
  * The result should be cast to proper CFunc<(NativeObjCId, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
  */
 protected func objCMsgSend(): CPointer<Unit> {
-    return CPointer<Unit>(objc_msgSend)
+    OBJC_MSG_SEND_PTR
 }
+
+@When[os == "macOS" || os == "iOS"]
+private let OBJC_MSG_SEND_SUPER_PTR = CPointer<Unit>(objc_msgSendSuper)
 
 @When[os == "macOS" || os == "iOS"]
 @Frozen
 /**
  * Returns a pointer to objc_msgSendSuper implementation.
  * The result should be cast to proper CFunc<(NativeObjCSuperPtr, NativeObjCSel, ...ArgTypes) -> RetType>(...) type before use.
- * Note: the address is resolved with dlsym at package initialization, see [objCMsgSend].
  */
 protected func objCMsgSendSuper(_: NativeObjCSuperPtr, _: NativeObjCSel): CPointer<Unit> {
-    OBJC_MSG_SEND_SUPER
+    OBJC_MSG_SEND_SUPER_PTR
 }
 
 @When[os == "Linux" || os == "Windows"]
@@ -567,7 +531,6 @@ private unsafe func getObjCSuper(id: NativeObjCId, objCClassName: String): Nativ
     objCSuper
 }
 
-@When[os == "Linux" || os == "Windows"]
 @FastNative
 /**
  * id: NativeObjCId, sel: NativeObjCSel, ...
@@ -580,9 +543,9 @@ foreign func objc_msgSend(): Unit
 
 @When[os == "macOS" || os == "iOS"]
 /**
- * Obtains the address of a symbol. The handle is a pointer, declared as IntNative to pass RTLD_DEFAULT.
+ * super: NativeObjCSuperPtr, sel: NativeObjCSel, ...
  */
-foreign func dlsym(handle: IntNative, symbol: CString): CPointer<Unit>
+foreign func objc_msgSendSuper(): Unit
 
 @FastNative
 /**
