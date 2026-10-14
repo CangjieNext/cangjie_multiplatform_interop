@@ -63,17 +63,20 @@ static void create_package(std::size_t package_index, const toml::Table& config)
         fatal("There are multiple `packages` entries with the same `package-name` value `", package_cangjie_name, '`');
     }
 
-    auto output_path = compute_output_path(name_desc, config, package_cangjie_name);
+    const auto output_path = compute_output_path(name_desc, config, package_cangjie_name);
     auto& package = *new Package(package_cangjie_name, expand_string(output_path));
-    auto& filter = create_filter(package, filters_it->second);
+    const auto& filter = create_filter(package, filters_it->second);
+    bool success = true;
     for (auto& root : roots) {
         if (filter.apply(root.pattern())) {
-            auto success = root.set_package(&package);
-            if (!success) {
-                fatal("The ", root.pattern(), " root is assigned to both ", root.package()->cangjie_name(), " and ",
-                    package_cangjie_name, " packages");
+            if (!root.set_package(&package)) {
+                success = false;
+                std::cerr << "The " << root.pattern() << " root is assigned to both " << root.package()->cangjie_name() << " and " << package_cangjie_name << " packages" << std::endl;
             }
         }
+    }
+    if (!success) {
+        fatal("Every root should be assigned to only one package. See the detailed error message above.");
     }
     package.set_filters(filter);
     packages.insert(package);
@@ -107,16 +110,25 @@ void create_packages()
     }
 
     // Check roots
+    bool success = true;
     for (auto& root : roots) {
         const auto root_package = root.package();
         if (root_package == nullptr) {
-            fatal("No package found for the root ", root.pattern());
+            success = false;
+            std::cerr << "No package found for the root " << root.pattern() << std::endl;
+            continue;
+        }
+        if (!success) {
+            continue;
         }
         if (const auto package_root_filters = root.package()->root_filters(); package_root_filters != nullptr) {
             root_package->set_root_filters(merge_filters(*package_root_filters, root.as_filter()));
         } else {
             root_package->set_root_filters(root.as_filter());
         }
+    }
+    if (!success) {
+        fatal("Every root should have a package. See the detailed error message above.");
     }
 }
 
