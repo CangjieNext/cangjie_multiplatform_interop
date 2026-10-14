@@ -1353,8 +1353,12 @@ bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexc
         return true;
     }
 
+    if (is_marked_clashing()) {
+        return false;
+    }
+
     if (is_method()) {
-        return is_objc_compatible_signature() && !is_marked_clashing();
+        return is_objc_compatible_signature();
     }
 
     if (is_field() || is_property() || is_instance_variable()) {
@@ -1379,7 +1383,7 @@ bool NonTypeSymbol::is_supported(const TypeDeclarationSymbol* owner) const noexc
                 // Current FE fails to process a field or property of an @ObjCMirror class if
                 // the field and its type have the same name (no such problem in non-@ObjCMirror
                 // declarations).  As a workaround, comment out such fields.
-                return name() != type.name() && type.is_objc_compatible() && !is_marked_clashing();
+                return name() != type.name() && type.is_objc_compatible();
             default:
                 assert(false);
                 return false;
