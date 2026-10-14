@@ -877,6 +877,25 @@ static void do_map()
     }
 }
 
+static void mark_clashing()
+{
+    auto& universe = Universe::get();
+    for (auto& top_level : universe.top_level()) {
+        if (top_level.has_name_clash(nullptr)) {
+            top_level.mark_clashing();
+        }
+    }
+    for (auto& type : universe.types()) {
+        if (auto* decl = dynamic_cast<TypeDeclarationSymbol*>(&type)) {
+            for (auto& member : decl->members()) {
+                if (member.has_name_clash(decl)) {
+                    member.mark_clashing();
+                }
+            }
+        }
+    }
+}
+
 void apply_transforms()
 {
     // 1) Replace `instancetype` by the declaring class type.
@@ -896,6 +915,10 @@ void apply_transforms()
     // For each function parameter, if the type of the parameter is array,
     // convert it to pointer to its element
     decay_parameter_types();
+
+    // After all name clashes have been resolved, mark failed ones as clashing
+    // to comment them out in CangjieWriter.
+    mark_clashing();
 }
 
 void apply_mappings()

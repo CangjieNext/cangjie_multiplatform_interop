@@ -730,9 +730,12 @@ constexpr Modifiers ModifierOverride = 1 << 5;
 constexpr Modifiers ModifierOptional = 1 << 6;
 constexpr Modifiers ModifierBitField = 1 << 7;
 
-// Not printed at all to output Cangjie files, ignored by CangjieWriter.  For
-// example, getter method sharing the same name with its property.
+// Should be completely ignored by CangjieWriter.
+// For example, getter method sharing the same name with its property.
 constexpr Modifiers ModifierHidden = 1 << 8;
+// Should be commented out by CangjieWriter.
+// For example, name clashing symbols, for which automatic resolution failed.
+constexpr Modifiers ModifierNameClashing = 1 << 9;
 
 /**
  * A type parameter, when using inside a generic body, can be constrainted by
@@ -1240,6 +1243,16 @@ public:
     void set_hidden() noexcept
     {
         modifiers_ |= ModifierHidden;
+    }
+
+    [[nodiscard]] bool is_marked_clashing() const noexcept
+    {
+        return modifiers_ & ModifierNameClashing;
+    }
+
+    void mark_clashing() noexcept
+    {
+        modifiers_ |= ModifierNameClashing;
     }
 
     [[nodiscard]] ClosureDepthType calculate_reference_level(const TypeDeclarationSymbol& decl) const noexcept;
