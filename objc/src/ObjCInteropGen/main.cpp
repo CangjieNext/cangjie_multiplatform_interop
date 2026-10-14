@@ -130,17 +130,11 @@ int main(int argc, char* argv[])
 
             if (ends_with(arg, ".toml")) {
                 if (config_specified) {
-                    std::cerr << "Multiple .toml files specified" << std::endl;
-                    show_help(argv[0]);
+                    std::cerr << "Multiple .toml files specified\n";
                     return 1;
                 }
-                Config::parse_from_toml_file(std::string(arg));
                 config_specified = true;
-
-                // All paths should now be relative to the config file
-                std::filesystem::path arg_fs = std::filesystem::absolute(arg);
-                assert(arg_fs.has_parent_path());
-                std::filesystem::current_path(arg_fs.parent_path());
+                Config::parse_from_toml_file(std::string(arg));
                 continue;
             }
 
@@ -149,7 +143,6 @@ int main(int argc, char* argv[])
         }
 
         if (!config_specified) {
-            std::cerr << "TOML configuration file not specified" << std::endl;
             show_help(argv[0]);
             return 1;
         }
