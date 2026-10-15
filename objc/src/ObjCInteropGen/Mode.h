@@ -40,6 +40,24 @@ extern enum class Mode {
     return mode == Mode::GENERATE_DEFINITIONS;
 }
 
+extern enum class RootDirMode {
+    // All relative paths are resolved from the current working directory.
+    FROM_PWD,
+
+    // All relative paths are resolved from the directory the root `toml` file is located in.
+    FROM_ROOT_TOML_DIR
+} root_dir_mode;
+
+[[nodiscard]] inline bool resolving_paths_from_pwd() noexcept
+{
+    return root_dir_mode == RootDirMode::FROM_PWD;
+}
+
+[[nodiscard]] inline bool resolving_paths_from_root_toml_dir() noexcept
+{
+    return root_dir_mode == RootDirMode::FROM_ROOT_TOML_DIR;
+}
+
 } // namespace objcgen
 
 #endif // MODE_H

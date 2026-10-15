@@ -10,4 +10,6 @@ namespace objcgen {
 
 Mode mode = Mode::NORMAL;
 
+RootDirMode root_dir_mode = RootDirMode::FROM_PWD;
+
 } // namespace objcgen

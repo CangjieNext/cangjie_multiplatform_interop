@@ -28,9 +28,13 @@ using namespace objcgen;
 static void show_help(const char* executable)
 {
     std::cout << "Usage: " << (executable ? std::filesystem::path(executable).filename().string() : "ObjCInteropGen")
-              << " [-v] config-file.toml\n";
+              << " [-v] [-D<macro>=<value>] [--cd] config-file.toml\n";
     std::cout << "    -v\n";
     std::cout << "        increase logging verbosity level (can be applied multiple times)\n";
+    std::cout << "    -D<macro>=<value>\n";
+    std::cout << "        add macro definition with the following value\n";
+    std::cout << "    --cd\n";
+    std::cout << "        resolve all relative paths from the directory where the passed toml config file is located\n";
 }
 
 static std::optional<std::string_view> get_arg_value(const char* const argv[], int& arg_index, std::string_view name)
@@ -128,13 +132,28 @@ int main(int argc, char* argv[])
                 continue;
             }
 
+            if (arg == "--cd") {
+                root_dir_mode = RootDirMode::FROM_ROOT_TOML_DIR;
+                continue;
+            }
+
             if (ends_with(arg, ".toml")) {
                 if (config_specified) {
-                    std::cerr << "Multiple .toml files specified\n";
+                    std::cerr << "Multiple .toml files specified" << std::endl;
+                    show_help(argv[0]);
                     return 1;
                 }
-                config_specified = true;
                 Config::parse_from_toml_file(std::string(arg));
+                config_specified = true;
+
+                std::filesystem::path arg_fs = std::filesystem::absolute(arg);
+                assert(arg_fs.has_parent_path());
+                const auto& root_toml_dir = arg_fs.parent_path();
+                add_constant("ROOT_TOML_DIR", root_toml_dir.u8string());
+                // If the `--cd` flag is set, all paths should be relative to the config file
+                if (resolving_paths_from_root_toml_dir()) {
+                    std::filesystem::current_path(root_toml_dir);
+                }
                 continue;
             }
 
@@ -143,6 +162,7 @@ int main(int argc, char* argv[])
         }
 
         if (!config_specified) {
+            std::cerr << "TOML configuration file not specified" << std::endl;
             show_help(argv[0]);
             return 1;
         }
