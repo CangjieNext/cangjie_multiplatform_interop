@@ -1209,8 +1209,17 @@ void SourceScanner::visit_impl(const CXCursor& cursor, const CXCursor& parent)
                 type_like_symbol(clang_getCursorType(cursor)).symbol().as<TypeDeclarationSymbol>());
             break;
         case CXCursor_ObjCProtocolRef:
-            // CXCursor_ObjCProtocolRef can mean a @protocol forward declaration (at the top
-            // file level) or a reference to a protocol implemented by the current class,
+            // CXCursor_ObjCProtocolRef can mean a @protocol forward declaration
+            // (at the top file level)
+            if (parent.kind == CXCursor_TranslationUnit || is_on_top_level()) {
+                assert(!current_type());
+                // Protocols are not types, as well as categories.
+                assert(!is_valid(clang_getCursorType(cursor)));
+                visit(cursor, get_type_declaration(cursor, NamedTypeSymbol::Kind::Protocol));
+                break;
+            }
+
+            // Or a reference to a protocol implemented by the current class,
             // category, or protocol declaration.  We only care about the latter case, that
             // is, CXCursor_ObjCProtocolRef inside CXCursor_ObjCInterfaceDecl,
             // CXCursor_ObjCCategoryDecl, or CXCursor_ObjCProtocolDecl.
@@ -1228,9 +1237,11 @@ void SourceScanner::visit_impl(const CXCursor& cursor, const CXCursor& parent)
                     const auto referenced = clang_getCursorReferenced(cursor);
                     assert(is_valid(referenced));
 
-                    auto& base_protocol_to_add = Universe::get()
+                    auto x = String(clang_getCursorSpelling(referenced));
+                    auto base_protocol_to_add_temp = Universe::get()
                                                      .type(TypeDeclarationSymbol::Kind::Protocol,
-                                                         String(clang_getCursorSpelling(referenced)).string_view())
+                                                         x.string_view());
+                    auto& base_protocol_to_add = base_protocol_to_add_temp
                                                      ->as<TypeDeclarationSymbol>();
                     auto base_protocols = type_decl.base_protocols();
                     const bool already_has_base = std::any_of(base_protocols.begin(), base_protocols.end(),
