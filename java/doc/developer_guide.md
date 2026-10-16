@@ -121,7 +121,7 @@ Cangjie-Java 互操作 SDK 构建依赖以下工具：
 
 ### 更多构建选项
 
-`python3 build/build.py build` 命令也支持其它参数设置，具体可通过如下命令来查询：
+`python3 build/build.py build` 命令也支持其他参数设置，具体可通过如下命令来查询：
 
 ```bash
 python3 build/build.py build -h
