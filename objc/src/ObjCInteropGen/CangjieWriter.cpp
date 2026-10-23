@@ -647,6 +647,23 @@ static void write_bases(StructuredString& output, const TypeDeclarationSymbol& d
     write_base_protocols(output, base_protocols.begin(), base_protocols.end(), visible_base_written);
 }
 
+static StructuredString& operator<<(StructuredString& output, StructuredString& (*manipulator)(StructuredString&))
+{
+    return manipulator(output);
+}
+
+static StructuredString& conditional_foreign(StructuredString& output)
+{
+    if (generate_definitions_mode()) {
+        output << push_block_comment;
+    }
+    output << "foreign";
+    if (generate_definitions_mode()) {
+        output << pop_block_comment;
+    }
+    return output;
+}
+
 void TypeDeclarationWriter::write()
 {
     // Mark all classes and interfaces as @ObjC foreign.  Mark structures as @C when
@@ -675,17 +692,17 @@ void TypeDeclarationWriter::write()
     output_ << "public ";
     switch (decl_.kind()) {
         case NamedTypeSymbol::Kind::Protocol:
-            output_ << "foreign interface";
+            output_ << conditional_foreign << " interface";
             break;
         case NamedTypeSymbol::Kind::Struct:
         case NamedTypeSymbol::Kind::Union:
             if (!decl_.is_ctype() && mode == Mode::EXPERIMENTAL) {
-                output_ << "foreign ";
+                output_ << conditional_foreign << ' ';
             }
             output_ << "struct";
             break;
         case NamedTypeSymbol::Kind::Interface:
-            output_ << "open foreign class";
+            output_ << "open " << conditional_foreign << " class";
             break;
         default:
             assert(false);
