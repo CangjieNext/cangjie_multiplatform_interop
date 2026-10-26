@@ -238,7 +238,7 @@ static void diagnose_symbol(const FileLevelSymbol& symbol)
             std::cerr << candidate_package.cangjie_name() << "` package, ";
             if (const auto* package_file = symbol.package_file()) {
                 assert(symbol.package_file());
-                std::cerr << "assigned `" << package_file->output_path().u8string() << '`';
+                std::cerr << "assigned `" << package_file->package().output_path().u8string() << '`';
             } else if (!within_closure_depth && root_or_referenced) {
                 assert(!symbol.package_file());
                 std::cerr << "but has " << SymbolDepthPrinter(symbol)
@@ -478,7 +478,7 @@ void filter_name_clashing_symbols()
 
     // Remove dead
     for (auto& package : Packages::get()) {
-        for (auto& package_file : package) {
+        for (auto& [_, package_file] : package) {
             package_file.erase_symbols_if(
                 [&live_symbols](FileLevelSymbol* symbol) { return live_symbols.count(symbol) == 0; });
         }

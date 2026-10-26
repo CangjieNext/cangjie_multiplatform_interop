@@ -31,16 +31,25 @@ bool RootFilter::set_package(Package* package)
     return true;
 }
 
-[[nodiscard]] const PackageFilter& RootFilter::as_filter() const noexcept
+const PackageFilter& RootFilter::as_filter() const noexcept
 {
     assert(package_);
     return create_filter(*package_, toml::Value(pattern_));
 }
 
-PackageFile::PackageFile(std::string file_name, Package& package)
-    : output_path_(std::filesystem::u8path(package.output_path() + '/' + file_name + ".cj")), package_(&package)
+Package::Package(std::string cangjie_name, std::filesystem::path output_path) noexcept
+    : cangjie_name_(std::move(cangjie_name)), output_path_(std::move(output_path))
 {
-    assert(!file_name.empty());
+}
+
+std::filesystem::path Package::output_path(const std::filesystem::path& output_file_name) const
+{
+    return (output_path_ / output_file_name).concat(".cj");
+}
+
+PackageFile& Package::get_file(std::filesystem::path file_name)
+{
+    return files_.try_emplace(std::move(file_name), *this).first->second;
 }
 
 const Packages& Packages::get() noexcept

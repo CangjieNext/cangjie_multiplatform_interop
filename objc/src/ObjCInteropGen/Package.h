@@ -69,16 +69,12 @@ public:
 };
 
 class PackageFile final {
-    std::filesystem::path output_path_;
     Package* const package_;
     std::vector<FileLevelSymbol*> symbols_;
 
 public:
-    PackageFile(std::string file_name, Package& package);
-
-    [[nodiscard]] const std::filesystem::path& output_path() const noexcept
+    explicit PackageFile(Package& package) noexcept : package_(&package)
     {
-        return output_path_;
     }
 
     [[nodiscard]] Package& package() const noexcept
@@ -113,49 +109,21 @@ public:
     }
 };
 
-using package_file_map_t = std::unordered_map<std::string, PackageFile*>;
-
-class PackageFilesIterator final {
-    package_file_map_t::const_iterator it_;
-
-public:
-    explicit PackageFilesIterator(package_file_map_t::const_iterator it) noexcept : it_(it)
-    {
-    }
-
-    [[nodiscard]] PackageFile& operator*() const noexcept
-    {
-        return *it_->second;
-    }
-
-    PackageFilesIterator& operator++()
-    {
-        ++it_;
-        return *this;
-    }
-
-    friend bool operator!=(const PackageFilesIterator& lhs, const PackageFilesIterator& rhs) noexcept
-    {
-        return lhs.it_ != rhs.it_;
-    }
-};
+using package_file_map_t = std::map<std::filesystem::path, PackageFile>;
 
 // `filters` defines which entities may belong to a package. When `root-filters` is set,
 // only `root-filters` matches become closure roots; filter-only members join the package
 // only when reached via reference closure.
 class Package final : NonCopyable {
     const std::string cangjie_name_;
-    const std::string output_path_;
+    const std::filesystem::path output_path_;
     const PackageFilter* filters_ = nullptr;
     const PackageFilter* root_filters_ = nullptr;
     package_file_map_t files_;
     std::unordered_set<Package*> depends_on_;
 
 public:
-    Package(std::string cangjie_name, std::string output_path)
-        : cangjie_name_(std::move(cangjie_name)), output_path_(std::move(output_path))
-    {
-    }
+    Package(std::string cangjie_name, std::filesystem::path output_path) noexcept;
 
     ~Package() = default;
 
@@ -164,10 +132,12 @@ public:
         return cangjie_name_;
     }
 
-    [[nodiscard]] const std::string& output_path() const noexcept
+    [[nodiscard]] const std::filesystem::path& output_path() const noexcept
     {
         return output_path_;
     }
+
+    [[nodiscard]] std::filesystem::path output_path(const std::filesystem::path& output_file_name) const;
 
     [[nodiscard]] const PackageFilter* filters() const noexcept
     {
@@ -196,12 +166,7 @@ public:
         root_filters_ = &root_filters;
     }
 
-    [[nodiscard]] PackageFile& add_file(std::string file_name)
-    {
-        auto [it, inserted] = files_.try_emplace(file_name, new PackageFile(file_name, *this));
-        assert(inserted);
-        return *it->second;
-    }
+    [[nodiscard]] PackageFile& get_file(std::filesystem::path file_name);
 
     void add_dependency_edge(Package& package)
     {
@@ -209,25 +174,24 @@ public:
         depends_on_.emplace(&package);
     }
 
-    [[nodiscard]] PackageFile* operator[](const std::string& name) const
+    [[nodiscard]] auto begin() const noexcept
     {
-        const auto it = files_.find(name);
-        return it == files_.end() ? nullptr : it->second;
+        return files_.begin();
     }
 
-    [[nodiscard]] PackageFile* operator[](const std::string_view name) const
+    [[nodiscard]] auto begin() noexcept
     {
-        return (*this)[std::string(name)];
+        return files_.begin();
     }
 
-    [[nodiscard]] PackageFilesIterator begin() const noexcept
+    [[nodiscard]] auto end() const noexcept
     {
-        return PackageFilesIterator{files_.begin()};
+        return files_.end();
     }
 
-    [[nodiscard]] PackageFilesIterator end() const noexcept
+    [[nodiscard]] auto end() noexcept
     {
-        return PackageFilesIterator{files_.end()};
+        return files_.end();
     }
 };
 
