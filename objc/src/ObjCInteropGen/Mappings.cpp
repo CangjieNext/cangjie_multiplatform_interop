@@ -29,11 +29,9 @@ struct PrimitiveMapping final : TypeMapping {
         if (type.is(NamedTypeSymbol::Kind::TypeDef)) {
             const auto canonical_type = type.as<TypeAliasSymbol>().canonical_type();
             if (canonical_type.kind() == Type::Kind::Named && canonical_type.symbol().is<PrimitiveTypeSymbol>()) {
-                const auto category = canonical_type.symbol().as<PrimitiveTypeSymbol>().category();
-                if (category == PrimitiveTypeCategory::Unit) {
+                if (canonical_type.is_unit()) {
                     return false;
                 }
-
                 target_type_name = &type.name();
             }
         } else if (type.is(NamedTypeSymbol::Kind::Enum)) {
@@ -68,9 +66,6 @@ private:
 Type PrimitiveMapping::map(const NamedTypeSymbol& type) const
 {
     assert(can_map(type));
-    if (type.is(NamedTypeSymbol::Kind::Enum)) {
-        return map(type.as<EnumDeclarationSymbol>().underlying_type());
-    }
     return Type(type.as<TypeAliasSymbol>().canonical_type().symbol());
 }
 

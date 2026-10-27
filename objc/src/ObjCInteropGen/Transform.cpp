@@ -864,7 +864,7 @@ static void do_map()
         } else if (auto* enum_decl = dynamic_cast<EnumDeclarationSymbol*>(&decl)) {
             if (auto mapped_opt = enum_decl->underlying_type().map()) {
                 auto& mapped_symbol = mapped_opt->symbol().as<NamedTypeSymbol>();
-                enum_decl->set_underlying_type(&mapped_symbol);
+                enum_decl->set_underlying_type(mapped_symbol);
             }
         }
     }
