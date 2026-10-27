@@ -768,9 +768,9 @@ NamedTypeSymbol& EnumDeclarationSymbol::underlying_type() const noexcept
     return *underlying_type_;
 }
 
-void EnumDeclarationSymbol::set_underlying_type(NamedTypeSymbol* underlying_type) noexcept
+void EnumDeclarationSymbol::set_underlying_type(NamedTypeSymbol& underlying_type) noexcept
 {
-    underlying_type_ = underlying_type;
+    underlying_type_ = &underlying_type;
     mapping_ = nullptr;
 }
 
