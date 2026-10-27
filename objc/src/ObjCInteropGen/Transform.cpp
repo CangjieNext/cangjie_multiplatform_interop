@@ -858,15 +858,7 @@ static void do_map()
         do_map(top_level);
     }
     for (auto&& decl : universe.types()) {
-        // Not handled: TypeDeclarationSymbol::bases
-        // Not handled: CategoryDeclarationSymbol::interface
-        if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(&decl)) {
-            for (auto&& member : type->members()) {
-                if (!member.is_property()) {
-                    do_map(member);
-                }
-            }
-        } else if (auto* alias = dynamic_cast<TypeAliasSymbol*>(&decl)) {
+        if (auto* alias = dynamic_cast<TypeAliasSymbol*>(&decl)) {
             if (auto mapped_opt = alias->map()) {
                 alias->set_target(*mapped_opt);
             } else {
@@ -876,6 +868,17 @@ static void do_map()
             if (auto mapped_opt = enum_decl->underlying_type().map()) {
                 auto& mapped_symbol = mapped_opt->symbol().as<NamedTypeSymbol>();
                 enum_decl->set_underlying_type(&mapped_symbol);
+            }
+        }
+    }
+    for (auto&& decl : universe.types()) {
+        // Not handled: TypeDeclarationSymbol::bases
+        // Not handled: CategoryDeclarationSymbol::interface
+        if (auto* type = dynamic_cast<TypeDeclarationSymbol*>(&decl)) {
+            for (auto&& member : type->members()) {
+                if (!member.is_property()) {
+                    do_map(member);
+                }
             }
         }
     }
