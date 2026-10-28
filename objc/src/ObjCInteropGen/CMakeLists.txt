@@ -52,8 +52,6 @@ add_executable(ObjCInteropGen
         Universe.cpp
         Universe.h
         main.cpp
-        Stage.cpp
-        Stage.h
 )
 
 if(LLVM_SRC_DIR AND LLVM_BUILD_DIR)

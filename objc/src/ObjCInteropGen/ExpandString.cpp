@@ -11,7 +11,6 @@
 
 namespace objcgen {
 
-static const std::regex variable_regex(R"(\$(\w+|\{\w+\}))");
 static std::unordered_map<std::string, std::string> variable_map;
 
 template <typename T> T advanced(T it, std::size_t offset)
@@ -30,6 +29,7 @@ std::string expand_string(const std::string_view input)
     auto result = std::string(input);
     std::size_t offset = 0;
 
+    static const std::regex variable_regex(R"(\$(\w+|\{\w+\}))");
     std::smatch match;
     while (std::regex_search(advanced(result.cbegin(), offset), result.cend(), match, variable_regex)) {
         std::string name = match.str(1);

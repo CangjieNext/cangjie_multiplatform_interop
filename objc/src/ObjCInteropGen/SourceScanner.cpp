@@ -453,8 +453,8 @@ template <CXTypeKind type_kind> Type SourceScanner::get_named_type(const CXType&
                     target.set_nullability(Nullability::Nonnull);
                 }
             } else if (const auto* target_as_alias = dynamic_cast<const TypeAliasSymbol*>(&target_symbol);
-                       target_as_alias && target.nullability() == Nullability::Nullable &&
-                       target_as_alias->target().nullability() == Nullability::Nullable) {
+                target_as_alias && target.nullability() == Nullability::Nullable &&
+                target_as_alias->target().nullability() == Nullability::Nullable) {
                 target.set_nullability(Nullability::Nonnull);
             }
             const auto* target_as_named = dynamic_cast<const NamedTypeSymbol*>(&target_symbol);

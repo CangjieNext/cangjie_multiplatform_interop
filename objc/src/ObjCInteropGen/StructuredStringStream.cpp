@@ -34,7 +34,7 @@ void StructuredStringRenderer::render(std::ostream& out, const StructuredString&
     size_t block_comment_depth = 0;
     bool at_line_start = true;
 
-    const auto emit_line_prefix = [&] {
+    const auto emit_line_prefix = [&out, &indent_level, &line_comment_depth, &at_line_start] {
         if (!at_line_start) {
             return;
         }

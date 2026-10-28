@@ -46,27 +46,6 @@ private:
 enum class ReferenceKind { None, Likely, True };
 } // namespace
 
-[[nodiscard]] static bool is_root(const Package& package, const FileLevelSymbol& symbol) noexcept
-{
-    const auto& name = symbol.objc_name();
-
-    // When `root-filters` is present, only those matches become closure roots.
-    if (const auto* filter = package.root_filters()) {
-        return filter->apply(name);
-    }
-    // If there are global roots, other filter properties cannot act as roots.
-    if (!roots.empty()) {
-        return false;
-    }
-
-    // Otherwise, other filter properties act as roots.
-    if (const auto* filter = package.filters(); filter && filter->apply(name)) {
-        return true;
-    }
-
-    return false;
-}
-
 [[nodiscard]] static bool matches_some_filter(const Package& package, const FileLevelSymbol& symbol) noexcept
 {
     const auto& name = symbol.objc_name();
@@ -87,8 +66,8 @@ static void set_package(FileLevelSymbol& symbol)
     // If not set, the output Cangjie package will be controlled by the packages that reference this symbol.
     bool symbol_matches_some_filter = false;
 
-    for (auto&& package : packages) {
-        if (is_root(package, symbol) && symbol.output_status() != OutputStatus::Root) {
+    for (auto&& package : Packages::get()) {
+        if (package.is_root(symbol) && symbol.output_status() != OutputStatus::Root) {
             symbol.mark_root();
         }
 
@@ -433,7 +412,7 @@ static void symbol_references_to_packages()
     return true;
 }
 
-bool mark_package()
+bool MarkPackage::mark_package()
 {
     mark_roots();
     add_all_symbol_references();
@@ -442,7 +421,7 @@ bool mark_package()
     return register_symbols_in_declaration_order();
 }
 
-void filter_name_clashing_symbols()
+void MarkPackage::filter_name_clashing_symbols()
 {
     std::unordered_set<FileLevelSymbol*> live_symbols;
     std::deque<FileLevelSymbol*> pending;
@@ -477,7 +456,7 @@ void filter_name_clashing_symbols()
     }
 
     // Remove dead
-    for (auto& package : packages) {
+    for (auto& package : Packages::get()) {
         for (auto& package_file : package) {
             package_file.erase_symbols_if(
                 [&live_symbols](FileLevelSymbol* symbol) { return live_symbols.count(symbol) == 0; });
