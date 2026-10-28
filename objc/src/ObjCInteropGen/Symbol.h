@@ -801,7 +801,7 @@ private:
 
 class BaseProtocolRef final : public std::reference_wrapper<TypeDeclarationSymbol> {
 public:
-    BaseProtocolRef(TypeDeclarationSymbol& protocol) : std::reference_wrapper<TypeDeclarationSymbol>(protocol)
+    explicit BaseProtocolRef(TypeDeclarationSymbol& protocol) : std::reference_wrapper<TypeDeclarationSymbol>(protocol)
     {
     }
 

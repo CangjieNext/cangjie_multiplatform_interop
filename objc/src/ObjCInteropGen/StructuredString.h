@@ -17,7 +17,6 @@
 namespace objcgen {
 
 class FileLevelSymbol;
-struct StructuredStringRenderer;
 
 /** Manipulator tags for StructuredString operator<<. */
 struct PushLineCommentTag {};
