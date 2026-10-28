@@ -14,8 +14,8 @@
 
 namespace objcgen {
 
-Packages packages;
-Roots roots;
+static Packages packages;
+static Roots roots;
 
 const std::string& PackageFilter::package_name() const noexcept
 {
@@ -41,6 +41,32 @@ PackageFile::PackageFile(std::string file_name, Package& package)
     : output_path_(std::filesystem::u8path(package.output_path() + '/' + file_name + ".cj")), package_(&package)
 {
     assert(!file_name.empty());
+}
+
+bool Package::is_root(const FileLevelSymbol& symbol) const noexcept
+{
+    const auto& name = symbol.objc_name();
+
+    // When `root-filters` is present, only those matches become closure roots.
+    if (const auto* filter = root_filters()) {
+        return filter->apply(name);
+    }
+    // If there are global roots, other filter properties cannot act as roots.
+    if (!roots.empty()) {
+        return false;
+    }
+
+    // Otherwise, other filter properties act as roots.
+    if (const auto* filter = filters(); filter && filter->apply(name)) {
+        return true;
+    }
+
+    return false;
+}
+
+const Packages& Packages::get() noexcept
+{
+    return packages;
 }
 
 static void create_package(std::size_t package_index, const toml::Table& config)
@@ -96,9 +122,9 @@ void create_packages()
     }
 
     // Create packages
-    if (const auto* packages = Config::find("packages")) {
+    if (const auto* package_entries = Config::find("packages")) {
         std::size_t i = 0;
-        for (auto&& package_any : packages->as<toml::Array>()) {
+        for (auto&& package_any : package_entries->as<toml::Array>()) {
             if (!package_any.is<toml::Table>()) {
                 fatal("`packages` entry #", i, " is not a TOML table");
             }

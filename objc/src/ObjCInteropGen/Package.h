@@ -204,6 +204,8 @@ public:
         depends_on_.emplace(&package);
     }
 
+    [[nodiscard]] bool is_root(const FileLevelSymbol& symbol) const noexcept;
+
     [[nodiscard]] PackageFile* operator[](const std::string& name) const
     {
         const auto it = files_.find(name);
@@ -255,6 +257,8 @@ public:
 
 class Packages final {
 public:
+    [[nodiscard]] static const Packages& get() noexcept;
+
     void insert(Package& package)
     {
         const auto& cangjie_name = package.cangjie_name();
@@ -291,8 +295,6 @@ public:
 private:
     package_map_t by_cangjie_name_;
 };
-
-extern Packages packages;
 
 void create_packages();
 
@@ -335,8 +337,6 @@ public:
 private:
     std::vector<RootFilter> roots;
 };
-
-extern Roots roots;
 
 } // namespace objcgen
 

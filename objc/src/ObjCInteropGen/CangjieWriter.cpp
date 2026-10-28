@@ -789,6 +789,7 @@ static void write_enum_declaration(StructuredString& output, const EnumDeclarati
 
 void write_cangjie()
 {
+    const auto& packages = Packages::get();
     std::uint64_t generated_files = 0;
     for (auto&& package : packages) {
         for (auto&& package_file : package) {
