@@ -36,37 +36,15 @@ static void show_help(const char* executable)
     std::cout << "        resolve all relative paths from the directory where the passed toml config file is located\n";
 }
 
-[[nodiscard]] static std::optional<std::string_view> get_arg_value(
-    const char* const*& p_arg, std::string_view arg, std::string_view name)
+[[nodiscard]] bool parse_macro_definition(const char* const argv[], int& arg_index)
 {
-    if (starts_with(arg, name)) {
-        auto name_size = name.size();
-        if (arg.size() == name_size) {
-            return ++p_arg ? std::string_view(*p_arg) : std::string_view();
-        }
-        if (arg[name_size] == '=') {
-            return arg.substr(name_size + 1);
-        }
-    }
-    return std::nullopt;
-}
-
-struct MacroValue {
-    const std::string_view macro;
-    const std::string_view value;
-};
-
-[[nodiscard]] static std::optional<MacroValue> get_macro_value(const char* const*& p_arg, std::string_view arg)
-{
-    if (!starts_with(arg, "-D")) {
-        return std::nullopt;
-    }
+    std::string_view arg = argv[arg_index];
     std::string_view definition;
     if (arg.length() == 2) {
-        if (++p_arg) {
-            definition = *p_arg;
+        if (argv[++arg_index]) {
+            definition = argv[arg_index];
         } else {
-            return MacroValue();
+            return false;
         }
     } else {
         definition = arg.substr(2);
@@ -74,10 +52,33 @@ struct MacroValue {
 
     const auto equals = definition.find('=');
     if (equals == std::string_view::npos) {
-        return MacroValue();
+        return false;
     }
 
-    return MacroValue{definition.substr(0, equals), definition.substr(equals + 1)};
+    const std::string_view macro = definition.substr(0, equals);
+    const std::string_view value = definition.substr(equals + 1);
+    add_constant(macro, value);
+    return true;
+}
+
+static std::optional<std::string_view> get_arg_value(const char* const argv[], int& arg_index, std::string_view name)
+{
+    std::string_view arg = argv[arg_index];
+    if (starts_with(arg, name)) {
+        auto name_size = name.size();
+        if (arg.size() == name_size) {
+            auto next = argv[arg_index + 1];
+            if (!next) {
+                return std::string_view();
+            }
+            ++arg_index;
+            return next;
+        }
+        if (arg[name_size] == '=') {
+            return arg.substr(name_size + 1);
+        }
+    }
+    return std::nullopt;
 }
 
 int main(int argc, char* argv[])
@@ -100,31 +101,24 @@ int main(int argc, char* argv[])
 
         std::size_t verbosityVal = 0;
         bool config_specified = false;
-        for (const char* const* p_arg = &argv[1]; *p_arg; ++p_arg) {
-            std::string_view arg = *p_arg;
+        for (int i = 1; i < argc; i++) {
+            std::string_view arg = argv[i];
             if (starts_with(arg, "-v")) {
                 verbosityVal += arg.length() - 1;
                 verbosity = static_cast<LogLevel>(verbosityVal);
                 continue;
             }
 
-            auto macro_value = get_macro_value(p_arg, arg);
-            if (macro_value) {
-                if (macro_value->macro.empty()) {
-                    std::cerr << "Macro definition of the <macro>=<value> form is expected\n";
+            if (starts_with(arg, "-D")) {
+                if (!parse_macro_definition(argv, i)) {
+                    std::cerr << "Macro definition of the <macro>=<value> form is expected" << std::endl;
                     show_help(argv[0]);
                     return 1;
                 }
-                add_constant(macro_value->macro, macro_value->value);
                 continue;
             }
 
-            if (arg == "--generate-definitions") {
-                mode = Mode::GENERATE_DEFINITIONS;
-                continue;
-            }
-
-            auto mode_string = get_arg_value(p_arg, arg, "--mode");
+            auto mode_string = get_arg_value(argv, i, "--mode");
             if (mode_string) {
                 if (mode_string == "normal") {
                     mode = Mode::NORMAL;
@@ -184,7 +178,7 @@ int main(int argc, char* argv[])
         create_packages();
 
         stage = "Filling Cangjie packages";
-        if (!MarkPackage::mark_package()) {
+        if (!mark_package()) {
             return 1;
         }
 
@@ -193,7 +187,7 @@ int main(int argc, char* argv[])
 
         stage = "Applying mappings";
         apply_mappings();
-        MarkPackage::filter_name_clashing_symbols();
+        filter_name_clashing_symbols();
 
         stage = "Checking sources";
         check_marked_symbols();

@@ -209,8 +209,6 @@ public:
         depends_on_.emplace(&package);
     }
 
-    [[nodiscard]] bool is_root(const FileLevelSymbol& symbol) const noexcept;
-
     [[nodiscard]] PackageFile* operator[](const std::string& name) const
     {
         const auto it = files_.find(name);
@@ -305,6 +303,8 @@ void create_packages();
 
 class Roots final {
 public:
+    [[nodiscard]] static const Roots& get() noexcept;
+
     void register_from_value(std::string value)
     {
         roots.emplace_back(std::move(value));

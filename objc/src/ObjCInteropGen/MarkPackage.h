@@ -5,19 +5,14 @@
 // See https://cangjie-lang.cn/pages/LICENSE for license information.
 
 #pragma once
-#ifndef MARKPACKAGE_H
-#define MARKPACKAGE_H
+#ifndef MARKSCOPE_H
+#define MARKSCOPE_H
 
 namespace objcgen {
 
-struct MarkPackage {
-    MarkPackage() = delete;
-
-    [[nodiscard]] static bool mark_package();
-
-    static void filter_name_clashing_symbols();
-};
+bool mark_package();
+void filter_name_clashing_symbols();
 
 } // namespace objcgen
 
-#endif // MARKPACKAGE_H
+#endif // MARKSCOPE_H

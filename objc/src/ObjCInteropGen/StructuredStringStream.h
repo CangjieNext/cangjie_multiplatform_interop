@@ -8,9 +8,17 @@
 #ifndef STRUCTUREDSTRINGSTREAM_H
 #define STRUCTUREDSTRINGSTREAM_H
 
-#include "Package.h"
+#include <functional>
+#include <iosfwd>
+#include <set>
+#include <sstream>
+#include <string>
+
+#include "StructuredString.h"
 
 namespace objcgen {
+
+class Package;
 
 void render(std::ostream& out, const StructuredString& structured,
     const std::function<void(const FileLevelSymbol&)>* on_reference = nullptr);

@@ -43,27 +43,6 @@ PackageFile::PackageFile(std::string file_name, Package& package)
     assert(!file_name.empty());
 }
 
-bool Package::is_root(const FileLevelSymbol& symbol) const noexcept
-{
-    const auto& name = symbol.objc_name();
-
-    // When `root-filters` is present, only those matches become closure roots.
-    if (const auto* filter = root_filters()) {
-        return filter->apply(name);
-    }
-    // If there are global roots, other filter properties cannot act as roots.
-    if (!roots.empty()) {
-        return false;
-    }
-
-    // Otherwise, other filter properties act as roots.
-    if (const auto* filter = filters(); filter && filter->apply(name)) {
-        return true;
-    }
-
-    return false;
-}
-
 const Packages& Packages::get() noexcept
 {
     return packages;
@@ -157,6 +136,11 @@ void create_packages()
     if (!success) {
         fatal("Every root should have a package. See the detailed error message above.");
     }
+}
+
+const Roots& Roots::get() noexcept
+{
+    return objcgen::roots;
 }
 
 } // namespace objcgen
