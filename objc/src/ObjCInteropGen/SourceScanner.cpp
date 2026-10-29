@@ -521,7 +521,7 @@ template <CXTypeKind type_kind> Type SourceScanner::get_named_type(const CXType&
     return Type(*symbol, nullability);
 }
 
-[[nodiscard]] static TypeDeclarationSymbol& get_type_declaration(const CXCursor& cursor, NamedTypeSymbol::Kind kind)
+static TypeDeclarationSymbol& register_type_declaration(const CXCursor& cursor, NamedTypeSymbol::Kind kind)
 {
     auto& universe = Universe::get();
     String name(clang_getCursorSpelling(cursor));
@@ -541,7 +541,7 @@ template <CXTypeKind type_kind> Type SourceScanner::get_named_type(const CXType&
     assert(i < clang_Type_getNumObjCProtocolRefs(objc_object_type));
     auto protocol_decl = clang_Type_getObjCProtocolDecl(objc_object_type, i);
     assert(protocol_decl.kind == CXCursor_ObjCProtocolDecl);
-    return get_type_declaration(protocol_decl, NamedTypeSymbol::Kind::Protocol);
+    return register_type_declaration(protocol_decl, NamedTypeSymbol::Kind::Protocol);
 }
 
 struct UndecorateResult {
@@ -1134,13 +1134,13 @@ void SourceScanner::visit_impl(const CXCursor& cursor, const CXCursor& parent)
             assert(!is_valid(clang_getCursorType(cursor)));
 
             assert(is_defining(cursor));
-            visit(cursor, get_type_declaration(cursor, NamedTypeSymbol::Kind::Protocol));
+            visit(cursor, register_type_declaration(cursor, NamedTypeSymbol::Kind::Protocol));
             break;
         case CXCursor_ObjCInterfaceDecl: {
             assert(!current_type());
             assert(is_on_top_level());
             assert(is_defining(clang_getCursorType(cursor), cursor));
-            visit(cursor, get_type_declaration(cursor, NamedTypeSymbol::Kind::Interface));
+            visit(cursor, register_type_declaration(cursor, NamedTypeSymbol::Kind::Interface));
             break;
         }
         case CXCursor_TemplateTypeParameter: {
@@ -1176,7 +1176,7 @@ void SourceScanner::visit_impl(const CXCursor& cursor, const CXCursor& parent)
             assert(!clang_Cursor_isNull(interface_cursor));
             visit(cursor,
                 *new CategoryDeclarationSymbol(as_string(clang_getCursorSpelling(cursor)),
-                    get_type_declaration(interface_cursor, NamedTypeSymbol::Kind::Interface)));
+                    register_type_declaration(interface_cursor, NamedTypeSymbol::Kind::Interface)));
             break;
         }
         case CXCursor_StructDecl:
@@ -1218,11 +1218,11 @@ void SourceScanner::visit_impl(const CXCursor& cursor, const CXCursor& parent)
         case CXCursor_ObjCProtocolRef:
             // CXCursor_ObjCProtocolRef can mean a @protocol forward declaration
             // (at the top file level)
-            if (parent.kind == CXCursor_TranslationUnit || is_on_top_level()) {
-                assert(!current_type());
+            if (parent.kind == CXCursor_TranslationUnit) {
+                assert(is_on_top_level());
                 // Protocols are not types, as well as categories.
                 assert(!is_valid(clang_getCursorType(cursor)));
-                visit(cursor, get_type_declaration(cursor, NamedTypeSymbol::Kind::Protocol));
+                register_type_declaration(cursor, NamedTypeSymbol::Kind::Protocol);
                 break;
             }
 
