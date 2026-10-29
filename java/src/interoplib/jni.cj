@@ -409,7 +409,7 @@ protected struct JNINativeInterface_ {
     var NewWeakGlobalRef = CFunc<(JNIEnv_ptr, jobject) -> jweak>(CPointer<Unit>())
     var DeleteWeakGlobalRef = CFunc<(JNIEnv_ptr, jweak) -> Unit>(CPointer<Unit>())
 
-    private var ExceptionCheck = CPointer<Unit>()
+    protected var ExceptionCheck = CFunc<(env: JNIEnv_ptr) -> jboolean>(CPointer<Unit>())
 
     private var NewDirectByteBuffer = CPointer<Unit>()
     private var GetDirectBufferAddress = CPointer<Unit>()
