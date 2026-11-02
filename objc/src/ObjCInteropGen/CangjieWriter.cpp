@@ -787,7 +787,14 @@ static void write_enum_declaration(StructuredString& output, const EnumDeclarati
     return file_output.str();
 }
 
-class PackageFileWriter {
+struct PathHash final {
+    [[nodiscard]] size_t operator()(const std::filesystem::path& p) const noexcept
+    {
+        return std::filesystem::hash_value(p);
+    }
+};
+
+class PackageFileWriter final {
 public:
     explicit PackageFileWriter(const Package& package);
 
@@ -795,7 +802,7 @@ public:
 
 private:
     const Package& package_;
-    std::unordered_set<std::filesystem::path> written_files_;
+    std::unordered_set<std::filesystem::path, PathHash> written_files_;
     std::filesystem::path file_path_;
 
     [[nodiscard]] bool was_written_already(const std::filesystem::path& file_name);
@@ -831,6 +838,7 @@ void PackageFileWriter::write_file(const std::filesystem::path& file_name, const
 {
     if (was_written_already(file_name)) {
         std::ifstream existing(file_path_);
+        // Skip writing when unchanged to preserve the file modification time.
         if (std::string(std::istreambuf_iterator(existing), std::istreambuf_iterator<char>()) != file_content) {
             std::ofstream(file_path_) << file_content;
         }
