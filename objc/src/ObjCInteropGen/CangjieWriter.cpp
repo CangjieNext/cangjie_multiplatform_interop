@@ -794,67 +794,16 @@ struct PathHash final {
     }
 };
 
-class PackageFileWriter final {
-public:
-    explicit PackageFileWriter(const Package& package);
-
-    void write_file(const std::filesystem::path& file_name, const std::string& file_content);
-
-private:
-    const Package& package_;
-    std::unordered_set<std::filesystem::path, PathHash> written_files_;
-    std::filesystem::path file_path_;
-
-    [[nodiscard]] bool was_written_already(const std::filesystem::path& file_name);
-};
-
-PackageFileWriter::PackageFileWriter(const Package& package) : package_(package)
-{
-    create_directories(package.output_path());
-}
-
-[[nodiscard]] bool PackageFileWriter::was_written_already(const std::filesystem::path& file_name)
-{
-    file_path_ = package_.output_path(file_name);
-    if (!exists(file_path_)) {
-        return false;
-    }
-    if (written_files_.emplace(canonical(file_path_)).second) {
-        return true;
-    }
-    for (auto new_name = file_name;;) {
-        new_name += '_';
-        file_path_ = package_.output_path(new_name);
-        if (!exists(file_path_)) {
-            return false;
-        }
-        if (written_files_.emplace(canonical(file_path_)).second) {
-            return true;
-        }
-    }
-}
-
-void PackageFileWriter::write_file(const std::filesystem::path& file_name, const std::string& file_content)
-{
-    if (was_written_already(file_name)) {
-        std::ifstream existing(file_path_);
-        // Skip writing when unchanged to preserve the file modification time.
-        if (std::string(std::istreambuf_iterator(existing), std::istreambuf_iterator<char>()) != file_content) {
-            std::ofstream(file_path_) << file_content;
-        }
-    } else {
-        assert(written_files_.find(file_path_) == written_files_.end());
-        std::ofstream(file_path_) << file_content;
-        written_files_.emplace(canonical(file_path_));
-    }
-}
-
 void write_cangjie()
 {
     const auto& packages = Packages::get();
     std::uint64_t generated_files = 0;
     for (auto&& package : packages) {
-        PackageFileWriter package_file_writer(package);
+        // List of canonical paths of package files written during this session for this
+        // package.
+        std::unordered_set<std::filesystem::path, PathHash> written_files;
+
+        create_directories(package.output_path());
         for (auto&& [file_name, package_file] : package) {
             assert(&package_file.package() == &package);
             if (package_file.is_empty()) {
@@ -881,8 +830,29 @@ void write_cangjie()
             StructuredStringStream rendered(package);
             rendered << output;
 
-            package_file_writer.write_file(
-                file_name, assemble_file_content(package, rendered.imports(), rendered.str()));
+            const auto file_content = assemble_file_content(package, rendered.imports(), rendered.str());
+
+            for (auto actual_file_name = file_name;; actual_file_name += '_') {
+                auto file_path = package.output_path(actual_file_name);
+                if (!exists(file_path)) {
+                    std::ofstream(file_path) << file_content;
+
+                    // We have to update written_files_ after the file is created, because
+                    // std::filesystem::canonical is applicable to existing files only.
+                    assert(written_files.find(file_path) == written_files.end());
+                    written_files.emplace(canonical(file_path));
+                    break;
+                }
+                if (written_files.emplace(canonical(file_path)).second) {
+                    std::ifstream existing(file_path);
+                    // Skip writing when unchanged to preserve the file modification time.
+                    if (std::string(std::istreambuf_iterator(existing), std::istreambuf_iterator<char>()) !=
+                        file_content) {
+                        std::ofstream(file_path) << file_content;
+                    }
+                    break;
+                }
+            }
 
             generated_files++;
         }
