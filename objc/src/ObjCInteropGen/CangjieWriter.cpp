@@ -187,26 +187,39 @@ static void write_foreign_name(StructuredString& output, const NonTypeSymbol& me
     }
 }
 
+[[nodiscard]] static bool same_function_like_types(const Type& type1, const Type& type2) noexcept
+{
+    auto kind = type1.kind();
+    assert(kind == Type::Kind::Function || kind == Type::Kind::Block);
+    if (type2.kind() != kind) {
+        return false;
+    }
+    const auto& parameters1 = type1.parameters();
+    const auto& parameters2 = type2.parameters();
+    return std::equal(parameters1.begin(), parameters1.end(), parameters2.begin(), parameters2.end(),
+        [](const auto& param1, const auto& param2) { return same_types(param1, param2); });
+}
+
+[[nodiscard]] static Type get_underlying_type(const Type& type) noexcept
+{
+    const auto* named_symbol = dynamic_cast<const NamedTypeSymbol*>(&type.symbol());
+    if (named_symbol) {
+        switch (named_symbol->kind()) {
+            case NamedTypeSymbol::Kind::TypeDef:
+                return named_symbol->as<TypeAliasSymbol>().canonical_type();
+            case NamedTypeSymbol::Kind::Enum:
+                return Type(named_symbol->as<EnumDeclarationSymbol>().underlying_type());
+            default:
+                break;
+        }
+    }
+    return type;
+}
+
 [[nodiscard]] static bool same_types(const Type& type1, const Type& type2) noexcept
 {
-    const auto* symbol1 = &type1.symbol();
-    const auto* symbol2 = &type2.symbol();
-    const auto* alias = dynamic_cast<const TypeAliasSymbol*>(symbol1);
-    Type t1;
-    if (alias) {
-        t1 = alias->canonical_type();
-        symbol1 = &t1.symbol();
-    } else {
-        t1 = type1;
-    }
-    alias = dynamic_cast<const TypeAliasSymbol*>(symbol2);
-    Type t2;
-    if (alias) {
-        t2 = alias->canonical_type();
-        symbol2 = &t2.symbol();
-    } else {
-        t2 = type2;
-    }
+    auto t1 = get_underlying_type(type1);
+    auto t2 = get_underlying_type(type2);
 
     if (t1.is_cj_direct_option() != t2.is_cj_direct_option()) {
         return false;
@@ -220,15 +233,9 @@ static void write_foreign_name(StructuredString& output, const NonTypeSymbol& me
             assert(t1.parameters().size() == 1);
             assert(t2.parameters().size() == 1);
             return same_types(*t1.parameters().begin(), *t2.parameters().begin());
-        case Type::Kind::Function: {
-            if (t2.kind() != Type::Kind::Function) {
-                return false;
-            }
-            const auto& parameters1 = t1.parameters();
-            const auto& parameters2 = t2.parameters();
-            return std::equal(parameters1.begin(), parameters1.end(), parameters2.begin(), parameters2.end(),
-                [](const auto& param1, const auto& param2) { return same_types(param1, param2); });
-        }
+        case Type::Kind::Function:
+        case Type::Kind::Block:
+            return same_function_like_types(t1, t2);
         case Type::Kind::VArray:
             return t2.kind() == Type::Kind::VArray && t1.varray_size() == t2.varray_size() &&
                 same_types(t1.varray_element_type(), t2.varray_element_type());
@@ -238,7 +245,7 @@ static void write_foreign_name(StructuredString& output, const NonTypeSymbol& me
             }
             return t2.kind() == Type::Kind::Named && &t1.actual_protocol() == &t2.symbol();
         default:
-            return symbol1 == symbol2;
+            return &t1.symbol() == &t2.symbol();
     }
 }
 

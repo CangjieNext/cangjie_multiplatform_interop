@@ -385,7 +385,7 @@ bool Type::contains_pointer_or_func() const noexcept
     }
 }
 
-Type Type::canonical_type() const
+Type Type::canonical_type() const noexcept
 {
     const auto* alias = dynamic_cast<const TypeAliasSymbol*>(symbol_);
     auto result = alias ? alias->canonical_type() : *this;
