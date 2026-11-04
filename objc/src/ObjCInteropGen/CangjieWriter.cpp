@@ -803,12 +803,15 @@ void write_cangjie()
         // package.
         std::unordered_set<std::filesystem::path, PathHash> written_files;
 
-        create_directories(package.output_path());
+        const auto& package_output_dir = package.output_path();
         for (auto&& [file_name, package_file] : package) {
             assert(&package_file.package() == &package);
             if (package_file.is_empty()) {
                 continue;
             }
+
+            // Create the output directory only when it is not empty
+            create_directories(package_output_dir);
 
             StructuredString output;
 
