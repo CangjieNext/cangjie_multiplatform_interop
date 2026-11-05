@@ -191,9 +191,7 @@ void FileLevelSymbol::register_for_package(Package& package)
     assert(!output_file_);
     auto* input_file = defining_file();
     assert(input_file);
-    const auto file_name = input_file->path().stem().u8string();
-    auto* file = package[file_name];
-    output_file_ = file ? file : &package.add_file(file_name);
+    output_file_ = &package.get_file(input_file->path().stem());
 }
 
 bool FileLevelSymbol::add_candidate_package(Package& package)

@@ -787,19 +787,32 @@ static void write_enum_declaration(StructuredString& output, const EnumDeclarati
     return file_output.str();
 }
 
+struct PathHash final {
+    [[nodiscard]] size_t operator()(const std::filesystem::path& p) const noexcept
+    {
+        return std::filesystem::hash_value(p);
+    }
+};
+
 void write_cangjie()
 {
     const auto& packages = Packages::get();
     std::uint64_t generated_files = 0;
     for (auto&& package : packages) {
-        for (auto&& package_file : package) {
+        // List of canonical paths of package files written during this session for this
+        // package.
+        std::unordered_set<std::filesystem::path, PathHash> written_files;
+
+        const auto& package_output_dir = package.output_path();
+        for (auto&& [file_name, package_file] : package) {
             assert(&package_file.package() == &package);
             if (package_file.is_empty()) {
                 continue;
             }
 
-            const auto& file_path = package_file.output_path();
-            create_directories(file_path.parent_path());
+            // Create the output directory only when it is not empty
+            create_directories(package_output_dir);
+
             StructuredString output;
 
             for (auto* symbol : package_file) {
@@ -822,14 +835,26 @@ void write_cangjie()
 
             const auto file_content = assemble_file_content(package, rendered.imports(), rendered.str());
 
-            std::string existing_content;
-            if (std::ifstream existing(file_path); existing) {
-                existing_content.assign(std::istreambuf_iterator(existing), std::istreambuf_iterator<char>());
-            }
-            // Skip writing when unchanged to preserve the file modification time.
-            if (existing_content != file_content) {
-                std::ofstream file_output(file_path);
-                file_output << file_content;
+            for (auto actual_file_name = file_name;; actual_file_name += '_') {
+                auto file_path = package.output_path(actual_file_name);
+                if (!exists(file_path)) {
+                    std::ofstream(file_path) << file_content;
+
+                    // We have to update written_files_ after the file is created, because
+                    // std::filesystem::canonical is applicable to existing files only.
+                    assert(written_files.find(file_path) == written_files.end());
+                    written_files.emplace(canonical(file_path));
+                    break;
+                }
+                if (written_files.emplace(canonical(file_path)).second) {
+                    std::ifstream existing(file_path);
+                    // Skip writing when unchanged to preserve the file modification time.
+                    if (std::string(std::istreambuf_iterator(existing), std::istreambuf_iterator<char>()) !=
+                        file_content) {
+                        std::ofstream(file_path) << file_content;
+                    }
+                    break;
+                }
             }
 
             generated_files++;
