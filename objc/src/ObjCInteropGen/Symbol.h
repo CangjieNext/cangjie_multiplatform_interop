@@ -426,7 +426,7 @@ public:
      * the canonical type for Alias will be T, and the canonical type for Alias2
      * will be Option<T>.
      */
-    [[nodiscard]] Type canonical_type() const;
+    [[nodiscard]] Type canonical_type() const noexcept;
 
     /**
      * Return the canonical type for `this`, in the sense of the
@@ -983,7 +983,7 @@ public:
      * the canonical type for Alias will be T, and the canonical type for Alias2
      * will be Option<T>.
      */
-    [[nodiscard]] Type canonical_type() const
+    [[nodiscard]] Type canonical_type() const noexcept
     {
         return target_.canonical_type();
     }
