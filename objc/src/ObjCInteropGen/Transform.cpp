@@ -603,6 +603,13 @@ static void transform_base_derived(const TypeDeclarationSymbol& base, TypeDeclar
     auto base_members = base.members();
     auto derived_members = derived.members();
     for (auto& derived_member : derived_members) {
+        // The NSObject Cangjie class has a built-in non-open method 'toString'.
+        // Members of this name will conflict with it.
+        constexpr std::string_view to_string = "toString";
+        if (derived_member.name() == to_string) {
+            derived_member.rename_uniquely_to(std::string(to_string) + '_', derived);
+        }
+
         if (derived_member.is_property()) {
             for (const auto& base_member : base_members) {
                 if (base_member.is_property() || base_member.is_member_method()) {
@@ -912,7 +919,7 @@ void apply_transforms()
     //    methods.
     // 4) Set ModifierOverride where needed.
     // 5) Resolve class/protocol name clashes.
-    // 6) Resolve propery/ivar name clashes.
+    // 6) Resolve property/ivar name clashes.
     // 7) Resolve static/instance name clashes.
     // 8) Resolve parameter name clashes.
     // 9) Rename methods in accordance with their Objective-C selectors.
